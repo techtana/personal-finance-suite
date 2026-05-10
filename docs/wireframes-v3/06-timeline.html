@@ -1,0 +1,195 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>v3 · Timeline</title>
+<link rel="stylesheet" href="wf.css"></head><body>
+<div class="wf-bar">
+  <span class="wf-bar-label">Finance Suite — WF v3 Reimagined</span>
+  <a href="index.html" class="wf-link">← Index</a>
+  <a href="01-dashboard.html" class="wf-link">01 Dashboard</a>
+  <a href="02-transactions.html" class="wf-link">02 Transactions</a>
+  <a href="03-equity.html" class="wf-link">03 Equity</a>
+  <a href="04-accounts.html" class="wf-link">04 Accounts</a>
+  <a href="05-loans.html" class="wf-link">05 Loans</a>
+  <a href="06-timeline.html" class="wf-link active">06 Timeline</a>
+  <a href="07-settings.html" class="wf-link">07 Settings</a>
+</div>
+<div class="app">
+  <nav class="sidebar">
+    <a href="01-dashboard.html" class="nav-icon-btn"><span>▦</span><span class="nav-icon-label">Home</span></a>
+    <a href="06-timeline.html" class="nav-icon-btn active"><span>📈</span><span class="nav-icon-label">Timeline</span></a>
+    <hr class="nav-sep">
+    <a href="02-transactions.html" class="nav-icon-btn"><span>↕</span><span class="nav-icon-label">Txns</span></a>
+    <a href="03-equity.html" class="nav-icon-btn"><span>◈</span><span class="nav-icon-label">Equity</span></a>
+    <hr class="nav-sep">
+    <a href="04-accounts.html" class="nav-icon-btn"><span>🏦</span><span class="nav-icon-label">Accounts</span></a>
+    <a href="05-loans.html" class="nav-icon-btn"><span>📋</span><span class="nav-icon-label">Loans</span></a>
+    <a href="07-settings.html" class="nav-icon-btn bottom"><span>⚙</span><span class="nav-icon-label">Settings</span></a>
+  </nav>
+
+  <div class="main">
+    <div class="page-wrap" style="max-width:1000px">
+
+      <div class="ph">
+        <div>
+          <div class="ph-title">Timeline</div>
+          <div class="ph-sub">5-year net worth projection · May 2026 – May 2031</div>
+        </div>
+        <!-- Scenario controls -->
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:12px;color:var(--muted)">Scenario:</span>
+          <div class="toggle-grp" style="font-size:12px">
+            <div class="toggle-opt on" style="padding:6px 14px">Baseline</div>
+            <div class="toggle-opt" style="padding:6px 14px">No ESPP</div>
+            <div class="toggle-opt" style="padding:6px 14px">Custom</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hero chart — full width -->
+      <div class="panel" style="margin-bottom:24px">
+        <div class="panel-hdr">
+          <div style="display:flex;align-items:center;gap:16px">
+            <span class="panel-title">Net Worth Projection</span>
+            <div style="display:flex;gap:14px;font-size:12px;color:var(--muted)">
+              <span><span style="color:var(--accent)">━━</span> Projected</span>
+              <span><span style="color:var(--green)">●</span> Actual snapshots</span>
+              <span><span style="color:var(--muted);border-bottom:2px dashed currentColor;display:inline-block;width:16px"></span> Scenario</span>
+            </div>
+          </div>
+          <!-- Range toggle -->
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:11px">1yr</button>
+            <button class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:11px;background:var(--accent-lt);border-color:var(--accent);color:var(--accent)">5yr</button>
+            <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:11px">10yr</button>
+          </div>
+        </div>
+        <div class="ph-box" style="height:260px">
+          <span class="ph-icon">📈</span>
+          <div>Area chart · $482k → ~$1.1M projected by May 2031<br>
+          <span class="xs muted">Blue fill = projected · Green dots = monthly actuals · Dashed = scenario overlay</span></div>
+        </div>
+        <!-- x-axis -->
+        <div style="display:flex;justify-content:space-between;padding:10px 20px;font-size:11px;color:var(--muted);border-top:1px solid var(--border)">
+          <span>Jan '26</span><span>Jul '26</span><span>Jan '27</span><span>Jul '27</span><span>Jan '28</span><span>Jul '28</span>
+          <span>Jan '29</span><span>Jul '29</span><span>Jan '30</span><span>Jul '30</span><span>May '31</span>
+        </div>
+      </div>
+
+      <!-- Key milestones strip -->
+      <div style="display:flex;gap:12px;margin-bottom:24px;overflow-x:auto;padding-bottom:4px">
+        <div style="flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:140px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin-bottom:6px">Today</div>
+          <div style="font-size:16px;font-weight:700">$482k</div>
+          <div style="font-size:11px;color:var(--muted)">May 2026</div>
+        </div>
+        <div style="flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:140px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">1 year</div>
+          <div style="font-size:16px;font-weight:700">$584k</div>
+          <div style="font-size:11px;color:var(--muted)">May 2027</div>
+        </div>
+        <div style="flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:140px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">3 years</div>
+          <div style="font-size:16px;font-weight:700">$782k</div>
+          <div style="font-size:11px;color:var(--muted)">May 2029</div>
+        </div>
+        <div style="flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:140px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--green);margin-bottom:6px">5 years</div>
+          <div style="font-size:16px;font-weight:700">$1.08M</div>
+          <div style="font-size:11px;color:var(--muted)">May 2031</div>
+        </div>
+        <div style="flex-shrink:0;background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:12px 16px;min-width:160px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--green);margin-bottom:6px">Millionaire</div>
+          <div style="font-size:16px;font-weight:700;color:var(--green)">Mar 2031</div>
+          <div style="font-size:11px;color:var(--green)">~57 months away</div>
+        </div>
+      </div>
+
+      <!-- Month table -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <span class="panel-title">Month-by-Month</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:12px;color:var(--muted)">Show:</span>
+            <select style="font-size:12px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;background:var(--surface)">
+              <option>Net Worth</option><option>Cash Flow</option><option>Income / Expenses</option>
+            </select>
+          </div>
+        </div>
+        <div style="overflow:hidden">
+          <!-- Table header -->
+          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;padding:10px 20px;background:#f8f9fb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);border-bottom:1px solid var(--border)">
+            <span>Month</span><span style="text-align:right">Income</span><span style="text-align:right">Expenses</span><span style="text-align:right">Net Flow</span><span style="text-align:right">Net Worth</span><span style="text-align:right">vs. Pred.</span>
+          </div>
+
+          <!-- Past rows — muted -->
+          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;padding:12px 20px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--border)">
+            <span>Mar '26</span><span style="text-align:right">$14,500</span><span style="text-align:right">$8,200</span><span style="text-align:right">+$6,300</span><span style="text-align:right">$472,800</span><span style="text-align:right;color:var(--green)">+1.2%</span>
+          </div>
+          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;padding:12px 20px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--border)">
+            <span>Apr '26</span><span style="text-align:right">$14,500</span><span style="text-align:right">$8,350</span><span style="text-align:right">+$6,150</span><span style="text-align:right">$479,140</span><span style="text-align:right;color:var(--orange)">−0.8%</span>
+          </div>
+
+          <!-- Current month — highlighted -->
+          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;padding:12px 20px;font-size:13px;font-weight:600;border-bottom:1px solid var(--border);background:var(--accent-lt);border-left:3px solid var(--accent)">
+            <span style="color:var(--accent)">May '26 ▲</span><span style="text-align:right">$20,155</span><span style="text-align:right">$8,200</span><span style="text-align:right;color:var(--green)">+$11,955</span><span style="text-align:right">$482,340</span>
+            <span style="text-align:right"><button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Expand ▾</button></span>
+          </div>
+
+          <!-- Expanded drill-down row for May -->
+          <div style="background:#f5f8ff;border-bottom:2px solid var(--border);padding:16px 20px 16px 40px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+              <div>
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--green);margin-bottom:8px">Income this month</div>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span>Salary (biweekly × 2)</span><span class="pos">+$15,000</span></div>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span>RSU Vest (25 sh GOOG)</span><span class="pos">+$4,411</span></div>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px"><span>ESPP Purchase Period 2</span><span class="pos">+$744</span></div>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--red);margin-bottom:8px">Expenses this month</div>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span>Mortgage</span><span class="neg">−$2,850</span></div>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span>401k contribution</span><span class="neg">−$2,308</span></div>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span>Blanket spending</span><span class="neg">−$850</span></div>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px"><span>Car insurance + Internet</span><span class="neg">−$260</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Future rows -->
+          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;padding:12px 20px;font-size:13px;border-bottom:1px solid var(--border)">
+            <span>Jun '26</span><span style="text-align:right">$14,500</span><span style="text-align:right">$8,200</span><span style="text-align:right">+$6,300</span><span style="text-align:right;color:var(--muted)">~$489,000</span>
+            <span style="text-align:right"><button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Expand ▾</button></span>
+          </div>
+          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;padding:12px 20px;font-size:13px;border-bottom:1px solid var(--border)">
+            <span>Jul '26</span><span style="text-align:right">$19,661</span><span style="text-align:right">$8,200</span><span style="text-align:right">+$11,461</span><span style="text-align:right;color:var(--muted)">~$500,000</span>
+            <span style="text-align:right"><button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Expand ▾</button></span>
+          </div>
+          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;padding:12px 20px;font-size:13px;border-bottom:1px solid var(--border)">
+            <span>Aug '26</span><span style="text-align:right">$14,500</span><span style="text-align:right">$8,200</span><span style="text-align:right">+$6,300</span><span style="text-align:right;color:var(--muted)">~$506,000</span>
+            <span style="text-align:right"><button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Expand ▾</button></span>
+          </div>
+          <div style="padding:10px 20px;text-align:center;border-top:1px solid var(--border)">
+            <button class="btn btn-ghost btn-sm">Show all 60 months →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scenario editor panel (collapsed state) -->
+      <div style="margin-top:20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:14px;font-weight:700">Scenario: Custom</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">Toggle items off to model different futures</div>
+          </div>
+          <button class="btn btn-ghost btn-sm">Configure ▾</button>
+        </div>
+        <!-- Items (shown when Configure is expanded) -->
+        <div style="margin-top:16px;display:flex;flex-direction:column;gap:6px;opacity:.4">
+          <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer"><input type="checkbox" checked> 2024 Refresh Grant RSU vests</label>
+          <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer"><input type="checkbox"> Europe Vacation (−$5,500)</label>
+          <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer"><input type="checkbox" checked> ESPP purchases</label>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Expand to toggle individual items · Chart updates live</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>v3 · Settings</title>
+<link rel="stylesheet" href="wf.css"></head><body>
+<div class="wf-bar">
+  <span class="wf-bar-label">Finance Suite — WF v3 Reimagined</span>
+  <a href="index.html" class="wf-link">← Index</a>
+  <a href="01-dashboard.html" class="wf-link">01 Dashboard</a>
+  <a href="02-transactions.html" class="wf-link">02 Transactions</a>
+  <a href="03-equity.html" class="wf-link">03 Equity</a>
+  <a href="04-accounts.html" class="wf-link">04 Accounts</a>
+  <a href="05-loans.html" class="wf-link">05 Loans</a>
+  <a href="06-timeline.html" class="wf-link">06 Timeline</a>
+  <a href="07-settings.html" class="wf-link active">07 Settings</a>
+</div>
+<div class="app">
+  <nav class="sidebar">
+    <a href="01-dashboard.html" class="nav-icon-btn"><span>▦</span><span class="nav-icon-label">Home</span></a>
+    <a href="06-timeline.html" class="nav-icon-btn"><span>📈</span><span class="nav-icon-label">Timeline</span></a>
+    <hr class="nav-sep">
+    <a href="02-transactions.html" class="nav-icon-btn"><span>↕</span><span class="nav-icon-label">Txns</span></a>
+    <a href="03-equity.html" class="nav-icon-btn"><span>◈</span><span class="nav-icon-label">Equity</span></a>
+    <hr class="nav-sep">
+    <a href="04-accounts.html" class="nav-icon-btn"><span>🏦</span><span class="nav-icon-label">Accounts</span></a>
+    <a href="05-loans.html" class="nav-icon-btn"><span>📋</span><span class="nav-icon-label">Loans</span></a>
+    <a href="07-settings.html" class="nav-icon-btn active bottom"><span>⚙</span><span class="nav-icon-label">Settings</span></a>
+  </nav>
+
+  <div class="main">
+    <div class="page-wrap" style="max-width:700px">
+
+      <div class="ph">
+        <div>
+          <div class="ph-title">Settings</div>
+          <div class="ph-sub">Preferences · categories · sync</div>
+        </div>
+        <button class="btn btn-primary">Save Changes</button>
+      </div>
+
+      <!-- Tab strip -->
+      <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:28px">
+        <button class="btn btn-ghost" style="border-radius:0;border-bottom:2px solid var(--accent);margin-bottom:-2px;font-weight:600;color:var(--accent);padding:10px 18px">General</button>
+        <button class="btn btn-ghost" style="border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:10px 18px;color:var(--muted)">Appearance</button>
+        <button class="btn btn-ghost" style="border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:10px 18px;color:var(--muted)">Categories</button>
+        <button class="btn btn-ghost" style="border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:10px 18px;color:var(--muted)">Alerts</button>
+        <button class="btn btn-ghost" style="border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:10px 18px;color:var(--muted)">Google Drive</button>
+        <button class="btn btn-ghost" style="border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:10px 18px;color:var(--muted)">Data</button>
+      </div>
+
+      <!-- ── TAB: General ─────────────────────────────── -->
+      <div style="display:flex;flex-direction:column;gap:20px">
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Locale &amp; Format</div>
+          <div style="padding:20px">
+            <div class="fr2">
+              <div class="fg"><label class="fl">Currency</label>
+                <select class="fs"><option>USD — US Dollar ($)</option><option>EUR</option><option>GBP</option><option>CAD</option></select>
+              </div>
+              <div class="fg"><label class="fl">Number Format</label>
+                <select class="fs"><option>en-US (1,234.56)</option><option>en-GB</option><option>de-DE (1.234,56)</option></select>
+              </div>
+            </div>
+            <div class="fg" style="margin-bottom:0"><label class="fl">Fiscal Year Start</label>
+              <select class="fs" style="width:200px"><option>January (default)</option><option>April</option><option>July</option><option>October</option></select>
+              <div class="fh">Affects annual summaries and YTD calculations.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Equity Defaults</div>
+          <div style="padding:20px">
+            <div class="fg" style="margin-bottom:0">
+              <label class="fl">Default Withholding Rate (RSU / ESPP)</label>
+              <input class="fi" value="22.00%" style="width:160px">
+              <div class="fh">Applied to vest net proceeds. Can be overridden per grant.</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── TAB: Appearance (shown active for wireframe) ── -->
+      <div style="display:flex;flex-direction:column;gap:20px;margin-top:32px">
+        <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:-8px">Appearance tab (active state shown)</div>
+
+        <!-- Theme -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Theme</div>
+          <div style="padding:20px;display:flex;gap:12px">
+            <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 12px;border:2px solid var(--accent);border-radius:10px;cursor:pointer;background:var(--accent-lt)">
+              <div style="width:100%;height:52px;background:#f0f2f5;border-radius:6px;border:1px solid #e2e6ec;display:flex;align-items:center;justify-content:center">
+                <div style="width:60%;height:16px;background:#fff;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.1)"></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--accent)">
+                <input type="radio" name="theme" checked> Light
+              </div>
+            </label>
+            <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer">
+              <div style="width:100%;height:52px;background:#1a2236;border-radius:6px;border:1px solid #2d3e5a;display:flex;align-items:center;justify-content:center">
+                <div style="width:60%;height:16px;background:#243451;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted)">
+                <input type="radio" name="theme"> Dark
+              </div>
+            </label>
+            <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer">
+              <div style="width:100%;height:52px;background:linear-gradient(135deg,#f0f2f5 50%,#1a2236 50%);border-radius:6px;border:1px solid #e2e6ec;display:flex;align-items:center;justify-content:center">
+                <div style="font-size:16px">⬤</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted)">
+                <input type="radio" name="theme"> System
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Accent color -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Accent Color</div>
+          <div style="padding:20px">
+            <div style="display:flex;gap:10px;margin-bottom:14px">
+              <label title="Blue (default)" style="cursor:pointer">
+                <input type="radio" name="accent" checked style="display:none">
+                <div style="width:36px;height:36px;border-radius:8px;background:#3b5fc0;box-shadow:0 0 0 3px #fff,0 0 0 5px #3b5fc0"></div>
+              </label>
+              <label title="Teal" style="cursor:pointer">
+                <input type="radio" name="accent" style="display:none">
+                <div style="width:36px;height:36px;border-radius:8px;background:#0d9488"></div>
+              </label>
+              <label title="Purple" style="cursor:pointer">
+                <input type="radio" name="accent" style="display:none">
+                <div style="width:36px;height:36px;border-radius:8px;background:#7c3aed"></div>
+              </label>
+              <label title="Rose" style="cursor:pointer">
+                <input type="radio" name="accent" style="display:none">
+                <div style="width:36px;height:36px;border-radius:8px;background:#e11d48"></div>
+              </label>
+              <label title="Orange" style="cursor:pointer">
+                <input type="radio" name="accent" style="display:none">
+                <div style="width:36px;height:36px;border-radius:8px;background:#ea580c"></div>
+              </label>
+              <label title="Custom" style="cursor:pointer;display:flex;align-items:center;gap:6px">
+                <input type="radio" name="accent" style="display:none">
+                <div style="width:36px;height:36px;border-radius:8px;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);display:flex;align-items:center;justify-content:center;font-size:14px">+</div>
+              </label>
+              <input type="color" value="#3b5fc0" style="margin-left:4px;width:36px;height:36px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px" title="Custom hex">
+            </div>
+            <div style="font-size:11px;color:var(--muted)">Changes the active state highlight, buttons, and focus rings throughout the app.</div>
+          </div>
+        </div>
+
+        <!-- Sidebar style -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Sidebar Style</div>
+          <div style="padding:20px;display:flex;gap:12px">
+            <!-- Icon + label (current) -->
+            <label style="flex:1;border:2px solid var(--accent);border-radius:10px;cursor:pointer;overflow:hidden;background:var(--accent-lt)">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:0;padding:12px 6px;background:#f8f9fb;border-right:1px solid var(--border);height:120px;justify-content:center;gap:6px">
+                <div style="display:flex;flex-direction:column;align-items:center;width:50px;height:42px;justify-content:center;background:var(--accent-lt);border-radius:8px;color:var(--accent)"><span style="font-size:16px">▦</span><span style="font-size:9px;font-weight:700">Home</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;width:50px;height:42px;justify-content:center;color:#9ca3af"><span style="font-size:16px">↕</span><span style="font-size:9px;font-weight:700">Txns</span></div>
+              </div>
+              <div style="padding:8px;text-align:center;font-size:11px;font-weight:600;color:var(--accent);display:flex;align-items:center;justify-content:center;gap:5px"><input type="radio" name="sidebar" checked> Icon + Label</div>
+            </label>
+            <!-- Icon only -->
+            <label style="flex:1;border:1px solid var(--border);border-radius:10px;cursor:pointer;overflow:hidden">
+              <div style="display:flex;flex-direction:column;align-items:center;padding:12px 6px;height:120px;justify-content:center;gap:6px">
+                <div style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;background:var(--accent-lt);border-radius:8px;color:var(--accent);font-size:18px">▦</div>
+                <div style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;color:#9ca3af;font-size:18px">↕</div>
+              </div>
+              <div style="padding:8px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:5px"><input type="radio" name="sidebar"> Icon Only</div>
+            </label>
+            <!-- Full text -->
+            <label style="flex:1;border:1px solid var(--border);border-radius:10px;cursor:pointer;overflow:hidden">
+              <div style="display:flex;flex-direction:column;padding:12px 8px;height:120px;justify-content:center;gap:4px">
+                <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--accent-lt);border-radius:7px;color:var(--accent);font-size:12px;font-weight:600"><span>▦</span> Dashboard</div>
+                <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;color:#9ca3af;font-size:12px"><span>↕</span> Transactions</div>
+              </div>
+              <div style="padding:8px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:5px"><input type="radio" name="sidebar"> Full Text</div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Density + Font size -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Density &amp; Font Size</div>
+          <div style="padding:20px;display:flex;gap:24px">
+            <div class="fg" style="margin-bottom:0;flex:1">
+              <div class="fl">Density</div>
+              <div class="toggle-grp">
+                <div class="toggle-opt">Compact</div>
+                <div class="toggle-opt on">Comfortable</div>
+                <div class="toggle-opt">Spacious</div>
+              </div>
+              <div class="fh">Controls padding and row height throughout.</div>
+            </div>
+            <div class="fg" style="margin-bottom:0;flex:1">
+              <div class="fl">Font Size</div>
+              <div class="toggle-grp">
+                <div class="toggle-opt on">Normal (14px)</div>
+                <div class="toggle-opt">Large (16px)</div>
+              </div>
+              <div class="fh">Applies to all body text.</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── TAB: Categories (second tab preview below) ── -->
+      <div style="margin-top:32px;opacity:.35;pointer-events:none">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">Categories tab preview (inactive)</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px;font-weight:700">Categories</span>
+            <button class="btn btn-outline btn-sm">+ Add Category</button>
+          </div>
+          <div>
+            <div style="display:grid;grid-template-columns:1fr 80px 80px 100px 56px;gap:0;padding:10px 20px;background:#f8f9fb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);border-bottom:1px solid var(--border)">
+              <span>Name</span><span style="text-align:center">Type</span><span style="text-align:center">Color</span><span style="text-align:center">Used for</span><span></span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 80px 80px 100px 56px;gap:0;padding:12px 20px;border-bottom:1px solid var(--border);font-size:13px;align-items:center">
+              <span style="font-weight:600">Compensation</span><span style="text-align:center"><span class="badge badge-income" style="font-size:10px">Income</span></span><span style="text-align:center"><span style="display:inline-block;width:16px;height:16px;background:#15803d;border-radius:3px;vertical-align:middle"></span></span><span style="text-align:center;font-size:11px;color:var(--muted)">Salary, Bonus, RSU</span><span><button class="btn btn-ghost btn-sm" style="padding:3px 8px">Edit</button></span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 80px 80px 100px 56px;gap:0;padding:12px 20px;border-bottom:1px solid var(--border);font-size:13px;align-items:center">
+              <span style="font-weight:600">Housing</span><span style="text-align:center"><span class="badge badge-neutral" style="font-size:10px">Expense</span></span><span style="text-align:center"><span style="display:inline-block;width:16px;height:16px;background:#dc2626;border-radius:3px;vertical-align:middle"></span></span><span style="text-align:center;font-size:11px;color:var(--muted)">Mortgage, Rent</span><span><button class="btn btn-ghost btn-sm" style="padding:3px 8px">Edit</button></span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 80px 80px 100px 56px;gap:0;padding:12px 20px;font-size:13px;align-items:center">
+              <span style="font-weight:600">Travel</span><span style="text-align:center"><span class="badge badge-neutral" style="font-size:10px">Expense</span></span><span style="text-align:center"><span style="display:inline-block;width:16px;height:16px;background:#0d9488;border-radius:3px;vertical-align:middle"></span></span><span style="text-align:center;font-size:11px;color:var(--muted)">Vacations</span><span><button class="btn btn-ghost btn-sm" style="padding:3px 8px">Edit</button></span>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:20px">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Divergence Thresholds</div>
+          <div style="padding:20px">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Alert when actual balance differs from predicted by more than these percentages. Set 0% to disable.</div>
+            <div class="fr3">
+              <div class="fg"><label class="fl">Checking / Savings</label><input class="fi" value="10%"><div class="fh">Cash fluctuates — loose threshold.</div></div>
+              <div class="fg"><label class="fl">Brokerage</label><input class="fi" value="5%"></div>
+              <div class="fg"><label class="fl">Retirement</label><input class="fi" value="5%"></div>
+            </div>
+            <div class="fr3" style="margin-bottom:0">
+              <div class="fg" style="margin-bottom:0"><label class="fl">Property</label><input class="fi" value="0%"><div class="fh">0 = disabled.</div></div>
+              <div class="fg" style="margin-bottom:0"><label class="fl">Crypto / Other</label><input class="fi" value="15%"><div class="fh">Volatile — wide band.</div></div>
+              <div class="fg" style="margin-bottom:0"><label class="fl">Loans</label><input class="fi" value="2%"><div class="fh">Tracks amortization closely.</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:20px">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Google Drive Sync</div>
+          <div style="padding:20px">
+            <div style="display:flex;align-items:center;gap:14px;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:16px">
+              <span style="color:var(--green);font-size:18px">●</span>
+              <div>
+                <div style="font-weight:600;font-size:13px">Connected as phacharapol.tana@gmail.com</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">My Drive / Personal Finance Suite/ · Last synced May 9, 2026 at 9:41 AM</div>
+              </div>
+            </div>
+            <div class="fr2" style="margin-bottom:16px">
+              <div class="fg"><label class="fl">Auto-save Delay</label><select class="fs"><option>2 seconds (default)</option><option>5 seconds</option><option>Manual only</option></select></div>
+              <div class="fg"><label class="fl">Conflict Resolution</label><select class="fs"><option>Prompt me (default)</option><option>Always use local</option><option>Always use Drive</option></select></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-outline btn-sm">⟳ Sync Now</button>
+              <button class="btn btn-outline btn-sm">⬇ Export JSON Backup</button>
+              <button class="btn btn-outline btn-sm">📂 Open Drive Folder</button>
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--red)">Sign Out</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:20px">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Data Management</div>
+          <div style="padding:20px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:#f8f9fb;border:1px solid var(--border);border-radius:8px">
+              <div>
+                <div style="font-weight:600;font-size:13px">Import from JSON backup</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Restore from a previously exported file.</div>
+              </div>
+              <button class="btn btn-outline btn-sm">📁 Choose File</button>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:#fff8f8;border:1px solid #fecaca;border-radius:8px">
+              <div>
+                <div style="font-weight:600;font-size:13px;color:var(--red)">Reset all data</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Permanently deletes everything. Cannot be undone.</div>
+              </div>
+              <button class="btn btn-outline btn-sm" style="color:var(--red);border-color:#fecaca">Reset Workspace</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- First-run / Sign-in screen -->
+<div class="drawer-section">
+  <div class="drawer-label">Screen — First Run / Google Sign-In</div>
+  <div class="drawer-box" style="text-align:center;padding:48px 36px;max-width:440px">
+    <div style="font-size:40px;margin-bottom:14px">💰</div>
+    <div style="font-size:22px;font-weight:800;margin-bottom:8px">Personal Finance Suite</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.7">Your financial planner, stored entirely in<br>your own Google Drive. No servers. No subscriptions.</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:14px">G &nbsp; Sign in with Google</button>
+    <div style="font-size:12px;color:var(--muted);margin-top:16px;line-height:1.6">Requests only <code style="background:#f0f2f5;padding:2px 6px;border-radius:4px;font-size:11px">drive.file</code> scope — the app only sees files it creates.</div>
+  </div>
+</div>
+</body></html>

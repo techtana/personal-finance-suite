@@ -1,0 +1,234 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>WF 06 · Timeline</title>
+<link rel="stylesheet" href="wf.css"></head><body>
+
+<div class="wf-bar">
+  <span class="wf-label">Personal Finance Suite — Wireframes</span>
+  <div class="wf-links">
+    <a href="index.html" class="wf-link">← Index</a>
+    <a href="01-dashboard.html" class="wf-link">01 Dashboard</a>
+    <a href="02-transactions.html" class="wf-link">02 Transactions</a>
+    <a href="03-equity.html" class="wf-link">03 Equity</a>
+    <a href="04-accounts.html" class="wf-link">04 Accounts</a>
+    <a href="05-loans.html" class="wf-link">05 Loans</a>
+    <a href="06-timeline.html" class="wf-link active">06 Timeline</a>
+    <a href="07-settings.html" class="wf-link">07 Settings</a>
+  </div>
+</div>
+
+<div class="app">
+  <nav class="sidebar">
+    <div class="sb-logo"><div class="sb-logo-t">💰 Finance Suite</div><div class="sb-logo-s">Personal Financial Planner</div></div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Overview</div>
+      <a href="01-dashboard.html" class="nav-item"><span class="nav-icon">▦</span>Dashboard</a>
+      <a href="06-timeline.html" class="nav-item active"><span class="nav-icon">📈</span>Timeline</a>
+    </div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Money In / Out</div>
+      <a href="02-transactions.html" class="nav-item"><span class="nav-icon">↕</span>Transactions</a>
+      <a href="03-equity.html" class="nav-item"><span class="nav-icon">◈</span>Equity Comp</a>
+    </div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Balance Sheet</div>
+      <a href="04-accounts.html" class="nav-item"><span class="nav-icon">🏦</span>Accounts</a>
+      <a href="05-loans.html" class="nav-item"><span class="nav-icon">📋</span>Loans</a>
+    </div>
+    <div class="sb-sec"><a href="07-settings.html" class="nav-item"><span class="nav-icon">⚙</span>Settings</a></div>
+    <div class="sb-footer"><span class="sync-dot"></span>Synced to Google Drive · 2 min ago</div>
+  </nav>
+
+  <div class="main">
+    <div class="page-wrap">
+
+      <div class="ph">
+        <div><div class="ph-title">Timeline &amp; Projections</div><div class="ph-sub">Month-by-month cash flow and net worth forecast</div></div>
+        <div style="display:flex;gap:8px">
+          <select class="fs" style="width:120px"><option>1 Year</option><option>3 Years</option><option selected>5 Years</option><option>10 Years</option></select>
+          <button class="btn btn-outline">📅 Date Range</button>
+          <button class="btn btn-outline">⚙ Scenario Mode</button>
+        </div>
+      </div>
+
+      <!-- Chart + Scenario panel -->
+      <div class="g21 mb20">
+        <!-- Chart -->
+        <div class="card" style="padding:20px">
+          <div class="sec-hdr mb12">
+            <span class="sec-title">Net Worth Projection — 5 Years</span>
+            <div style="display:flex;gap:16px;font-size:12px">
+              <span><span style="color:var(--accent)">━━</span> Predicted</span>
+              <span style="text-decoration:line-through;color:#aaa">- - -</span><span style="font-size:12px;color:#aaa"> Scenario (ESPP off)</span>
+              <span><span style="color:var(--green)">●</span> Actual snapshot</span>
+            </div>
+          </div>
+          <div class="ph-box" style="height:220px;padding:16px">
+            <div class="ph-ico">📈</div>
+            <div style="text-align:center">
+              <strong>Area Chart — Net Worth over 60 months</strong><br>
+              <span class="xs muted">Blue area = predicted · Green dots = user snapshots · Dashed overlay = scenario<br>
+              X-axis: months · Y-axis: $ net worth<br>
+              Hover: tooltip with monthly breakdown</span>
+            </div>
+          </div>
+          <!-- x-axis -->
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:8px;padding:0 4px">
+            <span style="color:var(--accent);font-weight:600">May '26</span><span>Sep '26</span><span>Jan '27</span><span>Jul '27</span>
+            <span>Jan '28</span><span>Jul '28</span><span>Jan '29</span><span>Jul '29</span><span>May '31</span>
+          </div>
+        </div>
+
+        <!-- Scenario panel -->
+        <div class="card">
+          <div class="sec-title mb8">⚙ Scenario Mode</div>
+          <div class="xs muted mb12">Toggle items to model "what if" — dashed line shows impact vs. baseline</div>
+          <div class="sc-item">
+            <div class="fcheck on">✓</div>
+            <div style="flex:1"><div class="fw6 sm">Salary</div><div class="xs muted">$7,500 biweekly</div></div>
+            <div class="xs muted">+$195k/yr</div>
+          </div>
+          <div class="sc-item">
+            <div class="fcheck on">✓</div>
+            <div style="flex:1"><div class="fw6 sm">2023 RSU Grant</div><div class="xs muted">GOOG · 100 sh left</div></div>
+            <div class="xs muted">+$29k</div>
+          </div>
+          <div class="sc-item">
+            <div class="fcheck on">✓</div>
+            <div style="flex:1"><div class="fw6 sm">2024 RSU Grant</div><div class="xs muted">GOOG · 135 sh left</div></div>
+            <div class="xs muted">+$39k</div>
+          </div>
+          <div class="sc-item">
+            <div class="fcheck"></div>
+            <div style="flex:1"><div class="fw6 sm" style="text-decoration:line-through;color:var(--muted)">ESPP Plan</div><div class="xs muted">2025–2026 offering</div></div>
+            <div class="xs neg">−$10.6k</div>
+          </div>
+          <div class="sc-item">
+            <div class="fcheck on">✓</div>
+            <div style="flex:1"><div class="fw6 sm">Mortgage</div><div class="xs muted">$2,850 / mo</div></div>
+            <div class="xs neg">−$34k/yr</div>
+          </div>
+          <div class="sc-item">
+            <div class="fcheck on">✓</div>
+            <div style="flex:1"><div class="fw6 sm">Misc Blanket</div><div class="xs muted">$500 + $350 + $150</div></div>
+            <div class="xs neg">−$12k/yr</div>
+          </div>
+          <div class="sc-item">
+            <div class="fcheck on">✓</div>
+            <div style="flex:1"><div class="fw6 sm">Europe Vacation</div><div class="xs muted">One-time, Jul 2026</div></div>
+            <div class="xs neg">−$5.5k</div>
+          </div>
+          <button class="btn btn-outline btn-sm" style="margin-top:12px;width:100%">Reset All to Baseline</button>
+          <div class="alert alert-warn mt12" style="font-size:11px;padding:8px 10px">
+            ESPP disabled: 5-yr net worth reduced by ~$31,764 vs. baseline
+          </div>
+        </div>
+      </div>
+
+      <!-- Projection table -->
+      <div class="sec-hdr mb12">
+        <span class="sec-title">Month-by-Month Detail</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm">Export CSV</button>
+          <button class="btn btn-ghost btn-sm">Collapse all</button>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:32px"></th>
+              <th>Month</th>
+              <th class="td-r">Income</th>
+              <th class="td-r">Expenses</th>
+              <th class="td-r">Net Cash Flow</th>
+              <th class="td-r">Net Worth (Pred.)</th>
+              <th class="td-r">Actual</th>
+              <th class="td-r">Delta</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Past months (green tint) -->
+            <tr style="background:#f0faf4">
+              <td class="td-c" style="font-size:10px;color:var(--muted)">▶</td>
+              <td><span class="fw6">Mar 2026</span> <span class="badge badge-ok" style="font-size:10px">past</span></td>
+              <td class="td-r pos">$26,200</td><td class="td-r neg">−$8,050</td>
+              <td class="td-r pos fw6">+$18,150</td>
+              <td class="td-r">$469,800</td>
+              <td class="td-r pos fw6">$470,940</td>
+              <td class="td-r pos xs">+$1,140</td>
+            </tr>
+            <tr style="background:#f0faf4">
+              <td class="td-c" style="font-size:10px;color:var(--muted)">▶</td>
+              <td><span class="fw6">Apr 2026</span> <span class="badge badge-ok" style="font-size:10px">past</span></td>
+              <td class="td-r pos">$14,200</td><td class="td-r neg">−$8,050</td>
+              <td class="td-r pos fw6">+$6,150</td>
+              <td class="td-r">$475,950</td>
+              <td class="td-r pos fw6">$479,140</td>
+              <td class="td-r pos xs">+$3,190</td>
+            </tr>
+            <!-- Current month (yellow) -->
+            <tr style="background:#fffde7">
+              <td class="td-c" style="font-size:10px;color:var(--muted)">▶</td>
+              <td><span class="fw6">May 2026</span> <span class="badge badge-warn" style="font-size:10px">current</span></td>
+              <td class="td-r pos">$21,750</td><td class="td-r neg">−$8,200</td>
+              <td class="td-r pos fw6">+$13,550</td>
+              <td class="td-r fw6">$489,500</td>
+              <td class="td-r muted">— (in progress)</td>
+              <td class="td-r muted">—</td>
+            </tr>
+            <!-- Projected months -->
+            <tr>
+              <td class="td-c" style="font-size:10px;color:var(--muted)">▶</td>
+              <td>Jun 2026</td>
+              <td class="td-r pos">$14,500</td><td class="td-r neg">−$8,200</td>
+              <td class="td-r pos fw6">+$6,300</td>
+              <td class="td-r">$495,800</td>
+              <td class="td-r muted">—</td><td class="td-r muted">—</td>
+            </tr>
+            <tr>
+              <td class="td-c" style="font-size:10px;color:var(--muted)">▶</td>
+              <td>Jul 2026 <span class="xs muted">(vacation)</span></td>
+              <td class="td-r pos">$21,750</td><td class="td-r neg">−$13,700</td>
+              <td class="td-r pos fw6">+$8,050</td>
+              <td class="td-r">$503,850</td>
+              <td class="td-r muted">—</td><td class="td-r muted">—</td>
+            </tr>
+            <tr>
+              <td class="td-c" style="font-size:10px;color:var(--muted)">▶</td>
+              <td>Aug 2026 <span class="xs muted">(RSU vest)</span></td>
+              <td class="td-r pos">$21,750</td><td class="td-r neg">−$8,200</td>
+              <td class="td-r pos fw6">+$13,550</td>
+              <td class="td-r">$517,400</td>
+              <td class="td-r muted">—</td><td class="td-r muted">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Expanded drill-down row -->
+      <div class="card mt16" style="border:2px solid var(--blue-bg)">
+        <div class="sec-hdr mb12">
+          <span class="sec-title">↳ Jul 2026 — Event Breakdown</span>
+          <span class="xs muted">Click any month row to expand · click again to collapse</span>
+        </div>
+        <div class="g2">
+          <div>
+            <div class="xs muted fw6 mb8" style="text-transform:uppercase;letter-spacing:.06em">Income</div>
+            <div class="ev-row"><div class="ev-date xs">Jul 1</div><div class="ev-label">Salary deposit <span class="badge badge-income">Recurring</span></div><div class="ev-amt pos">+$7,500</div></div>
+            <div class="ev-row"><div class="ev-date xs">Jul 15</div><div class="ev-label">Salary deposit <span class="badge badge-income">Recurring</span></div><div class="ev-amt pos">+$7,500</div></div>
+            <div class="ev-row"><div class="ev-date xs">Jul 1</div><div class="ev-label">RSU Vest 11 sh GOOG <span class="badge badge-rsu">RSU</span></div><div class="ev-amt pos">+$2,488 net</div></div>
+            <div style="padding:8px 0;text-align:right;font-size:13px;font-weight:700" class="pos">Total income: +$17,488</div>
+          </div>
+          <div>
+            <div class="xs muted fw6 mb8" style="text-transform:uppercase;letter-spacing:.06em">Expenses</div>
+            <div class="ev-row"><div class="ev-date xs">Jul 1</div><div class="ev-label">Mortgage <span class="badge badge-expense">Recurring</span></div><div class="ev-amt neg">−$2,850</div></div>
+            <div class="ev-row"><div class="ev-date xs">Jul 1</div><div class="ev-label">401k contribution <span class="badge badge-expense">Recurring</span></div><div class="ev-amt neg">−$1,154</div></div>
+            <div class="ev-row"><div class="ev-date xs">Jul 12</div><div class="ev-label">Europe vacation <span class="badge badge-expense">One-time</span></div><div class="ev-amt neg">−$5,500</div></div>
+            <div class="ev-row"><div class="ev-date xs">Jul 1</div><div class="ev-label">Recurring bills (4×) <span class="badge badge-expense">Recurring</span></div><div class="ev-amt neg">−$315</div></div>
+            <div class="ev-row"><div class="ev-date xs">Jul 1</div><div class="ev-label">Blanket expenses <span class="badge badge-neutral">Blanket</span></div><div class="ev-amt neg">−$1,000</div></div>
+            <div style="padding:8px 0;text-align:right;font-size:13px;font-weight:700" class="neg">Total expenses: −$10,819</div>
+          </div>
+        </div>
+        <div style="text-align:right;font-size:14px;font-weight:700;padding-top:10px;border-top:1px solid var(--border)" class="pos">Net Jul 2026: +$6,669</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,337 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>v3 · Transactions</title>
+<link rel="stylesheet" href="wf.css"></head><body>
+<div class="wf-bar">
+  <span class="wf-bar-label">Finance Suite — WF v3 Reimagined</span>
+  <a href="index.html" class="wf-link">← Index</a>
+  <a href="01-dashboard.html" class="wf-link">01 Dashboard</a>
+  <a href="02-transactions.html" class="wf-link active">02 Transactions</a>
+  <a href="03-equity.html" class="wf-link">03 Equity</a>
+  <a href="04-accounts.html" class="wf-link">04 Accounts</a>
+  <a href="05-loans.html" class="wf-link">05 Loans</a>
+  <a href="06-timeline.html" class="wf-link">06 Timeline</a>
+  <a href="07-settings.html" class="wf-link">07 Settings</a>
+</div>
+<div class="app">
+  <nav class="sidebar">
+    <a href="01-dashboard.html" class="nav-icon-btn"><span>▦</span><span class="nav-icon-label">Home</span></a>
+    <a href="06-timeline.html" class="nav-icon-btn"><span>📈</span><span class="nav-icon-label">Timeline</span></a>
+    <hr class="nav-sep">
+    <a href="02-transactions.html" class="nav-icon-btn active"><span>↕</span><span class="nav-icon-label">Txns</span></a>
+    <a href="03-equity.html" class="nav-icon-btn"><span>◈</span><span class="nav-icon-label">Equity</span></a>
+    <hr class="nav-sep">
+    <a href="04-accounts.html" class="nav-icon-btn"><span>🏦</span><span class="nav-icon-label">Accounts</span></a>
+    <a href="05-loans.html" class="nav-icon-btn"><span>📋</span><span class="nav-icon-label">Loans</span></a>
+    <a href="07-settings.html" class="nav-icon-btn bottom"><span>⚙</span><span class="nav-icon-label">Settings</span></a>
+  </nav>
+
+  <div class="main">
+    <div class="page-wrap">
+
+      <div class="ph">
+        <div>
+          <div class="ph-title">Transactions</div>
+          <div class="ph-sub">Recurring · one-time · catch-all blankets</div>
+        </div>
+        <!-- Single add button with dropdown -->
+        <div style="position:relative">
+          <button class="btn btn-primary">+ Add &nbsp;▾</button>
+          <div style="position:absolute;right:0;top:36px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:6px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:10">
+            <div style="padding:8px 12px;border-radius:7px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px"><span style="color:var(--green)">●</span> One-time Transaction</div>
+            <div style="padding:8px 12px;border-radius:7px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px"><span style="color:var(--accent)">↻</span> Recurring Transaction</div>
+            <div style="padding:8px 12px;border-radius:7px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px"><span style="color:var(--muted)">◼</span> Blanket Expense</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Monthly summary charts -->
+      <div class="two-panel" style="margin-bottom:28px;grid-template-columns:2fr 1fr">
+
+        <!-- Income vs expense bar chart -->
+        <div class="panel">
+          <div class="panel-hdr">
+            <span class="panel-title">Monthly Cash Flow · Last 6 Months</span>
+            <div style="display:flex;gap:12px;font-size:11px;color:var(--muted)">
+              <span><span style="color:var(--green)">█</span> Income</span>
+              <span><span style="color:var(--red)">█</span> Expenses</span>
+            </div>
+          </div>
+          <div style="padding:16px 20px 0">
+            <!-- Grouped bar chart (SVG) -->
+            <svg viewBox="0 0 480 100" style="width:100%;height:100px;overflow:visible">
+              <!-- Dec -->
+              <rect x="10"  y="30" width="22" height="70" fill="#dcfce7" rx="2"/>
+              <rect x="34"  y="52" width="22" height="48" fill="#fee2e2" rx="2"/>
+              <!-- Jan -->
+              <rect x="90"  y="25" width="22" height="75" fill="#dcfce7" rx="2"/>
+              <rect x="114" y="50" width="22" height="50" fill="#fee2e2" rx="2"/>
+              <!-- Feb -->
+              <rect x="170" y="28" width="22" height="72" fill="#dcfce7" rx="2"/>
+              <rect x="194" y="55" width="22" height="45" fill="#fee2e2" rx="2"/>
+              <!-- Mar -->
+              <rect x="250" y="26" width="22" height="74" fill="#dcfce7" rx="2"/>
+              <rect x="274" y="48" width="22" height="52" fill="#fee2e2" rx="2"/>
+              <!-- Apr -->
+              <rect x="330" y="30" width="22" height="70" fill="#dcfce7" rx="2"/>
+              <rect x="354" y="54" width="22" height="46" fill="#fee2e2" rx="2"/>
+              <!-- May — current, accent border -->
+              <rect x="410" y="10" width="22" height="90" fill="#15803d" rx="2"/>
+              <rect x="434" y="50" width="22" height="50" fill="#b91c1c" rx="2"/>
+              <!-- x labels -->
+              <text x="33"  y="114" font-size="10" fill="#9ca3af" text-anchor="middle">Dec</text>
+              <text x="113" y="114" font-size="10" fill="#9ca3af" text-anchor="middle">Jan</text>
+              <text x="193" y="114" font-size="10" fill="#9ca3af" text-anchor="middle">Feb</text>
+              <text x="273" y="114" font-size="10" fill="#9ca3af" text-anchor="middle">Mar</text>
+              <text x="353" y="114" font-size="10" fill="#9ca3af" text-anchor="middle">Apr</text>
+              <text x="433" y="114" font-size="10" fill="#3b5fc0" font-weight="600" text-anchor="middle">May ▲</text>
+              <!-- net flow dots -->
+              <circle cx="33"  cy="22" r="3" fill="#6b7280"/>
+              <circle cx="113" cy="16" r="3" fill="#6b7280"/>
+              <circle cx="193" cy="20" r="3" fill="#6b7280"/>
+              <circle cx="273" cy="15" r="3" fill="#6b7280"/>
+              <circle cx="353" cy="20" r="3" fill="#6b7280"/>
+              <circle cx="433" cy="3"  r="3" fill="#3b5fc0"/>
+              <polyline points="33,22 113,16 193,20 273,15 353,20 433,3" fill="none" stroke="#9ca3af" stroke-width="1" stroke-dasharray="3,2"/>
+            </svg>
+          </div>
+          <div style="padding:4px 20px 12px;font-size:11px;color:var(--muted)">Net flow line shown dashed · May spike = RSU vest + ESPP purchase</div>
+        </div>
+
+        <!-- Expense breakdown donut -->
+        <div class="panel">
+          <div class="panel-hdr">
+            <span class="panel-title">Expenses · May</span>
+          </div>
+          <div style="padding:16px;display:flex;flex-direction:column;gap:0">
+            <!-- Donut placeholder -->
+            <div style="display:flex;justify-content:center;margin-bottom:12px">
+              <svg viewBox="0 0 80 80" style="width:80px;height:80px">
+                <!-- segments: housing 35%, invest 28%, blanket 10%, other 27% -->
+                <circle cx="40" cy="40" r="28" fill="none" stroke="#fee2e2" stroke-width="16" stroke-dasharray="62 116" stroke-dashoffset="0"/>
+                <circle cx="40" cy="40" r="28" fill="none" stroke="#dbeafe" stroke-width="16" stroke-dasharray="51 127" stroke-dashoffset="-62"/>
+                <circle cx="40" cy="40" r="28" fill="none" stroke="#e5e7eb" stroke-width="16" stroke-dasharray="18 160" stroke-dashoffset="-113"/>
+                <circle cx="40" cy="40" r="28" fill="none" stroke="#ede9fe" stroke-width="16" stroke-dasharray="47 131" stroke-dashoffset="-131"/>
+                <text x="40" y="43" font-size="10" font-weight="700" text-anchor="middle" fill="#111827">$8,200</text>
+              </svg>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
+              <div style="display:flex;justify-content:space-between"><span><span style="display:inline-block;width:8px;height:8px;background:#fee2e2;border:1px solid #b91c1c;border-radius:2px;margin-right:5px"></span>Housing</span><span style="font-weight:600">$2,850 · 35%</span></div>
+              <div style="display:flex;justify-content:space-between"><span><span style="display:inline-block;width:8px;height:8px;background:#dbeafe;border:1px solid #1d4ed8;border-radius:2px;margin-right:5px"></span>Investments</span><span style="font-weight:600">$2,308 · 28%</span></div>
+              <div style="display:flex;justify-content:space-between"><span><span style="display:inline-block;width:8px;height:8px;background:#ede9fe;border:1px solid #6d28d9;border-radius:2px;margin-right:5px"></span>Blanket</span><span style="font-weight:600">$850 · 10%</span></div>
+              <div style="display:flex;justify-content:space-between"><span><span style="display:inline-block;width:8px;height:8px;background:#e5e7eb;border:1px solid #6b7280;border-radius:2px;margin-right:5px"></span>Other</span><span style="font-weight:600">$2,192 · 27%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Minimal filter strip -->
+      <div style="display:flex;gap:10px;margin-bottom:28px;align-items:center">
+        <input class="fi" style="width:220px;padding:8px 12px;" placeholder="🔍  Search transactions…">
+        <select class="fs" style="width:140px;padding:8px 12px;">
+          <option>All types</option><option>Income</option><option>Expense</option>
+        </select>
+        <select class="fs" style="width:160px;padding:8px 12px;">
+          <option>All categories</option><option>Compensation</option><option>Housing</option><option>Utilities</option>
+        </select>
+        <div style="margin-left:auto;font-size:12px;color:var(--muted)">12 recurring · 5 one-time · 3 blanket</div>
+      </div>
+
+      <!-- RECURRING group -->
+      <div class="feed-group">
+        <div class="feed-group-label">
+          <span>Recurring</span>
+          <span class="pill">12 items · −$5,863 / mo net</span>
+        </div>
+        <div class="feed-item">
+          <div class="feed-dot feed-dot-income"></div>
+          <div class="feed-name">
+            <div class="feed-name-primary">Salary (net)</div>
+            <div class="feed-name-secondary">Biweekly · since Jan 2025</div>
+          </div>
+          <div class="feed-cadence">Biweekly</div>
+          <div class="feed-account">Chase Checking</div>
+          <div class="feed-amount pos">+$7,500</div>
+          <button class="btn btn-ghost btn-sm">···</button>
+        </div>
+        <div class="feed-item">
+          <div class="feed-dot feed-dot-expense"></div>
+          <div class="feed-name">
+            <div class="feed-name-primary">Mortgage</div>
+            <div class="feed-name-secondary">Monthly · Mar 2022 – Mar 2052</div>
+          </div>
+          <div class="feed-cadence">Monthly</div>
+          <div class="feed-account">Chase Checking</div>
+          <div class="feed-amount neg">−$2,850</div>
+          <button class="btn btn-ghost btn-sm">···</button>
+        </div>
+        <div class="feed-item">
+          <div class="feed-dot feed-dot-expense"></div>
+          <div class="feed-name">
+            <div class="feed-name-primary">401k Contribution</div>
+            <div class="feed-name-secondary">Biweekly · since Jan 2025</div>
+          </div>
+          <div class="feed-cadence">Biweekly</div>
+          <div class="feed-account">Fidelity 401k</div>
+          <div class="feed-amount neg">−$1,154</div>
+          <button class="btn btn-ghost btn-sm">···</button>
+        </div>
+        <div class="feed-item">
+          <div class="feed-dot feed-dot-expense"></div>
+          <div class="feed-name">
+            <div class="feed-name-primary">Car Insurance</div>
+            <div class="feed-name-secondary">Monthly · since Jan 2024</div>
+          </div>
+          <div class="feed-cadence">Monthly</div>
+          <div class="feed-account">Chase Checking</div>
+          <div class="feed-amount neg">−$180</div>
+          <button class="btn btn-ghost btn-sm">···</button>
+        </div>
+        <div class="feed-item">
+          <div class="feed-dot feed-dot-expense"></div>
+          <div class="feed-name">
+            <div class="feed-name-primary">Internet</div>
+            <div class="feed-name-secondary">Monthly · since Jun 2023</div>
+          </div>
+          <div class="feed-cadence">Monthly</div>
+          <div class="feed-account">Chase Checking</div>
+          <div class="feed-amount neg">−$80</div>
+          <button class="btn btn-ghost btn-sm">···</button>
+        </div>
+        <div style="padding:12px 0 4px;text-align:center">
+          <button class="btn btn-ghost btn-sm">Show 7 more →</button>
+        </div>
+      </div>
+
+      <!-- ONE-TIME group -->
+      <div class="feed-group">
+        <div class="feed-group-label">
+          <span>One-time</span>
+          <span class="pill">5 items</span>
+        </div>
+        <div class="feed-item">
+          <div class="feed-dot feed-dot-income"></div>
+          <div class="feed-name">
+            <div class="feed-name-primary">Annual Bonus</div>
+            <div class="feed-name-secondary">Mar 15, 2026</div>
+          </div>
+          <div class="feed-cadence">Mar 15</div>
+          <div class="feed-account">Chase Checking</div>
+          <div class="feed-amount pos">+$12,000</div>
+          <button class="btn btn-ghost btn-sm">···</button>
+        </div>
+        <div class="feed-item">
+          <div class="feed-dot feed-dot-expense"></div>
+          <div class="feed-name">
+            <div class="feed-name-primary">Europe Vacation</div>
+            <div class="feed-name-secondary">Jul 12, 2026</div>
+          </div>
+          <div class="feed-cadence">Jul 12</div>
+          <div class="feed-account">Chase Checking</div>
+          <div class="feed-amount neg">−$5,500</div>
+          <button class="btn btn-ghost btn-sm">···</button>
+        </div>
+        <div class="feed-item">
+          <div class="feed-dot feed-dot-expense"></div>
+          <div class="feed-name">
+            <div class="feed-name-primary">HVAC Repair</div>
+            <div class="feed-name-secondary">Apr 5, 2026</div>
+          </div>
+          <div class="feed-cadence">Apr 5</div>
+          <div class="feed-account">Chase Checking</div>
+          <div class="feed-amount neg">−$3,200</div>
+          <button class="btn btn-ghost btn-sm">···</button>
+        </div>
+      </div>
+
+      <!-- BLANKET group -->
+      <div class="feed-group">
+        <div class="feed-group-label">
+          <span>Blanket Expenses</span>
+          <span class="pill">−$850 / mo total</span>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-top:8px;font-size:12px;color:var(--muted);margin-bottom:10px">
+          Catch-all amounts for spending you don't itemize. Each appears as a fixed outflow in projections.
+        </div>
+        <div class="feed-item">
+          <div class="feed-dot feed-dot-blanket"></div>
+          <div class="feed-name">
+            <div class="feed-name-primary">Misc Everyday Spending</div>
+            <div class="feed-name-secondary">Food &amp; Dining · Chase Checking</div>
+          </div>
+          <div class="feed-cadence">Monthly</div>
+          <div class="feed-account"></div>
+          <div class="feed-amount neg">−$500</div>
+          <button class="btn btn-ghost btn-sm">···</button>
+        </div>
+        <div class="feed-item">
+          <div class="feed-dot feed-dot-blanket"></div>
+          <div class="feed-name">
+            <div class="feed-name-primary">Shopping / Amazon</div>
+            <div class="feed-name-secondary">Shopping · Chase Checking</div>
+          </div>
+          <div class="feed-cadence">Monthly</div>
+          <div class="feed-account"></div>
+          <div class="feed-amount neg">−$200</div>
+          <button class="btn btn-ghost btn-sm">···</button>
+        </div>
+        <div class="feed-item">
+          <div class="feed-dot feed-dot-blanket"></div>
+          <div class="feed-name">
+            <div class="feed-name-primary">Personal Care</div>
+            <div class="feed-name-secondary">Personal Care · Chase Checking</div>
+          </div>
+          <div class="feed-cadence">Monthly</div>
+          <div class="feed-account"></div>
+          <div class="feed-amount neg">−$150</div>
+          <button class="btn btn-ghost btn-sm">···</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- DRAWER FORMS -->
+<div class="drawer-section">
+
+  <div class="drawer-label">Drawer — Add / Edit Transaction</div>
+  <div class="drawer-box">
+    <div class="drawer-title">
+      Add Transaction
+      <button class="btn btn-ghost btn-sm" style="font-size:18px;color:var(--muted)">✕</button>
+    </div>
+    <div class="fg">
+      <div class="fl">Type</div>
+      <div class="toggle-grp"><div class="toggle-opt on">Income</div><div class="toggle-opt">Expense</div></div>
+    </div>
+    <div class="fr2">
+      <div class="fg"><label class="fl">Amount</label><input class="fi" placeholder="$0.00"></div>
+      <div class="fg"><label class="fl">Date</label><input class="fi" type="date" value="2026-05-09"></div>
+    </div>
+    <div class="fg"><label class="fl">Description</label><input class="fi" placeholder="e.g., Annual bonus, Car repair…"></div>
+    <div class="fr2">
+      <div class="fg"><label class="fl">Category</label><select class="fs"><option>Compensation</option><option>Housing</option><option>Travel</option></select></div>
+      <div class="fg"><label class="fl">Account</label><select class="fs"><option>Chase Checking</option><option>Fidelity 401k</option></select></div>
+    </div>
+    <div class="fg">
+      <div class="fl">Make it recurring?</div>
+      <div class="toggle-grp">
+        <div class="toggle-opt on">One-time</div>
+        <div class="toggle-opt">Recurring</div>
+      </div>
+    </div>
+    <!-- Recurring fields — shown only when "Recurring" is selected -->
+    <div style="background:#f8f9fb;border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:-8px;margin-bottom:16px;opacity:.4">
+      <div class="fr2">
+        <div class="fg" style="margin-bottom:0"><label class="fl">Frequency</label><select class="fs" disabled><option>Monthly</option><option>Biweekly</option></select></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">End Date (optional)</label><input class="fi" type="date" disabled placeholder="Leave blank = indefinite"></div>
+      </div>
+      <div class="xs muted mt8">Available when "Recurring" is selected above.</div>
+    </div>
+    <div class="drawer-ftr">
+      <button class="btn btn-outline">Cancel</button>
+      <button class="btn btn-primary">Save Transaction</button>
+    </div>
+  </div>
+
+</div>
+</body></html>

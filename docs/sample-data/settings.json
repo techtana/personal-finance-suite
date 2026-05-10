@@ -1,0 +1,92 @@
+{
+  "currency": "USD",
+  "locale": "en-US",
+  "fiscalYearStartMonth": 1,
+  "defaultWithholdingRate": 2200,
+  "divergenceThresholds": {
+    "checking": 1000,
+    "savings": 1000,
+    "brokerage": 500,
+    "retirement_401k": 500,
+    "retirement_ira": 500,
+    "retirement_roth": 500,
+    "hsa": 500,
+    "crypto": 1500,
+    "property": 0,
+    "other_asset": 1000
+  },
+  "categories": [
+    {
+      "slug": "compensation",
+      "label": "Compensation",
+      "type": "income",
+      "color": "#15803d"
+    },
+    {
+      "slug": "housing",
+      "label": "Housing",
+      "type": "expense",
+      "color": "#dc2626"
+    },
+    {
+      "slug": "utilities",
+      "label": "Utilities",
+      "type": "expense",
+      "color": "#9333ea"
+    },
+    {
+      "slug": "insurance",
+      "label": "Insurance",
+      "type": "expense",
+      "color": "#0284c7"
+    },
+    {
+      "slug": "food-dining",
+      "label": "Food & Dining",
+      "type": "expense",
+      "color": "#f97316"
+    },
+    {
+      "slug": "shopping",
+      "label": "Shopping",
+      "type": "expense",
+      "color": "#ca8a04"
+    },
+    {
+      "slug": "personal-care",
+      "label": "Personal Care",
+      "type": "expense",
+      "color": "#db2777"
+    },
+    {
+      "slug": "investment",
+      "label": "Investment",
+      "type": "both",
+      "color": "#3b5fc0"
+    },
+    {
+      "slug": "travel",
+      "label": "Travel",
+      "type": "expense",
+      "color": "#0d9488"
+    },
+    {
+      "slug": "home-maintenance",
+      "label": "Home Maintenance",
+      "type": "expense",
+      "color": "#92400e"
+    },
+    {
+      "slug": "bonus",
+      "label": "Bonus",
+      "type": "income",
+      "color": "#15803d"
+    },
+    {
+      "slug": "adjustment",
+      "label": "Balance Adjustment",
+      "type": "both",
+      "color": "#6b7280"
+    }
+  ]
+}

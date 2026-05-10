@@ -1,0 +1,306 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>v3 · Equity Comp</title>
+<link rel="stylesheet" href="wf.css"></head><body>
+<div class="wf-bar">
+  <span class="wf-bar-label">Finance Suite — WF v3 Reimagined</span>
+  <a href="index.html" class="wf-link">← Index</a>
+  <a href="01-dashboard.html" class="wf-link">01 Dashboard</a>
+  <a href="02-transactions.html" class="wf-link">02 Transactions</a>
+  <a href="03-equity.html" class="wf-link active">03 Equity</a>
+  <a href="04-accounts.html" class="wf-link">04 Accounts</a>
+  <a href="05-loans.html" class="wf-link">05 Loans</a>
+  <a href="06-timeline.html" class="wf-link">06 Timeline</a>
+  <a href="07-settings.html" class="wf-link">07 Settings</a>
+</div>
+<div class="app">
+  <nav class="sidebar">
+    <a href="01-dashboard.html" class="nav-icon-btn"><span>▦</span><span class="nav-icon-label">Home</span></a>
+    <a href="06-timeline.html" class="nav-icon-btn"><span>📈</span><span class="nav-icon-label">Timeline</span></a>
+    <hr class="nav-sep">
+    <a href="02-transactions.html" class="nav-icon-btn"><span>↕</span><span class="nav-icon-label">Txns</span></a>
+    <a href="03-equity.html" class="nav-icon-btn active"><span>◈</span><span class="nav-icon-label">Equity</span></a>
+    <hr class="nav-sep">
+    <a href="04-accounts.html" class="nav-icon-btn"><span>🏦</span><span class="nav-icon-label">Accounts</span></a>
+    <a href="05-loans.html" class="nav-icon-btn"><span>📋</span><span class="nav-icon-label">Loans</span></a>
+    <a href="07-settings.html" class="nav-icon-btn bottom"><span>⚙</span><span class="nav-icon-label">Settings</span></a>
+  </nav>
+
+  <div class="main">
+    <div class="page-wrap">
+
+      <div class="ph">
+        <div>
+          <div class="ph-title">Equity Comp</div>
+          <div class="ph-sub">RSU grants · ESPP plans</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline">+ ESPP Plan</button>
+          <button class="btn btn-primary">+ RSU Grant</button>
+        </div>
+      </div>
+
+      <!-- Hero stat row -->
+      <div class="stat-row" style="margin-bottom:32px">
+        <div class="stat">
+          <div class="stat-label">Total Unvested</div>
+          <div class="stat-value">$184,200</div>
+          <div class="stat-sub">3 active grants</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Vesting This Year</div>
+          <div class="stat-value pos">$62,400</div>
+          <div class="stat-sub">4 vest events remaining</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">ESPP Next Purchase</div>
+          <div class="stat-value" style="color:var(--purple)">$3,400</div>
+          <div class="stat-sub">May 31 · est. proceeds</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Avg. Withholding</div>
+          <div class="stat-value">22%</div>
+          <div class="stat-sub">Federal supplemental rate</div>
+        </div>
+      </div>
+
+      <!-- RSU GRANTS -->
+      <div class="section-label" style="margin-bottom:16px">RSU Grants</div>
+      <div class="grant-grid">
+
+        <!-- Grant 1 — expanded view (click to expand) -->
+        <div class="grant-card" style="grid-column:1/-1;background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:20px">
+          <div class="grant-card-top">
+            <div>
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+                <div class="grant-card-name">2023 Annual RSU Grant</div>
+                <div class="ticker-pill">GOOG</div>
+                <span class="badge badge-ok" style="font-size:10px">Active</span>
+              </div>
+              <div class="grant-card-year">Granted Jan 15, 2023 · 4-year vest · 1-year cliff</div>
+            </div>
+            <button class="btn btn-ghost btn-sm">Collapse ▲</button>
+          </div>
+          <div class="grant-prog-track"><div class="grant-prog-fill" style="width:37%"></div></div>
+          <div class="grant-prog-label"><span>37.5% vested · 75 of 200 shares</span><span>125 shares remaining</span></div>
+
+          <!-- Expanded vest schedule -->
+          <div style="background:#f8f9fb;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px">
+            <div style="padding:10px 16px;background:var(--ph);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);display:flex;gap:0">
+              <span style="flex:1">Date</span><span style="width:80px;text-align:right">Shares</span><span style="width:100px;text-align:right">Est. Value</span><span style="width:100px;text-align:right">Net (22%)</span><span style="width:60px;text-align:right">Status</span>
+            </div>
+            <div style="padding:10px 16px;font-size:13px;display:flex;gap:0;border-bottom:1px solid var(--border);color:var(--muted)">
+              <span style="flex:1">Jan 15, 2024</span><span style="width:80px;text-align:right">25</span><span style="width:100px;text-align:right">$4,125</span><span style="width:100px;text-align:right">$3,218</span><span style="width:60px;text-align:right"><span class="badge badge-ok" style="font-size:10px">Vested</span></span>
+            </div>
+            <div style="padding:10px 16px;font-size:13px;display:flex;gap:0;border-bottom:1px solid var(--border);color:var(--muted)">
+              <span style="flex:1">Apr 15, 2024</span><span style="width:80px;text-align:right">25</span><span style="width:100px;text-align:right">$4,350</span><span style="width:100px;text-align:right">$3,393</span><span style="width:60px;text-align:right"><span class="badge badge-ok" style="font-size:10px">Vested</span></span>
+            </div>
+            <div style="padding:10px 16px;font-size:13px;display:flex;gap:0;border-bottom:1px solid var(--border);color:var(--muted)">
+              <span style="flex:1">Jul 15, 2024</span><span style="width:80px;text-align:right">25</span><span style="width:100px;text-align:right">$4,475</span><span style="width:100px;text-align:right">$3,491</span><span style="width:60px;text-align:right"><span class="badge badge-ok" style="font-size:10px">Vested</span></span>
+            </div>
+            <div style="padding:10px 16px;font-size:13px;display:flex;gap:0;border-bottom:1px solid var(--border);background:#fffbeb">
+              <span style="flex:1;font-weight:600">May 15, 2026</span><span style="width:80px;text-align:right;font-weight:600">25</span><span style="width:100px;text-align:right;font-weight:600">$5,655</span><span style="width:100px;text-align:right;font-weight:600;color:var(--green)">$4,411</span><span style="width:60px;text-align:right"><span class="badge badge-warn" style="font-size:10px">Next</span></span>
+            </div>
+            <div style="padding:10px 16px;font-size:13px;display:flex;gap:0;border-bottom:1px solid var(--border)">
+              <span style="flex:1">Aug 15, 2026</span><span style="width:80px;text-align:right">25</span><span style="width:100px;text-align:right;color:var(--muted)">~$5,655</span><span style="width:100px;text-align:right;color:var(--muted)">~$4,411</span><span style="width:60px;text-align:right"><span class="badge badge-neutral" style="font-size:10px">Pending</span></span>
+            </div>
+            <div style="padding:10px 16px;font-size:11px;color:var(--muted);text-align:center">+ 8 more vest events · <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 6px">Show all</button></div>
+          </div>
+
+          <div style="display:flex;gap:24px">
+            <div>
+              <div class="grant-net-label">Total Unvested Value</div>
+              <div class="grant-net">$70,688</div>
+            </div>
+            <div>
+              <div class="grant-net-label">Depositing to</div>
+              <div style="font-size:15px;font-weight:600;margin-top:2px">Fidelity Brokerage</div>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:8px;align-items:flex-end">
+              <button class="btn btn-outline btn-sm">Edit Grant</button>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red)">Delete</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grant 2 — collapsed -->
+        <div class="grant-card">
+          <div class="grant-card-top">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                <div class="grant-card-name">2024 Refresh Grant</div>
+                <div class="ticker-pill">GOOG</div>
+              </div>
+              <div class="grant-card-year">Granted Jan 2024 · 4-year vest</div>
+            </div>
+            <button class="btn btn-ghost btn-sm">···</button>
+          </div>
+          <div class="grant-prog-track"><div class="grant-prog-fill" style="width:25%"></div></div>
+          <div class="grant-prog-label"><span>25% vested · 50 of 200 sh</span><span>150 remaining</span></div>
+          <div class="grant-net-label">Unvested Value</div>
+          <div class="grant-net">$84,750</div>
+          <div class="grant-next">Next vest · Jul 15, 2026 · 25 sh · ~$4,750</div>
+        </div>
+
+        <!-- Grant 3 — collapsed -->
+        <div class="grant-card">
+          <div class="grant-card-top">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                <div class="grant-card-name">2025 Annual Grant</div>
+                <div class="ticker-pill">GOOG</div>
+              </div>
+              <div class="grant-card-year">Granted Jan 2025 · 4-year vest</div>
+            </div>
+            <button class="btn btn-ghost btn-sm">···</button>
+          </div>
+          <div class="grant-prog-track"><div class="grant-prog-fill" style="width:0%"></div></div>
+          <div class="grant-prog-label"><span>Cliff in Jan 2026</span><span>200 shares remaining</span></div>
+          <div class="grant-net-label">Unvested Value</div>
+          <div class="grant-net">$28,762</div>
+          <div class="grant-next">Next vest · Jan 15, 2026 · 50 sh cliff · ~$9,500</div>
+        </div>
+
+      </div>
+
+      <!-- ESPP -->
+      <div class="section-label" style="margin-bottom:16px;margin-top:8px">ESPP Plans</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:15px;font-weight:700">Employer ESPP</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">GOOG · 15% discount · Lookback · 6-month periods · 10% of salary</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span class="badge badge-ok">Active</span>
+            <button class="btn btn-ghost btn-sm">···</button>
+          </div>
+        </div>
+        <!-- Purchase periods -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0">
+          <div style="padding:16px 20px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Period 1 (Jan–Jun '25)</div>
+            <div style="font-size:16px;font-weight:700;color:var(--muted)">$3,218</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">Completed · 25 sh @ $128.72</div>
+          </div>
+          <div style="padding:16px 20px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:#fffbeb">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Period 2 (Jul–Dec '25) · Current</div>
+            <div style="font-size:16px;font-weight:700">~$3,400</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">Purchase May 31 · 21 sh est. @ $162 lookback</div>
+          </div>
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Period 3 (Jan–Jun '26)</div>
+            <div style="font-size:16px;font-weight:700;color:var(--muted)">—</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">Not yet started</div>
+          </div>
+        </div>
+        <div style="padding:12px 20px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px">
+          <span>Contribution: $750 / paycheck · Offering start: Jan 1, 2025 · Offering price: $162.40</span>
+          <button class="btn btn-ghost btn-sm" style="margin-left:auto">Edit Plan</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- DRAWER FORMS -->
+<div class="drawer-section">
+
+  <div class="drawer-label">Drawer — Add RSU Grant</div>
+  <div class="drawer-box drawer-box-wide">
+    <div class="drawer-title">
+      Add RSU Grant
+      <button class="btn btn-ghost btn-sm" style="font-size:18px;color:var(--muted)">✕</button>
+    </div>
+
+    <div class="fr2">
+      <div class="fg"><label class="fl">Description / Label</label><input class="fi" placeholder="e.g., 2026 Annual RSU Grant"></div>
+      <div class="fg"><label class="fl">Ticker Symbol</label><input class="fi" placeholder="GOOG"></div>
+    </div>
+    <div class="fr3">
+      <div class="fg"><label class="fl">Grant Date</label><input class="fi" type="date" value="2026-01-15"></div>
+      <div class="fg"><label class="fl">Total Shares</label><input class="fi" placeholder="200"></div>
+      <div class="fg"><label class="fl">Withholding Rate</label><input class="fi" value="22%"><div class="fh">Default from Settings</div></div>
+    </div>
+    <div class="fr2">
+      <div class="fg"><label class="fl">Deposit Account</label><select class="fs"><option>Fidelity Brokerage</option><option>Schwab Brokerage</option></select></div>
+      <div class="fg"><label class="fl">Vesting Schedule</label>
+        <select class="fs" id="vest-preset">
+          <option>4-year / 1-year cliff (25% + 25 × quarterly)</option>
+          <option>4-year / no cliff (quarterly)</option>
+          <option>3-year / annual (33% each)</option>
+          <option>Custom…</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Vest schedule preview -->
+    <div style="background:#f8f9fb;border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+        <span>Vest Schedule Preview</span>
+        <span style="font-weight:400;color:var(--muted)">200 shares total</span>
+      </div>
+      <!-- Mini bar chart placeholder -->
+      <div style="display:flex;gap:4px;align-items:flex-end;height:48px;margin-bottom:8px">
+        <div style="flex:1;background:var(--accent);opacity:.15;border-radius:3px 3px 0 0;height:100%"></div><!-- cliff 50sh -->
+        <div style="flex:1;background:var(--accent);opacity:.4;border-radius:3px 3px 0 0;height:25%"></div>
+        <div style="flex:1;background:var(--accent);opacity:.4;border-radius:3px 3px 0 0;height:25%"></div>
+        <div style="flex:1;background:var(--accent);opacity:.4;border-radius:3px 3px 0 0;height:25%"></div>
+        <div style="flex:1;background:var(--accent);opacity:.4;border-radius:3px 3px 0 0;height:25%"></div>
+        <div style="flex:1;background:var(--accent);opacity:.4;border-radius:3px 3px 0 0;height:25%"></div>
+        <div style="flex:1;background:var(--accent);opacity:.4;border-radius:3px 3px 0 0;height:25%"></div>
+        <div style="flex:1;background:var(--accent);opacity:.4;border-radius:3px 3px 0 0;height:25%"></div>
+        <div style="flex:1;background:var(--accent);opacity:.4;border-radius:3px 3px 0 0;height:25%"></div>
+        <div style="flex:1;background:var(--accent);opacity:.4;border-radius:3px 3px 0 0;height:25%"></div>
+        <div style="flex:1;background:var(--accent);opacity:.4;border-radius:3px 3px 0 0;height:25%"></div>
+        <div style="flex:1;background:var(--accent);opacity:.4;border-radius:3px 3px 0 0;height:25%"></div>
+        <div style="flex:1;background:var(--accent);opacity:.55;border-radius:3px 3px 0 0;height:25%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted)">
+        <span>Jan 2027 (cliff 50 sh)</span><span>Quarterly through Jan 2030</span>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:var(--muted)">13 events · 50 shares cliff + 12 × 12.5 shares quarterly · ✓ Adds to 200</div>
+    </div>
+
+    <div class="drawer-ftr">
+      <button class="btn btn-outline">Cancel</button>
+      <button class="btn btn-primary">Save Grant</button>
+    </div>
+  </div>
+
+  <div class="drawer-label">Drawer — Add ESPP Plan</div>
+  <div class="drawer-box">
+    <div class="drawer-title">
+      Add ESPP Plan
+      <button class="btn btn-ghost btn-sm" style="font-size:18px;color:var(--muted)">✕</button>
+    </div>
+    <div class="fr2">
+      <div class="fg"><label class="fl">Plan Name</label><input class="fi" placeholder="Employer ESPP"></div>
+      <div class="fg"><label class="fl">Ticker</label><input class="fi" placeholder="GOOG"></div>
+    </div>
+    <div class="fr3">
+      <div class="fg"><label class="fl">Discount Rate</label><input class="fi" value="15%"></div>
+      <div class="fg"><label class="fl">Period Length</label><select class="fs"><option>6 months</option><option>3 months</option><option>12 months</option></select></div>
+      <div class="fg"><label class="fl">Withholding</label><input class="fi" value="22%"></div>
+    </div>
+    <div class="fr2">
+      <div class="fg"><label class="fl">Contribution Mode</label>
+        <div class="toggle-grp"><div class="toggle-opt on">% of Salary</div><div class="toggle-opt">Fixed $/paycheck</div></div>
+      </div>
+      <div class="fg"><label class="fl">Contribution Amount</label><input class="fi" placeholder="10%"></div>
+    </div>
+    <div class="fg">
+      <div class="fl">Lookback Provision?</div>
+      <div class="toggle-grp"><div class="toggle-opt on">Yes — use lower of start / end price</div><div class="toggle-opt">No</div></div>
+    </div>
+    <div class="fr2">
+      <div class="fg"><label class="fl">First Offering Start</label><input class="fi" type="date" value="2026-07-01"></div>
+      <div class="fg"><label class="fl">Deposit Account</label><select class="fs"><option>Fidelity Brokerage</option></select></div>
+    </div>
+    <div class="drawer-ftr">
+      <button class="btn btn-outline">Cancel</button>
+      <button class="btn btn-primary">Save ESPP Plan</button>
+    </div>
+  </div>
+
+</div>
+</body></html>

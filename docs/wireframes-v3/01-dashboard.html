@@ -1,0 +1,202 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>v3 · Dashboard</title>
+<link rel="stylesheet" href="wf.css"></head><body>
+
+<div class="wf-bar">
+  <span class="wf-bar-label">Finance Suite — WF v3 Reimagined</span>
+  <a href="index.html" class="wf-link">← Index</a>
+  <a href="01-dashboard.html" class="wf-link active">01 Dashboard</a>
+  <a href="02-transactions.html" class="wf-link">02 Transactions</a>
+  <a href="03-equity.html" class="wf-link">03 Equity</a>
+  <a href="04-accounts.html" class="wf-link">04 Accounts</a>
+  <a href="05-loans.html" class="wf-link">05 Loans</a>
+  <a href="06-timeline.html" class="wf-link">06 Timeline</a>
+  <a href="07-settings.html" class="wf-link">07 Settings</a>
+</div>
+
+<div class="app">
+
+  <!-- Icon rail sidebar -->
+  <nav class="sidebar">
+    <a href="01-dashboard.html" class="nav-icon-btn active" title="Dashboard"><span>▦</span><span class="nav-icon-label">Home</span></a>
+    <a href="06-timeline.html" class="nav-icon-btn" title="Timeline"><span>📈</span><span class="nav-icon-label">Timeline</span></a>
+    <hr class="nav-sep">
+    <a href="02-transactions.html" class="nav-icon-btn" title="Transactions"><span>↕</span><span class="nav-icon-label">Txns</span></a>
+    <a href="03-equity.html" class="nav-icon-btn" title="Equity"><span>◈</span><span class="nav-icon-label">Equity</span></a>
+    <hr class="nav-sep">
+    <a href="04-accounts.html" class="nav-icon-btn" title="Accounts"><span>🏦</span><span class="nav-icon-label">Accounts</span></a>
+    <a href="05-loans.html" class="nav-icon-btn" title="Loans"><span>📋</span><span class="nav-icon-label">Loans</span></a>
+    <a href="07-settings.html" class="nav-icon-btn bottom" title="Settings"><span>⚙</span><span class="nav-icon-label">Settings</span></a>
+  </nav>
+
+  <div class="main">
+    <div class="page-wrap">
+
+      <!-- Divergence alert — only when accounts need attention -->
+      <div class="alert-banner">
+        <span>⚠</span>
+        <span>Fidelity Brokerage is <strong>7.5% below</strong> predicted. Chase Checking is <strong>4.2% above</strong>.</span>
+        <a href="04-accounts.html" class="btn btn-outline btn-sm" style="margin-left:auto;white-space:nowrap">Review accounts</a>
+      </div>
+
+      <!-- Hero: Net Worth -->
+      <div class="hero">
+        <div class="hero-eyebrow">Net Worth · May 2026</div>
+        <div class="hero-value">$482,340</div>
+        <div class="hero-delta">
+          <span class="badge badge-ok">▲ +$3,200 this month</span>
+          <span class="muted small">Predicted through Dec 2031</span>
+        </div>
+      </div>
+
+      <!-- Stat row: income / expenses / net flow -->
+      <div class="stat-row">
+        <div class="stat">
+          <div class="stat-label">Monthly Income</div>
+          <div class="stat-value pos">$14,500</div>
+          <div class="stat-sub">Salary + RSU vest (May)</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Monthly Expenses</div>
+          <div class="stat-value neg">$8,200</div>
+          <div class="stat-sub">Recurring + blanket</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Net Cash Flow</div>
+          <div class="stat-value">$6,300</div>
+          <div class="stat-sub">On track ▲</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Total Assets</div>
+          <div class="stat-value">$831,200</div>
+          <div class="stat-sub">−$348,860 liabilities</div>
+        </div>
+      </div>
+
+      <!-- Chart + upcoming events -->
+      <div class="two-panel">
+
+        <!-- Chart -->
+        <div class="panel">
+          <div class="panel-hdr">
+            <span class="panel-title">Net Worth Trend</span>
+            <div style="display:flex;gap:14px;font-size:12px;color:var(--muted)">
+              <span><span style="color:var(--accent)">━</span> Predicted</span>
+              <span><span style="color:var(--green)">●</span> Actual</span>
+            </div>
+          </div>
+          <div class="ph-box" style="height:160px">
+            <span class="ph-icon">📈</span>
+            <div>Area chart · 12-month rolling<br>
+            <span class="xs muted">Blue fill = predicted · Green dots = monthly snapshots</span></div>
+          </div>
+          <!-- x-axis tick labels -->
+          <div style="display:flex;justify-content:space-between;padding:10px 20px;font-size:11px;color:var(--muted);border-top:1px solid var(--border)">
+            <span>Jun '25</span><span>Aug</span><span>Oct</span><span>Dec</span>
+            <span>Feb '26</span><span>Apr</span><span style="color:var(--accent);font-weight:700">May '26</span>
+          </div>
+          <!-- Cash flow waterfall for this month -->
+          <div style="border-top:1px solid var(--border);padding:14px 20px">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px">May Cash Flow — Waterfall</div>
+            <svg viewBox="0 0 420 72" style="width:100%;height:72px;overflow:visible">
+              <!-- Salary bar -->
+              <rect x="0"   y="16" width="50" height="40" fill="#dcfce7" rx="2"/>
+              <text x="25"  y="12" font-size="9" fill="#15803d" text-anchor="middle" font-weight="600">+$15k</text>
+              <text x="25"  y="66" font-size="8" fill="#9ca3af" text-anchor="middle">Salary</text>
+              <!-- RSU -->
+              <rect x="58"  y="26" width="40" height="30" fill="#dbeafe" rx="2"/>
+              <text x="78"  y="22" font-size="9" fill="#1d4ed8" text-anchor="middle" font-weight="600">+$4.4k</text>
+              <text x="78"  y="66" font-size="8" fill="#9ca3af" text-anchor="middle">RSU</text>
+              <!-- ESPP -->
+              <rect x="106" y="34" width="34" height="22" fill="#ede9fe" rx="2"/>
+              <text x="123" y="30" font-size="9" fill="#6d28d9" text-anchor="middle" font-weight="600">+$0.7k</text>
+              <text x="123" y="66" font-size="8" fill="#9ca3af" text-anchor="middle">ESPP</text>
+              <!-- subtotal connector -->
+              <line x1="148" y1="56" x2="162" y2="56" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="2,2"/>
+              <!-- Mortgage out -->
+              <rect x="162" y="34" width="44" height="22" fill="#fee2e2" rx="2"/>
+              <text x="184" y="30" font-size="9" fill="#b91c1c" text-anchor="middle" font-weight="600">−$2.9k</text>
+              <text x="184" y="66" font-size="8" fill="#9ca3af" text-anchor="middle">Mortgage</text>
+              <!-- 401k out -->
+              <rect x="212" y="26" width="36" height="30" fill="#fee2e2" rx="2"/>
+              <text x="230" y="22" font-size="9" fill="#b91c1c" text-anchor="middle" font-weight="600">−$2.3k</text>
+              <text x="230" y="66" font-size="8" fill="#9ca3af" text-anchor="middle">401k</text>
+              <!-- Blanket out -->
+              <rect x="254" y="36" width="34" height="20" fill="#fee2e2" rx="2"/>
+              <text x="271" y="32" font-size="9" fill="#b91c1c" text-anchor="middle" font-weight="600">−$0.9k</text>
+              <text x="271" y="66" font-size="8" fill="#9ca3af" text-anchor="middle">Blanket</text>
+              <!-- Net bar -->
+              <rect x="310" y="4"  width="54" height="52" fill="#3b5fc0" rx="2"/>
+              <text x="337" y="78" font-size="9" fill="#3b5fc0" text-anchor="middle" font-weight="700">Net +$12k</text>
+              <text x="337" y="0"  font-size="9" fill="#3b5fc0" text-anchor="middle" font-weight="700" dy="12">+$11,955</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Upcoming events -->
+        <div class="panel">
+          <div class="panel-hdr">
+            <span class="panel-title">Upcoming (30 days)</span>
+            <a href="06-timeline.html" class="btn btn-ghost btn-sm">Full timeline →</a>
+          </div>
+          <div style="padding:4px 20px">
+            <!-- Income -->
+            <div class="feed-item">
+              <div class="feed-dot feed-dot-rsu"></div>
+              <div class="feed-name">
+                <div class="feed-name-primary">RSU Vest — 25 sh GOOG</div>
+                <div class="feed-name-secondary">May 15 · net after 22% withholding</div>
+              </div>
+              <div class="feed-amount pos">+$5,655</div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-dot feed-dot-expense"></div>
+              <div class="feed-name">
+                <div class="feed-name-primary">Mortgage</div>
+                <div class="feed-name-secondary">May 15 · Chase Checking</div>
+              </div>
+              <div class="feed-amount neg">−$2,850</div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-dot feed-dot-espp"></div>
+              <div class="feed-name">
+                <div class="feed-name-primary">ESPP Purchase Period 2</div>
+                <div class="feed-name-secondary">May 31 · est. proceeds</div>
+              </div>
+              <div class="feed-amount pos">+$3,400</div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-dot feed-dot-income"></div>
+              <div class="feed-name">
+                <div class="feed-name-primary">Salary Deposit</div>
+                <div class="feed-name-secondary">Jun 1 · Chase Checking</div>
+              </div>
+              <div class="feed-amount pos">+$7,500</div>
+            </div>
+            <div class="feed-item" style="padding-bottom:8px">
+              <div class="feed-dot feed-dot-expense"></div>
+              <div class="feed-name">
+                <div class="feed-name-primary">Car Insurance</div>
+                <div class="feed-name-secondary">Jun 1 · Chase Checking</div>
+              </div>
+              <div class="feed-amount neg">−$180</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Quick add strip -->
+      <div style="display:flex;gap:10px;margin-top:24px;padding:18px 20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;align-items:center">
+        <span class="small muted fw7" style="margin-right:4px;">Quick add:</span>
+        <button class="btn btn-outline btn-sm">+ Transaction</button>
+        <button class="btn btn-outline btn-sm">+ Recurring</button>
+        <button class="btn btn-outline btn-sm">+ Blanket Expense</button>
+        <button class="btn btn-outline btn-sm">+ RSU Grant</button>
+        <button class="btn btn-outline btn-sm">+ ESPP Plan</button>
+        <div style="margin-left:auto;font-size:11px;color:var(--muted)">⟳ Synced to Google Drive · 2 min ago</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body></html>

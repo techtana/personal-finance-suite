@@ -1,0 +1,256 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>WF 07 · Settings</title>
+<link rel="stylesheet" href="wf.css"></head><body>
+
+<div class="wf-bar">
+  <span class="wf-label">Personal Finance Suite — Wireframes</span>
+  <div class="wf-links">
+    <a href="index.html" class="wf-link">← Index</a>
+    <a href="01-dashboard.html" class="wf-link">01 Dashboard</a>
+    <a href="02-transactions.html" class="wf-link">02 Transactions</a>
+    <a href="03-equity.html" class="wf-link">03 Equity</a>
+    <a href="04-accounts.html" class="wf-link">04 Accounts</a>
+    <a href="05-loans.html" class="wf-link">05 Loans</a>
+    <a href="06-timeline.html" class="wf-link">06 Timeline</a>
+    <a href="07-settings.html" class="wf-link active">07 Settings</a>
+  </div>
+</div>
+
+<div class="app">
+  <nav class="sidebar">
+    <div class="sb-logo"><div class="sb-logo-t">💰 Finance Suite</div><div class="sb-logo-s">Personal Financial Planner</div></div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Overview</div>
+      <a href="01-dashboard.html" class="nav-item"><span class="nav-icon">▦</span>Dashboard</a>
+      <a href="06-timeline.html" class="nav-item"><span class="nav-icon">📈</span>Timeline</a>
+    </div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Money In / Out</div>
+      <a href="02-transactions.html" class="nav-item"><span class="nav-icon">↕</span>Transactions</a>
+      <a href="03-equity.html" class="nav-item"><span class="nav-icon">◈</span>Equity Comp</a>
+    </div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Balance Sheet</div>
+      <a href="04-accounts.html" class="nav-item"><span class="nav-icon">🏦</span>Accounts</a>
+      <a href="05-loans.html" class="nav-item"><span class="nav-icon">📋</span>Loans</a>
+    </div>
+    <div class="sb-sec"><a href="07-settings.html" class="nav-item active"><span class="nav-icon">⚙</span>Settings</a></div>
+    <div class="sb-footer"><span class="sync-dot"></span>Synced to Google Drive · 2 min ago</div>
+  </nav>
+
+  <div class="main">
+    <div class="page-wrap" style="max-width:760px">
+
+      <div class="ph">
+        <div><div class="ph-title">Settings</div><div class="ph-sub">Workspace preferences and configuration</div></div>
+        <button class="btn btn-primary">Save Changes</button>
+      </div>
+
+      <!-- ─── GENERAL ─── -->
+      <div class="card mb16">
+        <div class="sec-title mb16">General</div>
+        <div class="fr2">
+          <div class="fg">
+            <label class="fl">Currency</label>
+            <select class="fs"><option>USD — US Dollar ($)</option><option>EUR — Euro (€)</option><option>GBP — British Pound (£)</option><option>CAD — Canadian Dollar</option><option>SGD — Singapore Dollar</option></select>
+          </div>
+          <div class="fg">
+            <label class="fl">Locale / Number Format</label>
+            <select class="fs"><option>en-US · 1,234,567.89</option><option>en-GB · 1,234,567.89</option><option>de-DE · 1.234.567,89</option></select>
+          </div>
+        </div>
+        <div class="fr2">
+          <div class="fg">
+            <label class="fl">Fiscal Year Start Month</label>
+            <select class="fs"><option>January (default)</option><option>April</option><option>July</option><option>October</option></select>
+            <div class="fh">Affects annual summary views and year-to-date calculations.</div>
+          </div>
+          <div class="fg">
+            <label class="fl">Default RSU/ESPP Withholding Rate</label>
+            <input class="fi" value="22.00%">
+            <div class="fh">Can be overridden per grant. Applied to net proceeds calculations.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── DIVERGENCE ALERTS ─── -->
+      <div class="card mb16">
+        <div class="sec-title mb8">Divergence Alerts</div>
+        <div class="xs muted mb16">Show a warning on Accounts when an actual balance differs from predicted by more than these thresholds. Set to 0% to disable per type.</div>
+        <div class="fr3">
+          <div class="fg"><label class="fl">Checking / Savings</label><input class="fi" value="10%"><div class="fh">Cash fluctuates; looser threshold is fine.</div></div>
+          <div class="fg"><label class="fl">Brokerage</label><input class="fi" value="5%"><div class="fh">Market moves; 5% is a meaningful signal.</div></div>
+          <div class="fg"><label class="fl">Retirement (401k, IRA)</label><input class="fi" value="5%"></div>
+        </div>
+        <div class="fr3">
+          <div class="fg"><label class="fl">Property</label><input class="fi" value="0%" placeholder="Disabled"><div class="fh">Property values rarely change — 0 = no alert.</div></div>
+          <div class="fg"><label class="fl">Crypto / Other</label><input class="fi" value="15%"><div class="fh">Highly volatile; wide threshold.</div></div>
+          <div class="fg"><label class="fl">Loans</label><input class="fi" value="2%"><div class="fh">Should track closely to amortization schedule.</div></div>
+        </div>
+      </div>
+
+      <!-- ─── CATEGORIES ─── -->
+      <div class="card mb16">
+        <div class="sec-hdr mb12">
+          <span class="sec-title">Categories</span>
+          <button class="btn btn-outline btn-sm">+ Add Category</button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Type</th><th>Color</th><th>Used in</th><th style="width:80px"></th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="fw6">Compensation</td>
+                <td><span class="badge badge-income">Income</span></td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:16px;height:16px;background:#15803d;border-radius:3px;display:inline-block"></span> #15803d</span></td>
+                <td class="xs muted">Salary, Bonus, RSU (auto)</td>
+                <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+              </tr>
+              <tr>
+                <td class="fw6">Housing</td>
+                <td><span class="badge badge-expense">Expense</span></td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:16px;height:16px;background:#dc2626;border-radius:3px;display:inline-block"></span> #dc2626</span></td>
+                <td class="xs muted">Mortgage, Rent, HOA</td>
+                <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+              </tr>
+              <tr>
+                <td class="fw6">Utilities</td>
+                <td><span class="badge badge-expense">Expense</span></td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:16px;height:16px;background:#9333ea;border-radius:3px;display:inline-block"></span> #9333ea</span></td>
+                <td class="xs muted">Internet, Electric, Gas</td>
+                <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+              </tr>
+              <tr>
+                <td class="fw6">Insurance</td>
+                <td><span class="badge badge-expense">Expense</span></td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:16px;height:16px;background:#0284c7;border-radius:3px;display:inline-block"></span> #0284c7</span></td>
+                <td class="xs muted">Auto, Home, Life</td>
+                <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+              </tr>
+              <tr>
+                <td class="fw6">Food &amp; Dining</td>
+                <td><span class="badge badge-expense">Expense</span></td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:16px;height:16px;background:#f97316;border-radius:3px;display:inline-block"></span> #f97316</span></td>
+                <td class="xs muted">Blanket, Groceries</td>
+                <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+              </tr>
+              <tr>
+                <td class="fw6">Investment</td>
+                <td><span class="badge badge-neutral">Both</span></td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:16px;height:16px;background:#3b5fc0;border-radius:3px;display:inline-block"></span> #3b5fc0</span></td>
+                <td class="xs muted">401k, ESPP, Brokerage</td>
+                <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+              </tr>
+              <tr>
+                <td class="fw6">Travel</td>
+                <td><span class="badge badge-expense">Expense</span></td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:16px;height:16px;background:#0d9488;border-radius:3px;display:inline-block"></span> #0d9488</span></td>
+                <td class="xs muted">Vacations, Business travel</td>
+                <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+              </tr>
+              <tr style="background:#fafbfc">
+                <td colspan="5" style="padding:10px 14px">
+                  <button class="btn btn-ghost btn-sm" style="color:var(--muted)">+ Add custom category</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ─── GOOGLE DRIVE ─── -->
+      <div class="card mb16">
+        <div class="sec-title mb16">Google Drive Sync</div>
+        <div style="display:flex;align-items:center;gap:14px;padding:14px;background:#f8f9fb;border-radius:8px;margin-bottom:16px">
+          <span style="font-size:28px">☁</span>
+          <div style="flex:1">
+            <div class="fw6">Connected as phacharapol.tana@gmail.com</div>
+            <div class="xs muted">Folder: My Drive / Personal Finance Suite/</div>
+            <div class="xs muted">Last synced: May 9, 2026 at 9:41 AM · All data current</div>
+          </div>
+          <span class="badge badge-ok" style="flex-shrink:0">✓ Synced</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div class="fg" style="flex:1;margin:0">
+            <label class="fl">Auto-save delay</label>
+            <select class="fs"><option>2 seconds (default)</option><option>5 seconds</option><option>Manual only</option></select>
+          </div>
+          <div class="fg" style="flex:1;margin:0">
+            <label class="fl">Conflict resolution</label>
+            <select class="fs"><option>Prompt me (default)</option><option>Always use local</option><option>Always use Drive</option></select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm">⟳ Sync Now</button>
+          <button class="btn btn-outline btn-sm">⬇ Export Full JSON Backup</button>
+          <button class="btn btn-outline btn-sm">📂 Open Drive Folder</button>
+          <button class="btn btn-danger btn-sm" style="margin-left:auto">Sign Out</button>
+        </div>
+      </div>
+
+      <!-- ─── DATA MANAGEMENT ─── -->
+      <div class="card mb16">
+        <div class="sec-title mb12">Data Management</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:#f8f9fb;border-radius:8px">
+            <div><div class="fw6 sm">Import from JSON backup</div><div class="xs muted">Restore from a previously exported backup file.</div></div>
+            <button class="btn btn-outline btn-sm">📁 Choose File</button>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:#fdecea;border-radius:8px">
+            <div><div class="fw6 sm neg">Reset all data</div><div class="xs muted">Permanently delete all transactions, accounts, and settings. This cannot be undone.</div></div>
+            <button class="btn btn-danger btn-sm">Reset Workspace</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── ABOUT ─── -->
+      <div class="card">
+        <div class="sec-title mb12">About</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)">
+          <div><span class="fw6" style="color:var(--text)">Personal Finance Suite</span> v0.1.0</div>
+          <div>A self-hosted financial planner. All data stored in your Google Drive.</div>
+          <div>Built with React + Vite + Zustand · No backend · No telemetry</div>
+        </div>
+      </div>
+
+      <div style="text-align:right;margin-top:20px">
+        <button class="btn btn-primary">Save All Settings</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODALS ═══════ -->
+<div class="modal-preview-section">
+
+  <!-- Add Category -->
+  <div class="mp-label">Modal — Add / Edit Category</div>
+  <div class="modal-box" style="width:480px">
+    <div class="modal-hdr"><div class="modal-title">Add Category</div><button class="modal-close">✕</button></div>
+    <div class="fg"><label class="fl">Category Name</label><input class="fi" placeholder="e.g., Healthcare, Pet Expenses, Side Income"></div>
+    <div class="fr2">
+      <div class="fg"><label class="fl">Type</label>
+        <div class="toggle-grp"><div class="toggle-opt">Income</div><div class="toggle-opt on">Expense</div><div class="toggle-opt">Both</div></div>
+      </div>
+      <div class="fg">
+        <label class="fl">Color</label>
+        <input type="color" value="#7c3aed" style="width:100%;height:38px;border:1px solid var(--border);border-radius:7px;cursor:pointer;padding:2px">
+        <div class="fh">Used in charts and category badges.</div>
+      </div>
+    </div>
+    <div class="modal-ftr"><button class="btn btn-outline">Cancel</button><button class="btn btn-primary">Save Category</button></div>
+  </div>
+
+  <!-- First-run / Sign In -->
+  <div class="mp-label" style="margin-top:40px">Screen — First Run / Google Sign-In</div>
+  <div style="background:var(--surface);border-radius:12px;width:480px;padding:48px 36px;box-shadow:0 24px 80px rgba(0,0,0,.3);margin:0 auto;text-align:center">
+    <div style="font-size:40px;margin-bottom:16px">💰</div>
+    <div style="font-size:24px;font-weight:700;margin-bottom:8px">Personal Finance Suite</div>
+    <div style="font-size:14px;color:var(--muted);margin-bottom:32px;line-height:1.6">Your financial planner, stored entirely in your<br>own Google Drive. No servers. No subscriptions.</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;font-size:15px;gap:12px">
+      <span>G</span> Sign in with Google
+    </button>
+    <div style="font-size:12px;color:var(--muted);margin-top:20px;line-height:1.6">
+      We request only <code style="background:var(--ph);padding:2px 6px;border-radius:4px">drive.file</code> access — the app can only see files it creates.<br>Your data never touches our servers.
+    </div>
+  </div>
+
+</div>
+</body></html>

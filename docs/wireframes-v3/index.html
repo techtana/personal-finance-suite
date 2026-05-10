@@ -1,0 +1,71 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>WF v3 — Index</title>
+<link rel="stylesheet" href="wf.css">
+<style>
+body { background: #0d1b2e; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 48px 24px; }
+h1 { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 6px; letter-spacing: -.5px; }
+.sub { font-size: 13px; color: #5a7da0; margin-bottom: 36px; }
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; width: 100%; max-width: 900px; }
+@media (max-width: 700px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+.card { background: #152237; border: 1px solid #1e344f; border-radius: 12px; padding: 20px; text-decoration: none; color: #ccd6f6; display: block; transition: background .15s, border-color .15s; }
+.card:hover { background: #1a2d47; border-color: #3b5fc0; }
+.card-num { font-size: 10px; font-weight: 700; color: #3b5fc0; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 8px; }
+.card-name { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+.card-desc { font-size: 12px; color: #5a7da0; line-height: 1.6; }
+.card-icon { font-size: 22px; margin-bottom: 10px; display: block; }
+.version-row { display: flex; gap: 16px; margin-top: 32px; }
+.version-link { font-size: 12px; color: #3b5fc0; text-decoration: none; }
+.version-link:hover { color: #64ffda; }
+.badge-new { display: inline-block; background: #64ffda; color: #0d1b2e; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; margin-left: 6px; letter-spacing: .05em; vertical-align: middle; }
+</style>
+</head><body>
+<h1>Personal Finance Suite <span class="badge-new">v3</span></h1>
+<div class="sub">Reimagined UI · Hero numbers · Feed lists · Icon rail · May 2026</div>
+<div class="grid">
+  <a href="01-dashboard.html" class="card">
+    <span class="card-icon">▦</span>
+    <div class="card-num">Screen 01</div>
+    <div class="card-name">Dashboard</div>
+    <div class="card-desc">Hero net worth, stat strip, chart + upcoming events, quick-add bar. Single-screen summary.</div>
+  </a>
+  <a href="02-transactions.html" class="card">
+    <span class="card-icon">↕</span>
+    <div class="card-num">Screen 02</div>
+    <div class="card-name">Transactions</div>
+    <div class="card-desc">Feed list grouped by type. Single "+ Add ▾" dropdown. Unified form drawer.</div>
+  </a>
+  <a href="03-equity.html" class="card">
+    <span class="card-icon">◈</span>
+    <div class="card-num">Screen 03</div>
+    <div class="card-name">Equity Comp</div>
+    <div class="card-desc">Grant cards with progress bars, expandable vest schedule, ESPP period grid. Add drawers for RSU + ESPP.</div>
+  </a>
+  <a href="04-accounts.html" class="card">
+    <span class="card-icon">🏦</span>
+    <div class="card-num">Screen 04</div>
+    <div class="card-name">Accounts</div>
+    <div class="card-desc">Net worth hero, hierarchical grouped account list, divergence alerts inline. Reconcile drawer with 3 resolution options.</div>
+  </a>
+  <a href="05-loans.html" class="card">
+    <span class="card-icon">📋</span>
+    <div class="card-num">Screen 05</div>
+    <div class="card-name">Loans</div>
+    <div class="card-desc">Stat row, payoff progress bar, trajectory chart, amortization table. Add loan drawer with live payment calculation.</div>
+  </a>
+  <a href="06-timeline.html" class="card">
+    <span class="card-icon">📈</span>
+    <div class="card-num">Screen 06</div>
+    <div class="card-name">Timeline</div>
+    <div class="card-desc">Full-width projection chart, milestone strip, expandable month table with income/expense drill-down, scenario toggle.</div>
+  </a>
+  <a href="07-settings.html" class="card">
+    <span class="card-icon">⚙</span>
+    <div class="card-num">Screen 07</div>
+    <div class="card-name">Settings</div>
+    <div class="card-desc">Tab strip: General, Categories, Alerts, Google Drive, Data. First-run sign-in screen.</div>
+  </a>
+</div>
+<div class="version-row">
+  <a href="../wireframes-v2/index.html" class="version-link">← v2 Simplified</a>
+  <a href="../wireframes/index.html" class="version-link">← v1 Original</a>
+</div>
+</body></html>

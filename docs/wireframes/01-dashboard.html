@@ -1,0 +1,218 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>WF 01 · Dashboard</title>
+<link rel="stylesheet" href="wf.css"></head><body>
+
+<div class="wf-bar">
+  <span class="wf-label">Personal Finance Suite — Wireframes</span>
+  <div class="wf-links">
+    <a href="index.html" class="wf-link">← Index</a>
+    <a href="01-dashboard.html" class="wf-link active">01 Dashboard</a>
+    <a href="02-transactions.html" class="wf-link">02 Transactions</a>
+    <a href="03-equity.html" class="wf-link">03 Equity</a>
+    <a href="04-accounts.html" class="wf-link">04 Accounts</a>
+    <a href="05-loans.html" class="wf-link">05 Loans</a>
+    <a href="06-timeline.html" class="wf-link">06 Timeline</a>
+    <a href="07-settings.html" class="wf-link">07 Settings</a>
+  </div>
+</div>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sb-logo"><div class="sb-logo-t">💰 Finance Suite</div><div class="sb-logo-s">Personal Financial Planner</div></div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Overview</div>
+      <a href="01-dashboard.html" class="nav-item active"><span class="nav-icon">▦</span>Dashboard</a>
+      <a href="06-timeline.html" class="nav-item"><span class="nav-icon">📈</span>Timeline</a>
+    </div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Money In / Out</div>
+      <a href="02-transactions.html" class="nav-item"><span class="nav-icon">↕</span>Transactions</a>
+      <a href="03-equity.html" class="nav-item"><span class="nav-icon">◈</span>Equity Comp</a>
+    </div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Balance Sheet</div>
+      <a href="04-accounts.html" class="nav-item"><span class="nav-icon">🏦</span>Accounts</a>
+      <a href="05-loans.html" class="nav-item"><span class="nav-icon">📋</span>Loans</a>
+    </div>
+    <div class="sb-sec">
+      <a href="07-settings.html" class="nav-item"><span class="nav-icon">⚙</span>Settings</a>
+    </div>
+    <div class="sb-footer"><span class="sync-dot"></span>Synced to Google Drive · 2 min ago</div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="page-wrap">
+
+      <!-- Page header -->
+      <div class="ph">
+        <div>
+          <div class="ph-title">Dashboard</div>
+          <div class="ph-sub">May 2026 · Projected through Dec 2031</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm">⟳ Reconcile Accounts</button>
+          <button class="btn btn-outline btn-sm">⬇ Export</button>
+        </div>
+      </div>
+
+      <!-- KPI row -->
+      <div class="g4">
+        <div class="card" style="border-top:3px solid var(--accent)">
+          <div class="card-lbl">Net Worth</div>
+          <div class="card-val">$482,340</div>
+          <div class="card-delta pos">▲ $3,200 vs last month</div>
+        </div>
+        <div class="card" style="border-top:3px solid var(--green)">
+          <div class="card-lbl">Monthly Income</div>
+          <div class="card-val" style="font-size:22px">$14,500</div>
+          <div class="card-delta muted">Salary + scheduled income</div>
+        </div>
+        <div class="card" style="border-top:3px solid var(--red)">
+          <div class="card-lbl">Monthly Expenses</div>
+          <div class="card-val neg" style="font-size:22px">$8,200</div>
+          <div class="card-delta muted">All recurring + blanket</div>
+        </div>
+        <div class="card" style="border-top:3px solid var(--green)">
+          <div class="card-lbl">Net Cash Flow</div>
+          <div class="card-val pos" style="font-size:22px">$6,300</div>
+          <div class="card-delta pos">▲ On track this month</div>
+        </div>
+      </div>
+
+      <!-- Chart + right column -->
+      <div class="g21 mt24">
+
+        <!-- Net worth chart -->
+        <div class="card" style="padding:20px">
+          <div class="sec-hdr mb12">
+            <span class="sec-title">Net Worth Trend</span>
+            <div style="display:flex;gap:16px;font-size:12px">
+              <span><span style="color:var(--accent)">━━</span> Predicted</span>
+              <span><span style="color:var(--green)">●</span> Actual snapshot</span>
+            </div>
+          </div>
+          <div class="ph-box" style="height:230px;padding:12px">
+            <div class="ph-ico">📈</div>
+            <div><strong>Area Chart — 12-Month Rolling</strong><br>
+            Blue area fill = predicted net worth trajectory<br>
+            Green dots = user-entered monthly snapshots<br>
+            Hover dot → tooltip with predicted vs. actual values</div>
+          </div>
+          <!-- X-axis labels -->
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:8px;padding:0 4px">
+            <span>Jun '25</span><span>Aug '25</span><span>Oct '25</span><span>Dec '25</span>
+            <span>Feb '26</span><span>Apr '26</span><span style="color:var(--accent);font-weight:600">May '26</span>
+          </div>
+        </div>
+
+        <!-- Right column -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- Divergence alerts -->
+          <div class="card">
+            <div class="sec-hdr mb12">
+              <span class="sec-title">⚠ Divergence Alerts</span>
+              <span class="badge badge-warn">2 accounts</span>
+            </div>
+            <div class="ev-row">
+              <div style="flex:1">
+                <div class="fw6 sm">Fidelity Brokerage</div>
+                <div class="xs muted">Actual $48,200 · Predicted $52,100</div>
+              </div>
+              <div class="neg fw7">−7.5%</div>
+              <a href="04-accounts.html" class="btn btn-outline btn-sm">Review</a>
+            </div>
+            <div class="ev-row">
+              <div style="flex:1">
+                <div class="fw6 sm">Chase Checking</div>
+                <div class="xs muted">Actual $12,400 · Predicted $11,900</div>
+              </div>
+              <div class="pos fw7">+4.2%</div>
+              <a href="04-accounts.html" class="btn btn-outline btn-sm">Review</a>
+            </div>
+            <div style="text-align:center;padding:10px 0 2px"><a href="04-accounts.html" class="btn btn-ghost btn-sm">View all accounts →</a></div>
+          </div>
+
+          <!-- Upcoming events -->
+          <div class="card">
+            <div class="sec-hdr mb12">
+              <span class="sec-title">Upcoming (30 days)</span>
+            </div>
+            <div class="ev-row">
+              <div class="ev-date">May 15</div>
+              <div class="ev-label">RSU Vest — 25 sh GOOG <span class="badge badge-rsu">RSU</span></div>
+              <div class="ev-amt pos">+$7,250</div>
+            </div>
+            <div class="ev-row">
+              <div class="ev-date">May 15</div>
+              <div class="ev-label">Mortgage Payment <span class="badge badge-expense">Expense</span></div>
+              <div class="ev-amt neg">−$2,850</div>
+            </div>
+            <div class="ev-row">
+              <div class="ev-date">May 31</div>
+              <div class="ev-label">ESPP Purchase <span class="badge badge-espp">ESPP</span></div>
+              <div class="ev-amt pos">+$3,400 est.</div>
+            </div>
+            <div class="ev-row">
+              <div class="ev-date">Jun 1</div>
+              <div class="ev-label">Salary Deposit <span class="badge badge-income">Income</span></div>
+              <div class="ev-amt pos">+$7,500</div>
+            </div>
+            <div class="ev-row">
+              <div class="ev-date">Jun 1</div>
+              <div class="ev-label">Car Insurance <span class="badge badge-expense">Expense</span></div>
+              <div class="ev-amt neg">−$180</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Second row: monthly breakdown + quick add -->
+      <div class="g21 mt24">
+        <!-- Monthly cash flow mini-table -->
+        <div class="card" style="padding:20px">
+          <div class="sec-hdr mb12">
+            <span class="sec-title">This Month — May 2026</span>
+            <a href="06-timeline.html" class="btn btn-ghost btn-sm">Full timeline →</a>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Category</th><th class="td-r">Budgeted / Scheduled</th><th class="td-r">Projected Total</th></tr></thead>
+              <tbody>
+                <tr><td><span class="badge badge-income">Income</span> Salary</td><td class="td-r">$7,500 × 2</td><td class="td-r pos fw6">$15,000</td></tr>
+                <tr><td><span class="badge badge-rsu">RSU</span> GOOG Vest (net)</td><td class="td-r">25 sh × $290 × 78%</td><td class="td-r pos fw6">$5,655</td></tr>
+                <tr><td><span class="badge badge-expense">Expense</span> Housing</td><td class="td-r">$2,850 mortgage</td><td class="td-r neg">−$2,850</td></tr>
+                <tr><td><span class="badge badge-expense">Expense</span> Recurring bills</td><td class="td-r">7 items</td><td class="td-r neg">−$2,350</td></tr>
+                <tr><td><span class="badge badge-neutral">Blanket</span> Misc spending</td><td class="td-r">$500/mo</td><td class="td-r neg">−$500</td></tr>
+                <tr style="background:#f8f9fb"><td colspan="2" class="fw6">Net cash flow</td><td class="td-r pos fw7">+$14,955</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Quick add + assets snapshot -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="sec-title mb12">Quick Add</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <a href="02-transactions.html" class="btn btn-outline" style="justify-content:center">+ One-time Transaction</a>
+              <a href="02-transactions.html" class="btn btn-outline" style="justify-content:center">+ Recurring Transaction</a>
+              <a href="02-transactions.html" class="btn btn-outline" style="justify-content:center">+ Blanket Expense</a>
+              <a href="03-equity.html" class="btn btn-outline" style="justify-content:center">+ RSU Grant</a>
+              <a href="03-equity.html" class="btn btn-outline" style="justify-content:center">+ ESPP Plan</a>
+            </div>
+          </div>
+          <div class="card">
+            <div class="sec-title mb12">Assets Snapshot</div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span class="sm">Cash &amp; Savings</span><span class="fw6">$54,700</span></div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span class="sm">Investments</span><span class="fw6">$336,500</span></div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span class="sm">Property (est.)</span><span class="fw6">$440,000</span></div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span class="sm muted">Liabilities</span><span class="fw6 neg">−$348,860</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0 0"><span class="fw7">Net Worth</span><span class="fw7" style="font-size:16px">$482,340</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-wrap -->
+  </div><!-- /main -->
+</div><!-- /app -->
+</body></html>

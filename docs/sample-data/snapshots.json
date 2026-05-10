@@ -1,0 +1,76 @@
+{
+  "snapshots": [
+    {
+      "id": "snap_checking_apr26",
+      "accountId": "acc_chase_checking_001",
+      "date": "2026-04-30",
+      "actualBalance": 1380000,
+      "predictedBalance": 1320000,
+      "delta": 60000,
+      "resolution": "accepted",
+      "adjustmentTransactionId": null,
+      "note": "Above predicted — probable cause: bonus deposit timing shifted into April.",
+      "createdAt": "2026-04-30"
+    },
+    {
+      "id": "snap_checking_mar26",
+      "accountId": "acc_chase_checking_001",
+      "date": "2026-03-31",
+      "actualBalance": 1240000,
+      "predictedBalance": 1190000,
+      "delta": 50000,
+      "resolution": "accepted",
+      "adjustmentTransactionId": null,
+      "note": null,
+      "createdAt": "2026-03-31"
+    },
+    {
+      "id": "snap_fidelity_brok_may26",
+      "accountId": "acc_fidelity_brokerage_001",
+      "date": "2026-05-09",
+      "actualBalance": 14280000,
+      "predictedBalance": 15440000,
+      "delta": -1160000,
+      "resolution": "adjusted",
+      "adjustmentTransactionId": "txn_adj_fidelity_may26",
+      "note": "Market decline in GOOG (−$5,500) + untracked withdrawal (−$1,500) + unexplained (−$4,600). Full reconciliation logged.",
+      "createdAt": "2026-05-09"
+    },
+    {
+      "id": "snap_fidelity_brok_apr26",
+      "accountId": "acc_fidelity_brokerage_001",
+      "date": "2026-04-30",
+      "actualBalance": 15200000,
+      "predictedBalance": 15100000,
+      "delta": 100000,
+      "resolution": "accepted",
+      "adjustmentTransactionId": null,
+      "note": "Slightly above predicted. No action needed.",
+      "createdAt": "2026-04-30"
+    },
+    {
+      "id": "snap_401k_apr26",
+      "accountId": "acc_fidelity_401k_001",
+      "date": "2026-04-30",
+      "actualBalance": 18320000,
+      "predictedBalance": 18100000,
+      "delta": 220000,
+      "resolution": "accepted",
+      "adjustmentTransactionId": null,
+      "note": "Market performance above projection assumptions.",
+      "createdAt": "2026-04-30"
+    },
+    {
+      "id": "snap_home_jan26",
+      "accountId": "acc_home_001",
+      "date": "2026-01-15",
+      "actualBalance": 44200000,
+      "predictedBalance": 44200000,
+      "delta": 0,
+      "resolution": "accepted",
+      "adjustmentTransactionId": null,
+      "note": "Updated Zillow estimate. Previous estimate was also $442k so no change.",
+      "createdAt": "2026-01-15"
+    }
+  ]
+}

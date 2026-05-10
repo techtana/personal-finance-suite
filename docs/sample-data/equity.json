@@ -1,0 +1,158 @@
+{
+  "_units_note": "shares: plain integers (whole shares). priceAtGrant / offeringStartPrice / purchaseDatePrice: cents (minor units). withholdingRate: percent × 100 (2200 = 22.00%). estimatedPurchaseAmount: FMV of shares at purchase date, in cents.",
+
+  "rsuGrants": [
+    {
+      "id": "rsu_goog_2023_annual",
+      "label": "2023 Annual RSU Grant",
+      "grantDate": "2023-01-15",
+      "totalShares": 200000,
+      "ticker": "GOOG",
+      "priceAtGrant": 8900,
+      "withholdingRate": 2200,
+      "accountId": "acc_fidelity_brokerage_001",
+      "note": "200 shares. 4-year vest: 1-year cliff (50 sh Jan 2024), then 12.5 sh quarterly for 3 years. Cliff + 12 quarterly = 200 sh total ✓",
+      "vestSchedule": [
+        { "date": "2024-01-15", "shares": 50000 },
+        { "date": "2024-04-15", "shares": 12500 },
+        { "date": "2024-07-15", "shares": 12500 },
+        { "date": "2024-10-15", "shares": 12500 },
+        { "date": "2025-01-15", "shares": 12500 },
+        { "date": "2025-04-15", "shares": 12500 },
+        { "date": "2025-07-15", "shares": 12500 },
+        { "date": "2025-10-15", "shares": 12500 },
+        { "date": "2026-01-15", "shares": 12500 },
+        { "date": "2026-04-15", "shares": 12500 },
+        { "date": "2026-07-15", "shares": 12500 },
+        { "date": "2026-10-15", "shares": 12500 },
+        { "date": "2027-01-15", "shares": 12500 }
+      ],
+      "createdAt": "2025-01-15",
+      "updatedAt": "2025-01-15"
+    },
+    {
+      "id": "rsu_goog_2024_refresh",
+      "label": "2024 Refresh Grant",
+      "grantDate": "2024-01-15",
+      "totalShares": 200000,
+      "ticker": "GOOG",
+      "priceAtGrant": 14050,
+      "withholdingRate": 2200,
+      "accountId": "acc_fidelity_brokerage_001",
+      "note": "200 shares. Same 4-year / 1-year cliff schedule as 2023 grant, offset by one year.",
+      "vestSchedule": [
+        { "date": "2025-01-15", "shares": 50000 },
+        { "date": "2025-04-15", "shares": 12500 },
+        { "date": "2025-07-15", "shares": 12500 },
+        { "date": "2025-10-15", "shares": 12500 },
+        { "date": "2026-01-15", "shares": 12500 },
+        { "date": "2026-04-15", "shares": 12500 },
+        { "date": "2026-07-15", "shares": 12500 },
+        { "date": "2026-10-15", "shares": 12500 },
+        { "date": "2027-01-15", "shares": 12500 },
+        { "date": "2027-04-15", "shares": 12500 },
+        { "date": "2027-07-15", "shares": 12500 },
+        { "date": "2027-10-15", "shares": 12500 },
+        { "date": "2028-01-15", "shares": 12500 }
+      ],
+      "createdAt": "2025-01-15",
+      "updatedAt": "2025-01-15"
+    },
+    {
+      "id": "rsu_goog_2025_annual",
+      "label": "2025 Annual Grant",
+      "grantDate": "2025-01-15",
+      "totalShares": 200000,
+      "ticker": "GOOG",
+      "priceAtGrant": 19250,
+      "withholdingRate": 2200,
+      "accountId": "acc_fidelity_brokerage_001",
+      "note": "200 shares. Cliff vests Jan 2026 (already past). Remaining 150 sh vest quarterly through Jan 2029.",
+      "vestSchedule": [
+        { "date": "2026-01-15", "shares": 50000 },
+        { "date": "2026-04-15", "shares": 12500 },
+        { "date": "2026-07-15", "shares": 12500 },
+        { "date": "2026-10-15", "shares": 12500 },
+        { "date": "2027-01-15", "shares": 12500 },
+        { "date": "2027-04-15", "shares": 12500 },
+        { "date": "2027-07-15", "shares": 12500 },
+        { "date": "2027-10-15", "shares": 12500 },
+        { "date": "2028-01-15", "shares": 12500 },
+        { "date": "2028-04-15", "shares": 12500 },
+        { "date": "2028-07-15", "shares": 12500 },
+        { "date": "2028-10-15", "shares": 12500 },
+        { "date": "2029-01-15", "shares": 12500 }
+      ],
+      "createdAt": "2025-01-20",
+      "updatedAt": "2025-01-20"
+    }
+  ],
+
+  "esppPlans": [
+    {
+      "id": "espp_goog_2024",
+      "label": "Employer ESPP",
+      "ticker": "GOOG",
+      "offeringStartDate": "2024-12-01",
+      "offeringEndDate": "2026-11-30",
+      "contributionMode": "fixed",
+      "contributionValue": 25000,
+      "discountRate": 1500,
+      "hasLookback": true,
+      "accountId": "acc_fidelity_brokerage_001",
+      "note": "Fixed $250/paycheck contribution. 15% discount. Lookback to offering start (Dec 1, 2024). 6-month purchase periods. Purchase price = min(offeringStartPrice, purchaseDatePrice) × 0.85. At offering start GOOG = $162/sh, purchase price = $137.70/sh for all periods where offering start is the lookback floor.",
+      "purchasePeriods": [
+        {
+          "id": "espp_period_1",
+          "startDate": "2024-12-01",
+          "endDate": "2025-05-31",
+          "offeringStartPrice": 16200,
+          "purchaseDatePrice": 17500,
+          "purchasePrice": 13770,
+          "sharesEstimated": 23,
+          "estimatedPurchaseAmount": 402500,
+          "status": "completed",
+          "note": "Lookback applies ($162 < $175). Purchase price $137.70. 23 shares × $175 FMV = $4,025 deposited to brokerage."
+        },
+        {
+          "id": "espp_period_2",
+          "startDate": "2025-06-01",
+          "endDate": "2025-11-30",
+          "offeringStartPrice": 16200,
+          "purchaseDatePrice": 19200,
+          "purchasePrice": 13770,
+          "sharesEstimated": 23,
+          "estimatedPurchaseAmount": 441600,
+          "status": "completed",
+          "note": "Lookback applies ($162 < $192). Same purchase price $137.70. 23 shares × $192 FMV = $4,416 deposited to brokerage."
+        },
+        {
+          "id": "espp_period_3",
+          "startDate": "2025-12-01",
+          "endDate": "2026-05-31",
+          "offeringStartPrice": 16200,
+          "purchaseDatePrice": 22620,
+          "purchasePrice": 13770,
+          "sharesEstimated": 23,
+          "estimatedPurchaseAmount": 520260,
+          "status": "current",
+          "note": "Lookback applies ($162 < $226.20). Purchase price $137.70. Est. 23 shares × $226.20 FMV = $5,203 deposited to brokerage on May 31, 2026."
+        },
+        {
+          "id": "espp_period_4",
+          "startDate": "2026-06-01",
+          "endDate": "2026-11-30",
+          "offeringStartPrice": 16200,
+          "purchaseDatePrice": null,
+          "purchasePrice": 13770,
+          "sharesEstimated": 23,
+          "estimatedPurchaseAmount": 520260,
+          "status": "future",
+          "note": "Assumes flat stock price for now. Estimate updates when period begins."
+        }
+      ],
+      "createdAt": "2025-01-15",
+      "updatedAt": "2026-05-01"
+    }
+  ]
+}

@@ -1,0 +1,178 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>v2 · Loans</title>
+<link rel="stylesheet" href="wf.css"></head><body>
+
+<div class="wf-bar">
+  <span class="wf-bar-label">Finance Suite — WF v2</span>
+  <a href="index.html" class="wf-link">← Index</a>
+  <a href="01-dashboard.html" class="wf-link">01 Dashboard</a>
+  <a href="02-transactions.html" class="wf-link">02 Transactions</a>
+  <a href="03-equity.html" class="wf-link">03 Equity</a>
+  <a href="04-accounts.html" class="wf-link">04 Accounts</a>
+  <a href="05-loans.html" class="wf-link active">05 Loans</a>
+  <a href="06-timeline.html" class="wf-link">06 Timeline</a>
+  <a href="07-settings.html" class="wf-link">07 Settings</a>
+</div>
+
+<div class="app">
+  <nav class="sidebar">
+    <div class="sb-logo"><div class="sb-logo-name">Finance Suite</div><div class="sb-logo-sub">Personal Planner</div></div>
+    <div class="sb-section"><div class="sb-section-label">Overview</div>
+      <a href="01-dashboard.html" class="nav-item">▦ Dashboard</a>
+      <a href="06-timeline.html" class="nav-item">📈 Timeline</a>
+    </div>
+    <div class="sb-section"><div class="sb-section-label">Money In / Out</div>
+      <a href="02-transactions.html" class="nav-item">↕ Transactions</a>
+      <a href="03-equity.html" class="nav-item">◈ Equity Comp</a>
+    </div>
+    <div class="sb-section"><div class="sb-section-label">Balance Sheet</div>
+      <a href="04-accounts.html" class="nav-item">🏦 Accounts</a>
+      <a href="05-loans.html" class="nav-item active">📋 Loans</a>
+    </div>
+    <div class="sb-section"><a href="07-settings.html" class="nav-item">⚙ Settings</a></div>
+    <div class="sb-footer">● Synced to Drive · 2 min ago</div>
+  </nav>
+
+  <div class="content">
+
+    <div class="pg-hdr">
+      <div><div class="pg-title">Loans &amp; Liabilities</div><div class="pg-sub">Debts and scheduled repayments</div></div>
+      <button class="btn btn-dark btn-sm">+ Add Loan</button>
+    </div>
+
+    <!-- Summary KPIs -->
+    <div class="col-3 mb20">
+      <div class="box"><div class="box-lbl">Total Owed</div><div class="box-val">−$348,860</div><div class="box-sub">3 active loans</div></div>
+      <div class="box"><div class="box-lbl">Monthly Payments</div><div class="box-val-sm">$3,490</div><div class="box-sub">Principal + interest</div></div>
+      <div class="box"><div class="box-lbl">Avg. Interest Rate</div><div class="box-val-sm">6.1%</div><div class="box-sub">Balance-weighted</div></div>
+    </div>
+
+    <!-- Loan cards -->
+
+    <!-- Mortgage -->
+    <div class="section-box mb16" style="border-left:4px solid #333;">
+      <div class="section-box-hdr">
+        <div>
+          <span class="section-title">Home Mortgage</span>
+          <span class="small muted" style="margin-left:8px;">Chase · 30-yr fixed · Opened Mar 2022</span>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm">Update Balance</button>
+          <button class="btn btn-sm">Edit</button>
+        </div>
+      </div>
+      <div class="section-box-body">
+        <div class="col-4 mb12">
+          <div><div class="box-lbl">Balance</div><div class="bold" style="font-size:20px;">−$318,460</div></div>
+          <div><div class="box-lbl">Interest Rate</div><div class="bold" style="font-size:20px;">6.50%</div></div>
+          <div><div class="box-lbl">Monthly Payment</div><div class="bold" style="font-size:20px;">$2,850</div></div>
+          <div><div class="box-lbl">Payoff Date</div><div class="bold" style="font-size:16px;">Mar 2052</div><div class="small muted">~26 years</div></div>
+        </div>
+        <div class="small muted mb8">Payoff progress — ~18% paid off</div>
+        <div class="progress mb8"><div class="progress-fill" style="width:18%;"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;">
+          <span>Mar 2022</span><span>$318,460 remaining</span><span>Mar 2052</span>
+        </div>
+        <div class="small muted mt12">
+          Linked to: <strong>Primary Home</strong> ($440,000 est. value) · Home equity: <strong>$121,540</strong> ·
+          This month: $1,725 interest + $1,125 principal
+        </div>
+      </div>
+    </div>
+
+    <!-- Auto loan -->
+    <div class="section-box mb16" style="border-left:4px solid #888;">
+      <div class="section-box-hdr">
+        <div>
+          <span class="section-title">Auto Loan — 2023 Honda CR-V</span>
+          <span class="small muted" style="margin-left:8px;">Capital One · 60-month term · Opened Jan 2024</span>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm">Update Balance</button>
+          <button class="btn btn-sm">Edit</button>
+        </div>
+      </div>
+      <div class="section-box-body">
+        <div class="col-4 mb12">
+          <div><div class="box-lbl">Balance</div><div class="bold" style="font-size:20px;">−$22,400</div></div>
+          <div><div class="box-lbl">Interest Rate</div><div class="bold" style="font-size:20px;">4.90%</div></div>
+          <div><div class="box-lbl">Monthly Payment</div><div class="bold" style="font-size:20px;">$450</div></div>
+          <div><div class="box-lbl">Payoff Date</div><div class="bold" style="font-size:16px;">Jan 2029</div><div class="small muted">~2.7 years</div></div>
+        </div>
+        <div class="small muted mb8">Payoff progress — ~46% paid off</div>
+        <div class="progress"><div class="progress-fill" style="width:46%;"></div></div>
+      </div>
+    </div>
+
+    <!-- Student loan -->
+    <div class="section-box mb16" style="border-left:4px solid #bbb;">
+      <div class="section-box-hdr">
+        <div>
+          <span class="section-title">Student Loan</span>
+          <span class="small muted" style="margin-left:8px;">Dept of Education · IBR plan</span>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm">Update Balance</button>
+          <button class="btn btn-sm">Edit</button>
+        </div>
+      </div>
+      <div class="section-box-body">
+        <div class="col-4 mb12">
+          <div><div class="box-lbl">Balance</div><div class="bold" style="font-size:20px;">−$8,000</div></div>
+          <div><div class="box-lbl">Interest Rate</div><div class="bold" style="font-size:20px;">3.75%</div></div>
+          <div><div class="box-lbl">Monthly Payment</div><div class="bold" style="font-size:20px;">$190</div></div>
+          <div><div class="box-lbl">Payoff Date</div><div class="bold" style="font-size:16px;">Aug 2029</div><div class="small muted">~3.3 years</div></div>
+        </div>
+        <div class="small muted mb8">Payoff progress — ~73% paid off</div>
+        <div class="progress"><div class="progress-fill" style="width:73%;"></div></div>
+      </div>
+    </div>
+
+    <!-- Payoff timeline chart -->
+    <div class="section-box">
+      <div class="section-box-hdr"><span class="section-title">Payoff Timeline</span></div>
+      <div class="section-box-body" style="padding:0;">
+        <div class="ph" style="height:140px;">
+          [ Stacked area / line chart ]<br>
+          Each loan's remaining balance declining over time<br>
+          Mortgage (2052) · Auto (2029) · Student (2029)
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-section">
+
+  <div class="mp-label">Modal — Add Loan</div>
+  <div class="modal-box">
+    <div class="modal-title">Add Loan</div>
+    <div class="fr2">
+      <div class="fg"><label class="fl">Loan Name</label><input class="fi" placeholder="e.g., Home Mortgage, Auto Loan"></div>
+      <div class="fg"><label class="fl">Loan Type</label>
+        <select class="fs"><option>Mortgage</option><option>HELOC</option><option>Auto</option><option>Student</option><option>Personal</option><option>Other</option></select>
+      </div>
+    </div>
+    <div class="fr2">
+      <div class="fg"><label class="fl">Institution / Lender</label><input class="fi" placeholder="e.g., Chase, Capital One"></div>
+      <div class="fg"><label class="fl">Loan Start Date</label><input class="fi" type="date"></div>
+    </div>
+    <div class="fr2">
+      <div class="fg"><label class="fl">Original Loan Amount</label><input class="fi" placeholder="$0.00"></div>
+      <div class="fg"><label class="fl">Current Balance</label><input class="fi" placeholder="$0.00"><div class="fh">Today's payoff balance.</div></div>
+    </div>
+    <div class="fr3">
+      <div class="fg"><label class="fl">Interest Rate (APR)</label><input class="fi" placeholder="6.50%"></div>
+      <div class="fg"><label class="fl">Monthly Payment</label><input class="fi" placeholder="$0.00"></div>
+      <div class="fg"><label class="fl">Payoff Date</label><input class="fi" type="date"><div class="fh">Leave blank to compute.</div></div>
+    </div>
+    <div class="fg"><label class="fl">Linked Asset Account (optional)</label>
+      <select class="fs"><option>None</option><option>Primary Home</option></select>
+      <div class="fh">Links loan to a property for equity tracking.</div>
+    </div>
+    <div class="modal-ftr"><button class="btn">Cancel</button><button class="btn btn-dark">Add Loan</button></div>
+  </div>
+
+</div>
+</body></html>

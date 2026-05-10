@@ -1,0 +1,182 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>v3 · Loans</title>
+<link rel="stylesheet" href="wf.css"></head><body>
+<div class="wf-bar">
+  <span class="wf-bar-label">Finance Suite — WF v3 Reimagined</span>
+  <a href="index.html" class="wf-link">← Index</a>
+  <a href="01-dashboard.html" class="wf-link">01 Dashboard</a>
+  <a href="02-transactions.html" class="wf-link">02 Transactions</a>
+  <a href="03-equity.html" class="wf-link">03 Equity</a>
+  <a href="04-accounts.html" class="wf-link">04 Accounts</a>
+  <a href="05-loans.html" class="wf-link active">05 Loans</a>
+  <a href="06-timeline.html" class="wf-link">06 Timeline</a>
+  <a href="07-settings.html" class="wf-link">07 Settings</a>
+</div>
+<div class="app">
+  <nav class="sidebar">
+    <a href="01-dashboard.html" class="nav-icon-btn"><span>▦</span><span class="nav-icon-label">Home</span></a>
+    <a href="06-timeline.html" class="nav-icon-btn"><span>📈</span><span class="nav-icon-label">Timeline</span></a>
+    <hr class="nav-sep">
+    <a href="02-transactions.html" class="nav-icon-btn"><span>↕</span><span class="nav-icon-label">Txns</span></a>
+    <a href="03-equity.html" class="nav-icon-btn"><span>◈</span><span class="nav-icon-label">Equity</span></a>
+    <hr class="nav-sep">
+    <a href="04-accounts.html" class="nav-icon-btn"><span>🏦</span><span class="nav-icon-label">Accounts</span></a>
+    <a href="05-loans.html" class="nav-icon-btn active"><span>📋</span><span class="nav-icon-label">Loans</span></a>
+    <a href="07-settings.html" class="nav-icon-btn bottom"><span>⚙</span><span class="nav-icon-label">Settings</span></a>
+  </nav>
+
+  <div class="main">
+    <div class="page-wrap">
+
+      <div class="ph">
+        <div>
+          <div class="ph-title">Loans</div>
+          <div class="ph-sub">Liabilities · payoff schedules · equity</div>
+        </div>
+        <button class="btn btn-primary">+ Add Loan</button>
+      </div>
+
+      <!-- Stat row -->
+      <div class="stat-row" style="margin-bottom:32px">
+        <div class="stat">
+          <div class="stat-label">Total Debt</div>
+          <div class="stat-value neg">$348,860</div>
+          <div class="stat-sub">1 active loan</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Monthly Payments</div>
+          <div class="stat-value neg">$2,850</div>
+          <div class="stat-sub">P+I only</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Home Equity</div>
+          <div class="stat-value pos">$99,540</div>
+          <div class="stat-sub">$448,400 value − $348,860</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Payoff Date</div>
+          <div class="stat-value">Mar 2052</div>
+          <div class="stat-sub">26 years remaining</div>
+        </div>
+      </div>
+
+      <!-- Loan — expanded -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px">
+        <div style="padding:20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div style="font-size:16px;font-weight:700;margin-bottom:4px">Chase Mortgage</div>
+            <div style="font-size:12px;color:var(--muted)">30-year fixed · 6.875% APR · Opened Mar 2022 · Linked to Primary Home</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-outline btn-sm">Edit</button>
+            <button class="btn btn-ghost btn-sm">···</button>
+          </div>
+        </div>
+
+        <!-- Key numbers row -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border)">
+          <div style="padding:16px 20px;border-right:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">Original Amount</div>
+            <div style="font-size:18px;font-weight:700">$430,000</div>
+          </div>
+          <div style="padding:16px 20px;border-right:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">Remaining Balance</div>
+            <div style="font-size:18px;font-weight:700">$348,860</div>
+          </div>
+          <div style="padding:16px 20px;border-right:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">Monthly Payment</div>
+            <div style="font-size:18px;font-weight:700">$2,850</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">$1,846 principal + $1,004 interest</div>
+          </div>
+          <div style="padding:16px 20px">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">Total Interest Remaining</div>
+            <div style="font-size:18px;font-weight:700;color:var(--red)">$183,740</div>
+          </div>
+        </div>
+
+        <!-- Payoff progress bar -->
+        <div style="padding:20px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:8px">
+            <span>Paid off: $81,140 (18.9%)</span>
+            <span>Remaining: $348,860 (81.1%)</span>
+          </div>
+          <div class="prog-t"><div class="prog-f" style="width:18.9%"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px">
+            <span>Mar 2022</span><span style="color:var(--accent);font-weight:600">May 2026 ▲</span><span>Mar 2052</span>
+          </div>
+        </div>
+
+        <!-- Payoff timeline chart placeholder -->
+        <div style="padding:20px;border-bottom:1px solid var(--border)">
+          <div style="font-size:13px;font-weight:600;margin-bottom:12px">Payoff Trajectory</div>
+          <div class="ph-box" style="height:140px;border-radius:8px">
+            <span class="ph-icon">📉</span>
+            <div>Balance over time chart<br><span class="xs muted">Blue = principal · Gray = interest split · Current position marked</span></div>
+          </div>
+        </div>
+
+        <!-- Amortization — first few rows -->
+        <div>
+          <div style="padding:10px 20px;background:#f8f9fb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);display:flex;gap:0">
+            <span style="flex:1">Period</span><span style="width:100px;text-align:right">Payment</span><span style="width:100px;text-align:right">Principal</span><span style="width:100px;text-align:right">Interest</span><span style="width:110px;text-align:right">Balance</span>
+          </div>
+          <div style="padding:12px 20px;font-size:13px;display:flex;gap:0;border-top:1px solid var(--border);background:#fffbeb">
+            <span style="flex:1;font-weight:600">May 2026 · Current</span><span style="width:100px;text-align:right;font-weight:600">$2,850</span><span style="width:100px;text-align:right">$1,846</span><span style="width:100px;text-align:right;color:var(--red)">$1,004</span><span style="width:110px;text-align:right;font-weight:600">$348,860</span>
+          </div>
+          <div style="padding:12px 20px;font-size:13px;display:flex;gap:0;border-top:1px solid var(--border)">
+            <span style="flex:1">Jun 2026</span><span style="width:100px;text-align:right">$2,850</span><span style="width:100px;text-align:right">$1,857</span><span style="width:100px;text-align:right;color:var(--red)">$993</span><span style="width:110px;text-align:right">$347,003</span>
+          </div>
+          <div style="padding:12px 20px;font-size:13px;display:flex;gap:0;border-top:1px solid var(--border)">
+            <span style="flex:1">Jul 2026</span><span style="width:100px;text-align:right">$2,850</span><span style="width:100px;text-align:right">$1,868</span><span style="width:100px;text-align:right;color:var(--red)">$982</span><span style="width:110px;text-align:right">$345,135</span>
+          </div>
+          <div style="padding:10px 20px;text-align:center;border-top:1px solid var(--border)">
+            <button class="btn btn-ghost btn-sm">Show full amortization schedule →</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- DRAWER FORMS -->
+<div class="drawer-section">
+
+  <div class="drawer-label">Drawer — Add Loan</div>
+  <div class="drawer-box">
+    <div class="drawer-title">
+      Add Loan
+      <button class="btn btn-ghost btn-sm" style="font-size:18px;color:var(--muted)">✕</button>
+    </div>
+    <div class="fg"><label class="fl">Loan Name</label><input class="fi" placeholder="e.g., Chase Mortgage, Car Loan"></div>
+    <div class="fr2">
+      <div class="fg"><label class="fl">Loan Type</label>
+        <select class="fs"><option>Mortgage</option><option>Auto</option><option>Student</option><option>Personal</option><option>Other</option></select>
+      </div>
+      <div class="fg"><label class="fl">Linked Asset Account</label>
+        <select class="fs"><option>None</option><option>Primary Home</option></select>
+        <div class="fh">Ties loan to an asset for net worth tracking.</div>
+      </div>
+    </div>
+    <div class="fr3">
+      <div class="fg"><label class="fl">Original Principal</label><input class="fi" placeholder="$430,000"></div>
+      <div class="fg"><label class="fl">Current Balance</label><input class="fi" placeholder="$348,860"></div>
+      <div class="fg"><label class="fl">Annual Rate (APR)</label><input class="fi" placeholder="6.875%"></div>
+    </div>
+    <div class="fr3">
+      <div class="fg"><label class="fl">Term (months)</label><input class="fi" placeholder="360"></div>
+      <div class="fg"><label class="fl">Start Date</label><input class="fi" type="date" value="2022-03-01"></div>
+      <div class="fg"><label class="fl">Payment Account</label><select class="fs"><option>Chase Checking</option></select></div>
+    </div>
+    <div class="fg">
+      <div style="background:#f0f7ff;border:1px solid var(--accent);border-radius:8px;padding:12px;font-size:12px;color:var(--accent)">
+        Monthly payment calculated: <strong>$2,849.95</strong> · Total interest: <strong>$575,980</strong>
+      </div>
+    </div>
+    <div class="drawer-ftr">
+      <button class="btn btn-outline">Cancel</button>
+      <button class="btn btn-primary">Save Loan</button>
+    </div>
+  </div>
+
+</div>
+</body></html>

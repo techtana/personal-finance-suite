@@ -1,0 +1,107 @@
+{
+  "accounts": [
+    {
+      "id": "acc_chase_checking_001",
+      "name": "Chase Checking",
+      "type": "checking",
+      "institution": "Chase Bank",
+      "currency": "USD",
+      "currentBalance": 1240000,
+      "lastUpdatedDate": "2026-05-09",
+      "linkedLoanId": null,
+      "isActive": true,
+      "note": "Primary spending account. Salary deposits here.",
+      "createdAt": "2025-01-15",
+      "updatedAt": "2026-05-09"
+    },
+    {
+      "id": "acc_chase_savings_001",
+      "name": "Chase Savings (HYSA)",
+      "type": "savings",
+      "institution": "Chase Bank",
+      "currency": "USD",
+      "currentBalance": 2180000,
+      "lastUpdatedDate": "2026-05-07",
+      "linkedLoanId": null,
+      "isActive": true,
+      "note": "Emergency fund + short-term savings. ~4.5% APY.",
+      "createdAt": "2025-01-15",
+      "updatedAt": "2026-05-07"
+    },
+    {
+      "id": "acc_fidelity_brokerage_001",
+      "name": "Fidelity Brokerage",
+      "type": "brokerage",
+      "institution": "Fidelity",
+      "currency": "USD",
+      "currentBalance": 14280000,
+      "lastUpdatedDate": "2026-05-08",
+      "linkedLoanId": null,
+      "isActive": true,
+      "note": "RSU vests and ESPP shares deposit here.",
+      "createdAt": "2025-01-15",
+      "updatedAt": "2026-05-08"
+    },
+    {
+      "id": "acc_fidelity_401k_001",
+      "name": "Fidelity 401k",
+      "type": "retirement_401k",
+      "institution": "Fidelity",
+      "currency": "USD",
+      "currentBalance": 18540000,
+      "lastUpdatedDate": "2026-05-01",
+      "linkedLoanId": null,
+      "isActive": true,
+      "note": "Pre-tax 401k. Employee contributes $1,154/paycheck; employer matches 4%.",
+      "createdAt": "2025-01-15",
+      "updatedAt": "2026-05-01"
+    },
+    {
+      "id": "acc_fidelity_roth_001",
+      "name": "Fidelity Roth IRA",
+      "type": "retirement_roth",
+      "institution": "Fidelity",
+      "currency": "USD",
+      "currentBalance": 2040000,
+      "lastUpdatedDate": "2026-04-30",
+      "linkedLoanId": null,
+      "isActive": true,
+      "note": "Backdoor Roth contribution. Max $7,000/yr.",
+      "createdAt": "2025-01-15",
+      "updatedAt": "2026-04-30"
+    },
+    {
+      "id": "acc_home_001",
+      "name": "Primary Home",
+      "type": "property",
+      "institution": "Real Estate",
+      "currency": "USD",
+      "currentBalance": 44840000,
+      "lastUpdatedDate": "2026-05-01",
+      "linkedLoanId": "loan_chase_mortgage_001",
+      "isActive": true,
+      "note": "Purchase price $430k in Mar 2022. Zillow estimate used for current value.",
+      "createdAt": "2025-01-15",
+      "updatedAt": "2026-05-01"
+    }
+  ],
+  "loans": [
+    {
+      "id": "loan_chase_mortgage_001",
+      "name": "Chase Mortgage",
+      "type": "mortgage",
+      "institution": "Chase Bank",
+      "originalBalance": 43000000,
+      "currentBalance": 34886000,
+      "interestRate": 68750,
+      "monthlyPayment": 284995,
+      "startDate": "2022-03-01",
+      "payoffDate": "2052-03-01",
+      "lastUpdatedDate": "2026-05-01",
+      "linkedAccountId": "acc_home_001",
+      "note": "30-year fixed. Locked in at 6.875% in March 2022.",
+      "createdAt": "2025-01-15",
+      "updatedAt": "2026-05-01"
+    }
+  ]
+}

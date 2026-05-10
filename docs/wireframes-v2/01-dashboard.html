@@ -1,0 +1,186 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>v2 · Dashboard</title>
+<link rel="stylesheet" href="wf.css"></head><body>
+
+<div class="wf-bar">
+  <span class="wf-bar-label">Finance Suite — WF v2</span>
+  <a href="index.html" class="wf-link">← Index</a>
+  <a href="01-dashboard.html" class="wf-link active">01 Dashboard</a>
+  <a href="02-transactions.html" class="wf-link">02 Transactions</a>
+  <a href="03-equity.html" class="wf-link">03 Equity</a>
+  <a href="04-accounts.html" class="wf-link">04 Accounts</a>
+  <a href="05-loans.html" class="wf-link">05 Loans</a>
+  <a href="06-timeline.html" class="wf-link">06 Timeline</a>
+  <a href="07-settings.html" class="wf-link">07 Settings</a>
+</div>
+
+<div class="app">
+  <nav class="sidebar">
+    <div class="sb-logo"><div class="sb-logo-name">Finance Suite</div><div class="sb-logo-sub">Personal Planner</div></div>
+    <div class="sb-section"><div class="sb-section-label">Overview</div>
+      <a href="01-dashboard.html" class="nav-item active">▦ Dashboard</a>
+      <a href="06-timeline.html" class="nav-item">📈 Timeline</a>
+    </div>
+    <div class="sb-section"><div class="sb-section-label">Money In / Out</div>
+      <a href="02-transactions.html" class="nav-item">↕ Transactions</a>
+      <a href="03-equity.html" class="nav-item">◈ Equity Comp</a>
+    </div>
+    <div class="sb-section"><div class="sb-section-label">Balance Sheet</div>
+      <a href="04-accounts.html" class="nav-item">🏦 Accounts</a>
+      <a href="05-loans.html" class="nav-item">📋 Loans</a>
+    </div>
+    <div class="sb-section"><a href="07-settings.html" class="nav-item">⚙ Settings</a></div>
+    <div class="sb-footer">● Synced to Drive · 2 min ago</div>
+  </nav>
+
+  <div class="content">
+
+    <div class="pg-hdr">
+      <div>
+        <div class="pg-title">Dashboard</div>
+        <div class="pg-sub">May 2026 · projected through Dec 2031</div>
+      </div>
+      <div class="pg-actions">
+        <button class="btn btn-sm">⟳ Reconcile Accounts</button>
+        <button class="btn btn-sm">⬇ Export</button>
+      </div>
+    </div>
+
+    <!-- KPI row -->
+    <div class="col-4 mb16">
+      <div class="box">
+        <div class="box-lbl">Net Worth</div>
+        <div class="box-val">$482,340</div>
+        <div class="box-sub">▲ +$3,200 vs last month</div>
+      </div>
+      <div class="box">
+        <div class="box-lbl">Monthly Income</div>
+        <div class="box-val-sm">$14,500</div>
+        <div class="box-sub">Salary + scheduled income</div>
+      </div>
+      <div class="box">
+        <div class="box-lbl">Monthly Expenses</div>
+        <div class="box-val-sm">$8,200</div>
+        <div class="box-sub">Recurring + blanket</div>
+      </div>
+      <div class="box">
+        <div class="box-lbl">Net Cash Flow</div>
+        <div class="box-val-sm">$6,300</div>
+        <div class="box-sub">On track this month</div>
+      </div>
+    </div>
+
+    <!-- Chart + right column -->
+    <div class="col-2 mb16">
+      <div class="section-box">
+        <div class="section-box-hdr">
+          <span class="section-title">Net Worth Trend (12 months)</span>
+          <span class="small muted">━ Predicted &nbsp; ● Actual snapshot</span>
+        </div>
+        <div class="ph" style="height: 200px;">
+          [ Area chart — 12 months ]<br>
+          Blue fill = predicted · Green dots = user snapshots<br>
+          Hover → tooltip with predicted vs. actual
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;padding:6px 14px;">
+          <span>Jun '25</span><span>Aug</span><span>Oct</span><span>Dec</span>
+          <span>Feb '26</span><span>Apr</span><span style="font-weight:bold;color:#333">May '26</span>
+        </div>
+      </div>
+
+      <div>
+        <!-- Divergence alerts -->
+        <div class="section-box mb12">
+          <div class="section-box-hdr">
+            <span class="section-title">⚠ Divergence Alerts</span>
+            <span class="tag">2 accounts</span>
+          </div>
+          <div class="section-box-body" style="padding: 0;">
+            <table>
+              <tbody>
+                <tr>
+                  <td><span class="bold">Fidelity Brokerage</span><br><span class="small muted">Actual $48,200 · Pred. $52,100</span></td>
+                  <td class="td-r bold">−7.5%</td>
+                  <td class="td-r"><a href="04-accounts.html" class="btn btn-sm">Review</a></td>
+                </tr>
+                <tr>
+                  <td><span class="bold">Chase Checking</span><br><span class="small muted">Actual $12,400 · Pred. $11,900</span></td>
+                  <td class="td-r bold">+4.2%</td>
+                  <td class="td-r"><a href="04-accounts.html" class="btn btn-sm">Review</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Upcoming events -->
+        <div class="section-box">
+          <div class="section-box-hdr"><span class="section-title">Upcoming (30 days)</span></div>
+          <div class="section-box-body" style="padding:0;">
+            <table>
+              <tbody>
+                <tr><td class="small muted" style="width:58px">May 15</td><td>RSU Vest — 25 sh GOOG <span class="tag">RSU</span></td><td class="td-r bold">+$7,250</td></tr>
+                <tr><td class="small muted">May 15</td><td>Mortgage <span class="tag">Expense</span></td><td class="td-r bold">−$2,850</td></tr>
+                <tr><td class="small muted">May 31</td><td>ESPP Purchase <span class="tag">ESPP</span></td><td class="td-r bold">+$3,400</td></tr>
+                <tr><td class="small muted">Jun 1</td><td>Salary Deposit <span class="tag">Income</span></td><td class="td-r bold">+$7,500</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom row -->
+    <div class="col-2">
+      <!-- Monthly breakdown -->
+      <div class="section-box">
+        <div class="section-box-hdr">
+          <span class="section-title">May 2026 — Cash Flow Breakdown</span>
+          <a href="06-timeline.html" class="btn btn-sm">Full timeline →</a>
+        </div>
+        <div class="section-box-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Item</th><th class="td-r">Amount</th></tr></thead>
+            <tbody>
+              <tr><td>Salary ×2</td><td class="td-r">+$15,000</td></tr>
+              <tr><td>RSU vest (net)</td><td class="td-r">+$5,655</td></tr>
+              <tr><td>Mortgage + loans</td><td class="td-r">−$3,490</td></tr>
+              <tr><td>Recurring bills</td><td class="td-r">−$2,060</td></tr>
+              <tr><td>Blanket expenses</td><td class="td-r">−$650</td></tr>
+              <tr style="background:#f0f0f0;"><td class="bold">Net cash flow</td><td class="td-r bold">+$14,455</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Quick add -->
+      <div>
+        <div class="section-box mb12">
+          <div class="section-box-hdr"><span class="section-title">Quick Add</span></div>
+          <div class="section-box-body" style="display:flex;flex-direction:column;gap:8px;">
+            <button class="btn" style="width:100%;text-align:left">+ One-time Transaction</button>
+            <button class="btn" style="width:100%;text-align:left">+ Recurring Transaction</button>
+            <button class="btn" style="width:100%;text-align:left">+ Blanket Expense</button>
+            <button class="btn" style="width:100%;text-align:left">+ RSU Grant</button>
+            <button class="btn" style="width:100%;text-align:left">+ ESPP Plan</button>
+          </div>
+        </div>
+        <div class="section-box">
+          <div class="section-box-hdr"><span class="section-title">Assets at a Glance</span></div>
+          <div class="section-box-body" style="padding:0;">
+            <table>
+              <tbody>
+                <tr><td>Cash &amp; Savings</td><td class="td-r bold">$54,700</td></tr>
+                <tr><td>Investments</td><td class="td-r bold">$336,500</td></tr>
+                <tr><td>Property (est.)</td><td class="td-r bold">$440,000</td></tr>
+                <tr><td>Liabilities</td><td class="td-r bold">−$348,860</td></tr>
+                <tr style="background:#f0f0f0;"><td class="bold">Net Worth</td><td class="td-r bold">$482,340</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body></html>

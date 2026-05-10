@@ -1,0 +1,43 @@
+{
+  "blanketExpenses": [
+    {
+      "id": "blk_misc_spending_001",
+      "label": "Misc Everyday Spending",
+      "amount": 50000,
+      "frequency": "monthly",
+      "startDate": "2025-01-01",
+      "endDate": null,
+      "category": "food-dining",
+      "accountId": "acc_chase_checking_001",
+      "note": "Groceries, coffee, takeout, etc. Intentionally rough — covers the long tail of daily spending that isn't worth itemizing individually.",
+      "createdAt": "2025-01-15",
+      "updatedAt": "2025-01-15"
+    },
+    {
+      "id": "blk_shopping_001",
+      "label": "Shopping / Amazon",
+      "amount": 20000,
+      "frequency": "monthly",
+      "startDate": "2025-01-01",
+      "endDate": null,
+      "category": "shopping",
+      "accountId": "acc_chase_checking_001",
+      "note": "Household goods, clothing, random Amazon purchases. Historically ~$150–250/mo.",
+      "createdAt": "2025-01-15",
+      "updatedAt": "2025-01-15"
+    },
+    {
+      "id": "blk_personal_care_001",
+      "label": "Personal Care",
+      "amount": 15000,
+      "frequency": "monthly",
+      "startDate": "2025-01-01",
+      "endDate": null,
+      "category": "personal-care",
+      "accountId": "acc_chase_checking_001",
+      "note": "Haircuts, toiletries, pharmacy. Combined household estimate.",
+      "createdAt": "2025-01-15",
+      "updatedAt": "2025-01-15"
+    }
+  ]
+}
