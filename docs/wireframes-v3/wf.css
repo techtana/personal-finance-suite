@@ -1,20 +1,21 @@
 /* Personal Finance Suite — Wireframe v3 · Reimagined UI */
 :root {
-  --bg: #f0f2f5;
+  --bg: #eceef2;
   --surface: #fff;
-  --border: #e2e6ec;
-  --text: #111827;
-  --muted: #6b7280;
-  --ph: #e8eaed;
+  --border: #d1d5db;
+  --border-strong: #b5bac3;
+  --text: #0f172a;
+  --muted: #5c6473;
+  --ph: #e2e5ea;
   --accent: #3b5fc0;
   --accent-lt: #eef1fb;
   --sidebar-w: 76px;           /* icon + label sidebar */
-  --sidebar-bg: #f8f9fb;       /* slightly off-white so it reads as a panel */
+  --sidebar-bg: #f4f6f9;       /* slightly off-white so it reads as a panel */
   --content-w: 860px;
-  --green: #15803d; --green-bg: #dcfce7;
-  --red: #b91c1c;   --red-bg: #fee2e2;
+  --green: #166534; --green-bg: #bbf7d0;
+  --red: #991b1b;   --red-bg: #fecaca;
   --blue: #1d4ed8;  --blue-bg: #dbeafe;
-  --orange: #c2410c; --orange-bg: #ffedd5;
+  --orange: #9a3412; --orange-bg: #fed7aa;
   --purple: #6d28d9; --purple-bg: #ede9fe;
 }
 *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -110,19 +111,34 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; color: v
 .grant-net-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
 .grant-next { font-size: 12px; color: var(--muted); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 
-/* ── Account list ─────────────────────────────────── */
+/* ── Account list (legacy rows) ───────────────────── */
 .acct-list { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-.acct-group-hdr { padding: 10px 20px; background: #f8f9fb; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.acct-group-hdr { padding: 10px 20px; background: #eef0f5; border-bottom: 1px solid var(--border-strong); display: flex; justify-content: space-between; align-items: center; }
 .acct-group-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
 .acct-group-total { font-size: 14px; font-weight: 700; }
 .acct-row { display: flex; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--border); gap: 12px; cursor: pointer; }
 .acct-row:last-child { border-bottom: none; }
-.acct-row:hover { background: #fafbfc; }
+.acct-row:hover { background: #f7f8fb; }
 .acct-row-name { flex: 1; font-weight: 600; font-size: 14px; }
 .acct-row-type { font-size: 12px; color: var(--muted); }
 .acct-row-balance { font-size: 16px; font-weight: 700; text-align: right; }
 .acct-row-delta { font-size: 12px; font-weight: 600; width: 60px; text-align: right; }
 .acct-row-btn { margin-left: 12px; }
+
+/* ── Account cards (card grid layout) ────────────── */
+.acct-sec-hdr { display: flex; justify-content: space-between; align-items: center; margin: 24px 0 12px; padding-bottom: 10px; border-bottom: 2px solid var(--border-strong); }
+.acct-sec-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.acct-sec-total { font-size: 16px; font-weight: 700; }
+.acct-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 8px; }
+.acct-card-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.acct-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; }
+.acct-card-hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.acct-card-name { font-size: 14px; font-weight: 700; }
+.acct-card-type { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.acct-balance { font-size: 24px; font-weight: 800; letter-spacing: -.5px; margin: 6px 0 2px; }
+.acct-updated { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+.acct-vs { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px; }
+.acct-card-ftr { display: flex; gap: 8px; margin-top: auto; padding-top: 14px; }
 
 /* ── Buttons ──────────────────────────────────────── */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; line-height: 1; }

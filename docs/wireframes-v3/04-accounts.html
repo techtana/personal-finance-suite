@@ -104,159 +104,210 @@
         <button class="btn btn-outline btn-sm" style="margin-left:auto;white-space:nowrap">Reconcile →</button>
       </div>
 
-      <!-- BANKING group -->
-      <div class="acct-list" style="margin-bottom:20px">
-        <div class="acct-group-hdr">
-          <span class="acct-group-name">Banking</span>
-          <span class="acct-group-total">$34,200</span>
-        </div>
-        <div class="acct-row">
-          <div style="width:32px;height:32px;border-radius:8px;background:var(--blue-bg);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🏦</div>
-          <div style="flex:1">
-            <div class="acct-row-name">Chase Checking</div>
-            <div class="acct-row-type">Checking · Updated May 9</div>
+      <!-- BANKING -->
+      <div class="acct-sec-hdr">
+        <span class="acct-sec-name">Banking</span>
+        <span class="acct-sec-total">$34,200</span>
+      </div>
+      <div class="acct-card-grid acct-card-grid-2">
+
+        <!-- Chase Checking -->
+        <div class="acct-card" style="border-top:3px solid #3b82f6">
+          <div class="acct-card-hdr">
+            <div>
+              <div class="acct-card-name">Chase Checking</div>
+              <div class="acct-card-type">Checking · Chase Bank</div>
+            </div>
+            <span class="badge badge-ok">+4.2%</span>
           </div>
-          <!-- Sparkline -->
-          <svg class="spark" viewBox="0 0 72 28" preserveAspectRatio="none">
-            <polyline points="0,20 12,18 24,22 36,14 48,16 60,10 72,8" fill="none" stroke="#3b82f6" stroke-width="1.5"/>
-            <circle cx="72" cy="8" r="2.5" fill="#3b82f6"/>
+          <svg viewBox="0 0 160 36" style="width:100%;height:36px;margin-bottom:4px" preserveAspectRatio="none">
+            <polyline points="0,28 27,24 53,30 80,18 107,22 133,13 160,10" fill="none" stroke="#3b82f6" stroke-width="1.8"/>
+            <circle cx="160" cy="10" r="3" fill="#3b82f6"/>
           </svg>
-          <div style="text-align:right;margin-right:16px">
-            <div class="acct-row-balance">$12,400</div>
-            <div class="acct-row-delta pos">+4.2% vs pred.</div>
+          <div class="acct-balance">$12,400</div>
+          <div class="acct-updated">Updated May 9 · Predicted $11,900</div>
+          <div style="margin-top:4px;padding-top:10px;border-top:1px solid var(--border)">
+            <div class="acct-vs"><span class="muted">Actual vs. predicted</span><span class="pos fw7">+$500</span></div>
+            <div class="prog-t"><div class="prog-f" style="width:100%;background:var(--green)"></div></div>
           </div>
-          <button class="btn btn-outline btn-sm acct-row-btn">Reconcile</button>
-          <button class="btn btn-ghost btn-sm">···</button>
+          <div class="acct-card-ftr">
+            <button class="btn btn-outline btn-sm" style="flex:1">Reconcile</button>
+            <button class="btn btn-ghost btn-sm">···</button>
+          </div>
         </div>
-        <div class="acct-row">
-          <div style="width:32px;height:32px;border-radius:8px;background:var(--blue-bg);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🏦</div>
-          <div style="flex:1">
-            <div class="acct-row-name">Chase Savings (HYSA)</div>
-            <div class="acct-row-type">Savings · Updated May 7</div>
+
+        <!-- Chase Savings -->
+        <div class="acct-card" style="border-top:3px solid #3b82f6">
+          <div class="acct-card-hdr">
+            <div>
+              <div class="acct-card-name">Chase Savings (HYSA)</div>
+              <div class="acct-card-type">Savings · Chase Bank</div>
+            </div>
+            <span class="badge badge-neutral">On track</span>
           </div>
-          <svg class="spark" viewBox="0 0 72 28" preserveAspectRatio="none">
-            <polyline points="0,22 12,20 24,18 36,17 48,16 60,14 72,13" fill="none" stroke="#3b82f6" stroke-width="1.5"/>
-            <circle cx="72" cy="13" r="2.5" fill="#3b82f6"/>
+          <svg viewBox="0 0 160 36" style="width:100%;height:36px;margin-bottom:4px" preserveAspectRatio="none">
+            <polyline points="0,30 27,28 53,26 80,24 107,22 133,20 160,18" fill="none" stroke="#3b82f6" stroke-width="1.8"/>
+            <circle cx="160" cy="18" r="3" fill="#3b82f6"/>
           </svg>
-          <div style="text-align:right;margin-right:16px">
-            <div class="acct-row-balance">$21,800</div>
-            <div class="acct-row-delta" style="color:var(--muted)">On track</div>
+          <div class="acct-balance">$21,800</div>
+          <div class="acct-updated">Updated May 7 · Predicted $21,800</div>
+          <div style="margin-top:4px;padding-top:10px;border-top:1px solid var(--border)">
+            <div class="acct-vs"><span class="muted">Actual vs. predicted</span><span class="muted">—</span></div>
+            <div class="prog-t"><div class="prog-f" style="width:100%"></div></div>
           </div>
-          <button class="btn btn-outline btn-sm acct-row-btn">Reconcile</button>
-          <button class="btn btn-ghost btn-sm">···</button>
+          <div class="acct-card-ftr">
+            <button class="btn btn-outline btn-sm" style="flex:1">Reconcile</button>
+            <button class="btn btn-ghost btn-sm">···</button>
+          </div>
         </div>
+
       </div>
 
-      <!-- INVESTMENT group -->
-      <div class="acct-list" style="margin-bottom:20px">
-        <div class="acct-group-hdr">
-          <span class="acct-group-name">Investments</span>
-          <span class="acct-group-total">$348,600</span>
-        </div>
-        <div class="acct-row" style="background:#fffbeb">
-          <div style="width:32px;height:32px;border-radius:8px;background:var(--blue-bg);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📈</div>
-          <div style="flex:1">
-            <div class="acct-row-name">Fidelity Brokerage <span style="color:var(--orange);font-size:12px;margin-left:6px">⚠ −7.5%</span></div>
-            <div class="acct-row-type">Brokerage · Updated May 8</div>
+      <!-- INVESTMENTS -->
+      <div class="acct-sec-hdr">
+        <span class="acct-sec-name">Investments</span>
+        <span class="acct-sec-total">$348,600</span>
+      </div>
+      <div class="acct-card-grid">
+
+        <!-- Fidelity Brokerage — diverged -->
+        <div class="acct-card" style="border-top:3px solid var(--red)">
+          <div class="acct-card-hdr">
+            <div>
+              <div class="acct-card-name">Fidelity Brokerage</div>
+              <div class="acct-card-type">Brokerage · Fidelity</div>
+            </div>
+            <span class="badge badge-warn">⚠ −7.5%</span>
           </div>
-          <svg class="spark" viewBox="0 0 72 28" preserveAspectRatio="none">
-            <!-- predicted line dashed -->
-            <polyline points="0,8 12,7 24,6 36,5 48,4 60,4 72,3" fill="none" stroke="#e5e7eb" stroke-width="1.5" stroke-dasharray="3,2"/>
-            <!-- actual drops off -->
-            <polyline points="0,8 12,7 24,7 36,8 48,12 60,18 72,22" fill="none" stroke="#dc2626" stroke-width="1.5"/>
-            <circle cx="72" cy="22" r="2.5" fill="#dc2626"/>
+          <svg viewBox="0 0 160 36" style="width:100%;height:36px;margin-bottom:4px" preserveAspectRatio="none">
+            <polyline points="0,10 27,9 53,9 80,10 107,16 133,24 160,30" fill="none" stroke="#dc2626" stroke-width="1.8"/>
+            <polyline points="0,10 27,8 53,7 80,5 107,4 133,3 160,2" fill="none" stroke="#d1d5db" stroke-width="1.4" stroke-dasharray="4,3"/>
+            <circle cx="160" cy="30" r="3" fill="#dc2626"/>
           </svg>
-          <div style="text-align:right;margin-right:16px">
-            <div class="acct-row-balance">$142,800</div>
-            <div class="acct-row-delta neg">−7.5% vs pred.</div>
+          <div class="acct-balance neg">$142,800</div>
+          <div class="acct-updated">Updated May 8 · Predicted $154,400</div>
+          <div style="margin-top:4px;padding-top:10px;border-top:1px solid var(--border)">
+            <div class="acct-vs"><span class="muted">Actual vs. predicted</span><span class="neg fw7">−$11,600</span></div>
+            <div class="prog-t"><div class="prog-f" style="width:92.5%;background:var(--red)"></div></div>
           </div>
-          <button class="btn btn-primary btn-sm acct-row-btn">Reconcile</button>
-          <button class="btn btn-ghost btn-sm">···</button>
+          <div class="acct-card-ftr">
+            <button class="btn btn-primary btn-sm" style="flex:1">Reconcile</button>
+            <button class="btn btn-ghost btn-sm">···</button>
+          </div>
         </div>
-        <div class="acct-row">
-          <div style="width:32px;height:32px;border-radius:8px;background:var(--green-bg);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🏛</div>
-          <div style="flex:1">
-            <div class="acct-row-name">Fidelity 401k</div>
-            <div class="acct-row-type">Retirement · Updated May 1</div>
+
+        <!-- Fidelity 401k -->
+        <div class="acct-card" style="border-top:3px solid var(--green)">
+          <div class="acct-card-hdr">
+            <div>
+              <div class="acct-card-name">Fidelity 401k</div>
+              <div class="acct-card-type">Retirement · Fidelity</div>
+            </div>
+            <span class="badge badge-ok">+1.2%</span>
           </div>
-          <svg class="spark" viewBox="0 0 72 28" preserveAspectRatio="none">
-            <polyline points="0,22 12,20 24,17 36,15 48,12 60,10 72,8" fill="none" stroke="#15803d" stroke-width="1.5"/>
-            <circle cx="72" cy="8" r="2.5" fill="#15803d"/>
+          <svg viewBox="0 0 160 36" style="width:100%;height:36px;margin-bottom:4px" preserveAspectRatio="none">
+            <polyline points="0,30 27,27 53,24 80,20 107,16 133,13 160,10" fill="none" stroke="#166534" stroke-width="1.8"/>
+            <circle cx="160" cy="10" r="3" fill="#166534"/>
           </svg>
-          <div style="text-align:right;margin-right:16px">
-            <div class="acct-row-balance">$185,400</div>
-            <div class="acct-row-delta pos">+1.2% vs pred.</div>
+          <div class="acct-balance">$185,400</div>
+          <div class="acct-updated">Updated May 1 · Predicted $183,200</div>
+          <div style="margin-top:4px;padding-top:10px;border-top:1px solid var(--border)">
+            <div class="acct-vs"><span class="muted">Actual vs. predicted</span><span class="pos fw7">+$2,200</span></div>
+            <div class="prog-t"><div class="prog-f" style="width:100%;background:var(--green)"></div></div>
           </div>
-          <button class="btn btn-outline btn-sm acct-row-btn">Reconcile</button>
-          <button class="btn btn-ghost btn-sm">···</button>
+          <div class="acct-card-ftr">
+            <button class="btn btn-outline btn-sm" style="flex:1">Reconcile</button>
+            <button class="btn btn-ghost btn-sm">···</button>
+          </div>
         </div>
-        <div class="acct-row">
-          <div style="width:32px;height:32px;border-radius:8px;background:var(--purple-bg);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">💎</div>
-          <div style="flex:1">
-            <div class="acct-row-name">Fidelity Roth IRA</div>
-            <div class="acct-row-type">Retirement · Updated Apr 30</div>
+
+        <!-- Fidelity Roth IRA -->
+        <div class="acct-card" style="border-top:3px solid var(--purple)">
+          <div class="acct-card-hdr">
+            <div>
+              <div class="acct-card-name">Fidelity Roth IRA</div>
+              <div class="acct-card-type">Retirement · Fidelity</div>
+            </div>
+            <span class="badge badge-neutral">On track</span>
           </div>
-          <svg class="spark" viewBox="0 0 72 28" preserveAspectRatio="none">
-            <polyline points="0,24 12,22 24,20 36,18 48,16 60,14 72,13" fill="none" stroke="#6d28d9" stroke-width="1.5"/>
-            <circle cx="72" cy="13" r="2.5" fill="#6d28d9"/>
+          <svg viewBox="0 0 160 36" style="width:100%;height:36px;margin-bottom:4px" preserveAspectRatio="none">
+            <polyline points="0,32 27,30 53,27 80,24 107,21 133,18 160,16" fill="none" stroke="#6d28d9" stroke-width="1.8"/>
+            <circle cx="160" cy="16" r="3" fill="#6d28d9"/>
           </svg>
-          <div style="text-align:right;margin-right:16px">
-            <div class="acct-row-balance">$20,400</div>
-            <div class="acct-row-delta" style="color:var(--muted)">On track</div>
+          <div class="acct-balance">$20,400</div>
+          <div class="acct-updated">Updated Apr 30 · Predicted $20,400</div>
+          <div style="margin-top:4px;padding-top:10px;border-top:1px solid var(--border)">
+            <div class="acct-vs"><span class="muted">Actual vs. predicted</span><span class="muted">—</span></div>
+            <div class="prog-t"><div class="prog-f" style="width:100%;background:var(--purple)"></div></div>
           </div>
-          <button class="btn btn-outline btn-sm acct-row-btn">Reconcile</button>
-          <button class="btn btn-ghost btn-sm">···</button>
+          <div class="acct-card-ftr">
+            <button class="btn btn-outline btn-sm" style="flex:1">Reconcile</button>
+            <button class="btn btn-ghost btn-sm">···</button>
+          </div>
         </div>
+
       </div>
 
-      <!-- PROPERTY group -->
-      <div class="acct-list" style="margin-bottom:20px">
-        <div class="acct-group-hdr">
-          <span class="acct-group-name">Property</span>
-          <span class="acct-group-total">$448,400</span>
-        </div>
-        <div class="acct-row">
-          <div style="width:32px;height:32px;border-radius:8px;background:var(--orange-bg);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🏠</div>
-          <div style="flex:1">
-            <div class="acct-row-name">Primary Home</div>
-            <div class="acct-row-type">Real Estate · Linked to Chase Mortgage</div>
+      <!-- PROPERTY -->
+      <div class="acct-sec-hdr">
+        <span class="acct-sec-name">Property</span>
+        <span class="acct-sec-total">$448,400</span>
+      </div>
+      <div class="acct-card-grid" style="grid-template-columns:repeat(2,1fr)">
+
+        <div class="acct-card" style="border-top:3px solid #f97316">
+          <div class="acct-card-hdr">
+            <div>
+              <div class="acct-card-name">Primary Home</div>
+              <div class="acct-card-type">Real Estate · Linked to Chase Mortgage</div>
+            </div>
+            <span class="badge badge-neutral">Manual est.</span>
           </div>
-          <svg class="spark" viewBox="0 0 72 28" preserveAspectRatio="none">
-            <polyline points="0,20 24,18 48,16 72,14" fill="none" stroke="#c2410c" stroke-width="1.5" stroke-dasharray="3,2"/>
-            <circle cx="72" cy="14" r="2.5" fill="#c2410c"/>
+          <svg viewBox="0 0 160 36" style="width:100%;height:36px;margin-bottom:4px" preserveAspectRatio="none">
+            <polyline points="0,28 53,24 107,21 160,18" fill="none" stroke="#f97316" stroke-width="1.8" stroke-dasharray="4,3"/>
+            <circle cx="160" cy="18" r="3" fill="#f97316"/>
           </svg>
-          <div style="text-align:right;margin-right:16px">
-            <div class="acct-row-balance">$448,400</div>
-            <div class="acct-row-delta" style="color:var(--muted)">Manual est.</div>
+          <div class="acct-balance">$448,400</div>
+          <div class="acct-updated">Estimate · Zillow Zestimate reference</div>
+          <div class="acct-card-ftr" style="padding-top:14px;border-top:1px solid var(--border);margin-top:auto">
+            <button class="btn btn-outline btn-sm" style="flex:1">Update Value</button>
+            <button class="btn btn-ghost btn-sm">···</button>
           </div>
-          <button class="btn btn-outline btn-sm acct-row-btn">Update Value</button>
-          <button class="btn btn-ghost btn-sm">···</button>
         </div>
+
       </div>
 
-      <!-- LIABILITIES group -->
-      <div class="acct-list">
-        <div class="acct-group-hdr">
-          <span class="acct-group-name">Liabilities</span>
-          <span class="acct-group-total neg">−$348,860</span>
-        </div>
-        <div class="acct-row">
-          <div style="width:32px;height:32px;border-radius:8px;background:var(--red-bg);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🏠</div>
-          <div style="flex:1">
-            <div class="acct-row-name">Chase Mortgage</div>
-            <div class="acct-row-type">Loan · 30yr fixed 6.875% · Opens Loans page</div>
+      <!-- LIABILITIES -->
+      <div class="acct-sec-hdr">
+        <span class="acct-sec-name">Liabilities</span>
+        <span class="acct-sec-total neg">−$348,860</span>
+      </div>
+      <div class="acct-card-grid" style="grid-template-columns:repeat(2,1fr)">
+
+        <div class="acct-card" style="border-top:3px solid var(--red)">
+          <div class="acct-card-hdr">
+            <div>
+              <div class="acct-card-name">Chase Mortgage</div>
+              <div class="acct-card-type">30yr fixed 6.875% · Chase Bank</div>
+            </div>
+            <span class="badge badge-neutral">On track</span>
           </div>
-          <svg class="spark" viewBox="0 0 72 28" preserveAspectRatio="none">
-            <polyline points="0,6 12,8 24,10 36,12 48,14 60,16 72,18" fill="none" stroke="#b91c1c" stroke-width="1.5"/>
-            <circle cx="72" cy="18" r="2.5" fill="#b91c1c"/>
+          <svg viewBox="0 0 160 36" style="width:100%;height:36px;margin-bottom:4px" preserveAspectRatio="none">
+            <polyline points="0,8 27,10 53,14 80,17 107,20 133,23 160,26" fill="none" stroke="#991b1b" stroke-width="1.8"/>
+            <circle cx="160" cy="26" r="3" fill="#991b1b"/>
           </svg>
-          <div style="text-align:right;margin-right:16px">
-            <div class="acct-row-balance neg">−$348,860</div>
-            <div class="acct-row-delta" style="color:var(--muted)">On track</div>
+          <div class="acct-balance neg">−$348,860</div>
+          <div class="acct-updated">Amortizing · Payoff Mar 2052</div>
+          <div style="margin-top:4px;padding-top:10px;border-top:1px solid var(--border)">
+            <div class="acct-vs"><span class="muted">Principal paid</span><span class="muted fw7">19.8%</span></div>
+            <div class="prog-t"><div class="prog-f" style="width:19.8%;background:#991b1b"></div></div>
           </div>
-          <a href="05-loans.html" class="btn btn-outline btn-sm acct-row-btn">View Loan →</a>
-          <button class="btn btn-ghost btn-sm">···</button>
+          <div class="acct-card-ftr">
+            <a href="05-loans.html" class="btn btn-outline btn-sm" style="flex:1">View Loan →</a>
+            <button class="btn btn-ghost btn-sm">···</button>
+          </div>
         </div>
+
       </div>
 
     </div>
