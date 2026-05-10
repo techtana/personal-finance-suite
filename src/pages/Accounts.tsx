@@ -23,10 +23,20 @@ const TOP_BORDER: Partial<Record<AccountType, string>> = {
   loan:     '#991b1b',
 }
 
+const BLANK_ACCOUNT = {
+  label: '',
+  type: 'checking' as AccountType,
+  institution: '',
+  currentBalance: '',
+  alertThresholdPct: '',
+}
+
 export function Accounts() {
   const { accounts, snapshots, saveAccounts, saveSnapshots } = useDataStore()
-  const { driveClient } = useAuthStore()
+  const { firestoreClient } = useAuthStore()
   const [showAdd, setShowAdd] = useState(false)
+  const [addForm, setAddForm] = useState(BLANK_ACCOUNT)
+  const [addSaving, setAddSaving] = useState(false)
   const [reconTarget, setReconTarget] = useState<Account | null>(null)
   const [newBalance, setNewBalance] = useState('')
   const [reconNote, setReconNote] = useState('')
@@ -46,8 +56,31 @@ export function Accounts() {
     return m
   }, [snapshots])
 
+  async function handleAddAccount() {
+    if (!firestoreClient || !addForm.label.trim() || !addForm.institution.trim()) return
+    setAddSaving(true)
+    const today = todayISO()
+    const balanceCents = Math.round(parseFloat(addForm.currentBalance || '0') * 100)
+    const newAccount: Account = {
+      id: `acc_${addForm.type}_${Date.now()}`,
+      label: addForm.label.trim(),
+      type: addForm.type,
+      institution: addForm.institution.trim(),
+      currentBalance: isNaN(balanceCents) ? 0 : balanceCents,
+      alertThresholdPct: addForm.alertThresholdPct
+        ? Math.round(parseFloat(addForm.alertThresholdPct) * 100)
+        : undefined,
+      createdAt: today,
+      updatedAt: today,
+    }
+    await saveAccounts(firestoreClient, [...accounts, newAccount])
+    setAddForm(BLANK_ACCOUNT)
+    setShowAdd(false)
+    setAddSaving(false)
+  }
+
   async function handleReconcile() {
-    if (!reconTarget || !driveClient) return
+    if (!reconTarget || !firestoreClient) return
     const cents = Math.round(parseFloat(newBalance) * 100)
     if (isNaN(cents)) return
 
@@ -66,8 +99,8 @@ export function Accounts() {
     )
     const updatedSnapshots = [...snapshots, snap]
 
-    await saveAccounts(driveClient, updatedAccounts)
-    await saveSnapshots(driveClient, updatedSnapshots)
+    await saveAccounts(firestoreClient, updatedAccounts)
+    await saveSnapshots(firestoreClient, updatedSnapshots)
 
     setReconTarget(null)
     setNewBalance('')
@@ -249,15 +282,83 @@ export function Accounts() {
         </Modal>
       )}
 
-      {/* Add account modal (simplified) */}
+      {/* Add account modal */}
       {showAdd && (
-        <Modal title="Add Account" onClose={() => setShowAdd(false)}>
-          <p className="text-sm mb-4" style={{ color: '#5c6473' }}>
-            Account creation coming soon — for now edit your <code>accounts.json</code> in Drive.
-          </p>
-          <div className="flex justify-end">
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-lg text-sm border border-[#d1d5db]">
-              Close
+        <Modal title="Add Account" onClose={() => { setShowAdd(false); setAddForm(BLANK_ACCOUNT) }}>
+          <FormField label="Account Name">
+            <input
+              className="fi"
+              placeholder="e.g. Chase Checking, Fidelity 401k"
+              value={addForm.label}
+              onChange={(e) => setAddForm((f) => ({ ...f, label: e.target.value }))}
+              autoFocus
+            />
+          </FormField>
+
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <FormField label="Type">
+              <select
+                className="fi"
+                value={addForm.type}
+                onChange={(e) => setAddForm((f) => ({ ...f, type: e.target.value as AccountType }))}
+              >
+                <option value="checking">Checking</option>
+                <option value="savings">Savings</option>
+                <option value="brokerage">Brokerage</option>
+                <option value="401k">401k / Retirement</option>
+                <option value="ira">IRA</option>
+                <option value="property">Property</option>
+                <option value="loan">Loan / Liability</option>
+                <option value="other">Other</option>
+              </select>
+            </FormField>
+            <FormField label="Institution">
+              <input
+                className="fi"
+                placeholder="e.g. Chase, Fidelity"
+                value={addForm.institution}
+                onChange={(e) => setAddForm((f) => ({ ...f, institution: e.target.value }))}
+              />
+            </FormField>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Current Balance ($)">
+              <input
+                className="fi"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={addForm.currentBalance}
+                onChange={(e) => setAddForm((f) => ({ ...f, currentBalance: e.target.value }))}
+              />
+            </FormField>
+            <FormField label="Alert Threshold (%) — optional">
+              <input
+                className="fi"
+                type="number"
+                step="0.1"
+                placeholder="Uses global default"
+                value={addForm.alertThresholdPct}
+                onChange={(e) => setAddForm((f) => ({ ...f, alertThresholdPct: e.target.value }))}
+              />
+            </FormField>
+          </div>
+
+          <div className="flex gap-2 justify-end mt-6 pt-4 border-t border-[#d1d5db]">
+            <button
+              onClick={() => { setShowAdd(false); setAddForm(BLANK_ACCOUNT) }}
+              className="px-4 py-2 rounded-lg text-sm border border-[#d1d5db] bg-white"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAddAccount}
+              disabled={addSaving || !addForm.label.trim() || !addForm.institution.trim()}
+              className="px-4 py-2 rounded-lg text-sm text-white font-semibold disabled:opacity-50"
+              style={{ background: '#3b5fc0' }}
+            >
+              {addSaving ? 'Saving…' : 'Add Account'}
             </button>
           </div>
         </Modal>

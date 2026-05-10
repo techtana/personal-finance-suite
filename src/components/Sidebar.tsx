@@ -25,7 +25,7 @@ const BOT_NAV: NavItem[] = [
 
 export function Sidebar() {
   const { settings } = useSettingsStore()
-  const { signOut, tokens } = useAuthStore()
+  const { logout, user } = useAuthStore()
   const iconOnly = settings.sidebarStyle === 'icon-only'
 
   return (
@@ -58,13 +58,13 @@ export function Sidebar() {
       {/* Bottom: Settings + avatar */}
       <div className="mt-auto flex flex-col items-center gap-1">
         <NavItem item={{ to: '/settings', icon: '⚙', label: 'Settings' }} iconOnly={iconOnly} />
-        {tokens?.picture && (
+        {user?.photoURL && (
           <button
-            onClick={signOut}
+            onClick={logout}
             title="Sign out"
             className="w-8 h-8 rounded-full overflow-hidden mt-1 opacity-70 hover:opacity-100 transition-opacity"
           >
-            <img src={tokens.picture} alt={tokens.name} className="w-full h-full object-cover" />
+            <img src={user.photoURL} alt={user.displayName ?? ''} className="w-full h-full object-cover" />
           </button>
         )}
       </div>

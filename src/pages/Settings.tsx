@@ -1,5 +1,6 @@
 import { useSettingsStore } from '../store/settingsStore'
 import { useAuthStore } from '../store/authStore'
+import { ExportButton } from '../components/ExportButton'
 import type { Theme, SidebarStyle, Density, AppSettings } from '../types'
 
 type Tab = 'general' | 'appearance' | 'notifications' | 'account'
@@ -8,10 +9,10 @@ import { useState } from 'react'
 
 export function Settings() {
   const { settings, updateSettings } = useSettingsStore()
-  const { tokens, signOut, driveClient } = useAuthStore()
+  const { user, logout, firestoreClient } = useAuthStore()
   const [tab, setTab] = useState<Tab>('general')
 
-  const update = (patch: Partial<AppSettings>) => updateSettings(patch, driveClient ?? undefined)
+  const update = (patch: Partial<AppSettings>) => updateSettings(patch, firestoreClient ?? undefined)
 
   const TABS: { id: Tab; label: string }[] = [
     { id: 'general', label: 'General' },
@@ -171,31 +172,33 @@ export function Settings() {
       {/* Account */}
       {tab === 'account' && (
         <div className="max-w-xl space-y-6">
-          {tokens ? (
+          {user ? (
             <>
               <div className="flex items-center gap-4 p-5 bg-white border border-[#d1d5db] rounded-xl">
-                {tokens.picture && (
-                  <img src={tokens.picture} alt={tokens.name} className="w-12 h-12 rounded-full" />
+                {user.photoURL && (
+                  <img src={user.photoURL} alt={user.displayName ?? ''} className="w-12 h-12 rounded-full" />
                 )}
                 <div>
-                  <div className="text-sm font-bold" style={{ color: '#0f172a' }}>{tokens.name}</div>
-                  <div className="text-xs mt-0.5" style={{ color: '#5c6473' }}>{tokens.email}</div>
+                  <div className="text-sm font-bold" style={{ color: '#0f172a' }}>{user.displayName}</div>
+                  <div className="text-xs mt-0.5" style={{ color: '#5c6473' }}>{user.email}</div>
                 </div>
               </div>
 
               <div className="p-5 bg-white border border-[#d1d5db] rounded-xl">
-                <div className="text-sm font-bold mb-1" style={{ color: '#0f172a' }}>Google Drive Storage</div>
+                <div className="text-sm font-bold mb-1" style={{ color: '#0f172a' }}>Cloud Storage</div>
                 <div className="text-xs mb-3" style={{ color: '#5c6473' }}>
-                  All data is stored in a folder named "Personal Finance Suite" in your Google Drive.
-                  Only files created by this app are accessible.
+                  All data is stored in Firebase Firestore under your user account.
+                  No other user can access your data.
                 </div>
                 <div className="text-xs font-mono px-2 py-1.5 rounded" style={{ background: '#f4f6f9', color: '#3b5fc0' }}>
-                  drive.file scope · no other files can be read
+                  users/{user.uid}/data/*
                 </div>
               </div>
 
+              <ExportButton />
+
               <button
-                onClick={signOut}
+                onClick={logout}
                 className="px-4 py-2 rounded-lg text-sm font-semibold border border-[#d1d5db] text-[#991b1b] hover:bg-[#fee2e2] transition-colors"
               >
                 Sign Out

@@ -6,7 +6,6 @@ import { useSettingsStore } from './store/settingsStore'
 
 import { Layout } from './components/Layout'
 import { Login } from './pages/Login'
-import { AuthCallback } from './pages/AuthCallback'
 import { Dashboard } from './pages/Dashboard'
 import { Transactions } from './pages/Transactions'
 import { Equity } from './pages/Equity'
@@ -14,13 +13,6 @@ import { Accounts } from './pages/Accounts'
 import { Loans } from './pages/Loans'
 import { Timeline } from './pages/Timeline'
 import { Settings } from './pages/Settings'
-
-function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { tokens, initialized } = useAuthStore()
-  if (!initialized) return <LoadingScreen />
-  if (!tokens) return <Navigate to="/login" replace />
-  return <>{children}</>
-}
 
 function LoadingScreen() {
   return (
@@ -33,16 +25,23 @@ function LoadingScreen() {
   )
 }
 
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { user, initialized } = useAuthStore()
+  if (!initialized) return <LoadingScreen />
+  if (!user) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
 function AppLoader({ children }: { children: React.ReactNode }) {
-  const { driveClient } = useAuthStore()
+  const { firestoreClient } = useAuthStore()
   const { loadAll, loading } = useDataStore()
-  const { loadFromDrive } = useSettingsStore()
+  const { loadFromFirestore } = useSettingsStore()
 
   useEffect(() => {
-    if (!driveClient) return
-    loadAll(driveClient)
-    loadFromDrive(driveClient)
-  }, [driveClient, loadAll, loadFromDrive])
+    if (!firestoreClient) return
+    loadAll(firestoreClient)
+    loadFromFirestore(firestoreClient)
+  }, [firestoreClient, loadAll, loadFromFirestore])
 
   if (loading) return <LoadingScreen />
   return <>{children}</>
@@ -59,7 +58,6 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route
           element={
             <RequireAuth>
