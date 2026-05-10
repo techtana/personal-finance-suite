@@ -122,6 +122,7 @@ export async function refreshAccessToken(tokens: TokenSet): Promise<TokenSet> {
       client_id: CLIENT_ID,
       grant_type: 'refresh_token',
       refresh_token: tokens.refreshToken,
+      ...(CLIENT_SECRET ? { client_secret: CLIENT_SECRET } : {}),
     }),
   })
 
