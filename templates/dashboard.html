@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Personal Finance Suite{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div x-data="dashboard()" x-init="init()" class="space-y-6">
+
+    <div x-show="loading" class="text-center py-12 text-gray-500">Loading...</div>
+
+    <template x-if="!loading">
+        <div class="space-y-6">
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Assets</p>
+                    <p class="text-2xl font-bold text-gray-900" x-text="fmt(totalAssets)"></p>
+                    <p class="text-xs text-gray-400 mt-1" x-text="accounts.length + ' accounts'"></p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Debt</p>
+                    <p class="text-2xl font-bold text-red-600" x-text="fmt(totalLiabilities)"></p>
+                    <p class="text-xs text-gray-400 mt-1" x-text="loans.length + ' loans'"></p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 border-l-4 border-l-blue-500">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Net Worth</p>
+                    <p class="text-2xl font-bold" :class="netWorth >= 0 ? 'text-blue-700' : 'text-red-600'" x-text="fmt(netWorth)"></p>
+                    <p class="text-xs text-gray-400 mt-1">Assets minus debt</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Monthly Net</p>
+                    <p class="text-2xl font-bold" :class="monthlyNet >= 0 ? 'text-green-600' : 'text-red-600'"
+                        x-text="(monthlyNet >= 0 ? '+' : '') + fmt(monthlyNet)"></p>
+                    <p class="text-xs text-gray-400 mt-1" x-text="projectionLoaded ? 'This month forecast' : 'Add transactions'"></p>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <template x-if="projectionLoaded && buckets.length > 0">
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+
+                    <!-- Net Worth Trend (wider) -->
+                    <div class="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-900">Net Worth Trend</h4>
+                                <p class="text-xs text-gray-400">12-month projection</p>
+                            </div>
+                            <span class="text-xs font-medium px-2 py-1 rounded-full"
+                                :class="projectedGain >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'"
+                                x-text="(projectedGain >= 0 ? '+' : '') + fmt(projectedGain) + ' projected'"></span>
+                        </div>
+                        <canvas id="nwChart" height="110"></canvas>
+                    </div>
+
+                    <!-- Cash Flow Breakdown (narrower) -->
+                    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <div class="mb-4">
+                            <h4 class="text-sm font-semibold text-gray-900">Monthly Cash Flow</h4>
+                            <p class="text-xs text-gray-400">Income vs expenses</p>
+                        </div>
+                        <canvas id="cfChart" height="168"></canvas>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Accounts + Loans Side by Side -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <!-- Accounts -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-sm font-semibold text-gray-900">Accounts</h4>
+                        <a href="/accounts" class="text-xs text-blue-600 hover:underline font-medium">Manage →</a>
+                    </div>
+                    <template x-if="accounts.length === 0">
+                        <p class="text-gray-400 text-sm py-4 text-center">No accounts yet. <a href="/accounts" class="text-blue-600 hover:underline">Add one</a>.</p>
+                    </template>
+                    <div class="divide-y divide-gray-50">
+                        <template x-for="a in accounts" :key="a.id">
+                            <div class="flex justify-between items-center py-2.5">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900" x-text="a.name"></p>
+                                    <p class="text-xs text-gray-400" x-text="a.institution + ' · ' + a.type"></p>
+                                </div>
+                                <span class="text-sm font-semibold text-gray-900" x-text="fmt(a.current_balance)"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Loans -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-sm font-semibold text-gray-900">Loans</h4>
+                        <a href="/loans" class="text-xs text-blue-600 hover:underline font-medium">Manage →</a>
+                    </div>
+                    <template x-if="loans.length === 0">
+                        <p class="text-gray-400 text-sm py-4 text-center">No loans. <a href="/loans" class="text-blue-600 hover:underline">Add one</a>.</p>
+                    </template>
+                    <div class="divide-y divide-gray-50">
+                        <template x-for="l in loans" :key="l.id">
+                            <div class="flex justify-between items-center py-2.5">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900" x-text="l.name"></p>
+                                    <p class="text-xs text-gray-400" x-text="l.institution + ' · ' + (l.interest_rate / 100).toFixed(2) + '% APR'"></p>
+                                </div>
+                                <span class="text-sm font-semibold text-red-500" x-text="'−' + fmt(l.current_balance)"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h4 class="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h4>
+                <div class="flex flex-wrap gap-2">
+                    <a href="/transactions" class="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100">+ Transaction</a>
+                    <a href="/accounts" class="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-medium hover:bg-green-100">+ Account</a>
+                    <a href="/loans" class="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-xs font-medium hover:bg-red-100">+ Loan</a>
+                    <a href="/equity" class="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-100">+ Equity / Asset</a>
+                    <a href="/timeline" class="px-3 py-1.5 bg-gray-50 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-100">View Timeline →</a>
+                </div>
+            </div>
+
+            <!-- No data prompt -->
+            <template x-if="accounts.length === 0 && loans.length === 0">
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
+                    <p class="text-amber-800 font-medium mb-1">No data yet</p>
+                    <p class="text-amber-700 text-sm mb-4">Load sample data to explore the app, or start adding your own accounts.</p>
+                    <button @click="loadSample()" class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium">Load Sample Data</button>
+                </div>
+            </template>
+
+        </div>
+    </template>
+</div>
+
+<script>
+function dashboard() {
+    return {
+        accounts: [],
+        loans: [],
+        buckets: [],
+        loading: true,
+        projectionLoaded: false,
+        nwChartInstance: null,
+        cfChartInstance: null,
+
+        get totalAssets() {
+            return this.accounts.reduce((s, a) => s + a.current_balance, 0);
+        },
+        get totalLiabilities() {
+            return this.loans.reduce((s, l) => s + l.current_balance, 0);
+        },
+        get netWorth() {
+            return this.totalAssets - this.totalLiabilities;
+        },
+        get monthlyNet() {
+            if (!this.buckets.length) return 0;
+            return this.buckets[0].net_cash_flow;
+        },
+        get projectedGain() {
+            if (this.buckets.length < 2) return 0;
+            return this.buckets[this.buckets.length - 1].cumulative_net_worth - this.buckets[0].cumulative_net_worth;
+        },
+
+        fmt(cents) { return formatCurrency(cents); },
+
+        async init() {
+            try {
+                const [accts, ls] = await Promise.all([
+                    API.get('/accounts'),
+                    API.get('/loans'),
+                ]);
+                this.accounts = accts;
+                this.loans = ls;
+            } catch (e) {
+                showAlert('Failed to load: ' + e.message, 'error');
+            } finally {
+                this.loading = false;
+            }
+
+            // Load projection in background for charts
+            try {
+                const today = new Date();
+                const from = today.toISOString().split('T')[0];
+                const toDate = new Date(today);
+                toDate.setFullYear(toDate.getFullYear() + 1);
+                const to = toDate.toISOString().split('T')[0];
+
+                const data = await API.get(`/projection?from=${from}&to=${to}`);
+                this.buckets = data.buckets || [];
+                this.projectionLoaded = true;
+
+                await this.$nextTick();
+                this.renderCharts();
+            } catch (_) {
+                // Charts optional — don't error
+            }
+        },
+
+        renderCharts() {
+            this.renderNwChart();
+            this.renderCfChart();
+        },
+
+        renderNwChart() {
+            const canvas = document.getElementById('nwChart');
+            if (!canvas || !this.buckets.length) return;
+            if (this.nwChartInstance) this.nwChartInstance.destroy();
+
+            const labels = this.buckets.map(b => b.month);
+            const values = this.buckets.map(b => b.cumulative_net_worth / 100);
+
+            this.nwChartInstance = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: values,
+                        borderColor: '#3b5fc0',
+                        backgroundColor: 'rgba(59,95,192,0.08)',
+                        tension: 0.3,
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: labels.length > 18 ? 0 : 3,
+                        pointHoverRadius: 4,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { display: false }, tooltip: {
+                        callbacks: { label: ctx => ' ' + formatCurrency(Math.round(ctx.raw * 100)) }
+                    }},
+                    scales: {
+                        y: {
+                            ticks: { callback: v => '$' + (Math.abs(v) >= 1000000 ? (v/1000000).toFixed(1)+'M' : Math.abs(v) >= 1000 ? (v/1000).toFixed(0)+'K' : v) },
+                            grid: { color: 'rgba(0,0,0,0.04)' },
+                        },
+                        x: { grid: { display: false } },
+                    },
+                },
+            });
+        },
+
+        renderCfChart() {
+            const canvas = document.getElementById('cfChart');
+            if (!canvas || !this.buckets.length) return;
+            if (this.cfChartInstance) this.cfChartInstance.destroy();
+
+            const labels = this.buckets.map(b => b.month.slice(5)); // MM only
+            const income = this.buckets.map(b => b.income / 100);
+            const expenses = this.buckets.map(b => b.expenses / 100);
+
+            this.cfChartInstance = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Income', data: income, backgroundColor: 'rgba(34,197,94,0.7)', borderRadius: 3 },
+                        { label: 'Expenses', data: expenses, backgroundColor: 'rgba(239,68,68,0.6)', borderRadius: 3 },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }, tooltip: {
+                        callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + formatCurrency(Math.round(ctx.raw * 100)) }
+                    }},
+                    scales: {
+                        y: {
+                            ticks: { callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0)+'K' : v), font: { size: 10 } },
+                            grid: { color: 'rgba(0,0,0,0.04)' },
+                        },
+                        x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+                    },
+                },
+            });
+        },
+
+        async loadSample() {
+            try {
+                await API.post('/seed', {});
+                showAlert('Sample data loaded!', 'success');
+                await this.init();
+            } catch (e) {
+                showAlert('Failed to load sample data: ' + e.message, 'error');
+            }
+        },
+    };
+}
+</script>
+{% endblock %}

@@ -1,17 +1,18 @@
 # Product Requirements Document
 ## Personal Finance Suite
 
-**Version:** 0.1  
+**Version:** 0.2  
 **Date:** 2026-05-09  
-**Status:** Draft
+**Status:** Draft  
+**Changed from v0.1:** Replaced Google Drive storage with local SQLite; replaced SPA architecture with Flask-based web app.
 
 ---
 
 ## 1. Overview
 
-Personal Finance Suite is a self-hosted, client-side web application that replaces complex Excel-based financial planners with a modern, performant UI. Unlike bank-connected apps (Mint, CreditKarma), it focuses on **scheduled and planned** financial events rather than exact transaction capture. Users maintain a high-level picture of their finances by entering what they know — salaries, RSU vests, ESPP purchases, recurring bills, mortgages — and periodically reconciling against actual account balances.
+Personal Finance Suite is a **self-hosted Flask web application** that replaces complex Excel-based financial planners with a modern, clean UI. Unlike bank-connected apps (Mint, CreditKarma), it focuses on **scheduled and planned** financial events rather than exact transaction capture. Users maintain a high-level picture of their finances by entering what they know — salaries, RSU vests, ESPP purchases, recurring bills, mortgages — and periodically reconciling against actual account balances.
 
-All data is stored in the user's own Google Drive. There is no application server, no database, and no third-party data broker.
+All data is stored in a **local SQLite database** on the user's machine. There is no cloud dependency, no third-party account, and no data ever leaves the user's device. The app runs as a local server (`flask run`) and is accessed through a browser on the same machine.
 
 ---
 
@@ -19,12 +20,12 @@ All data is stored in the user's own Google Drive. There is no application serve
 
 | # | Goal |
 |---|------|
-| G1 | Replace an Excel-based planner that is slow and hard to share |
+| G1 | Replace an Excel-based planner that is slow and hard to navigate |
 | G2 | Let users model their full financial picture from known, scheduled events |
 | G3 | Detect divergence between predicted and actual balances without automated bank pulls |
 | G4 | Support equity compensation (RSU, ESPP) as first-class plan objects |
-| G5 | Keep personal financial data entirely within the user's Google account |
-| G6 | Be approachable for non-technical friends and family |
+| G5 | Keep all financial data entirely local — no cloud accounts, no external services required |
+| G6 | Be approachable for non-technical users: simple install, runs with one command |
 
 ---
 
@@ -35,16 +36,17 @@ All data is stored in the user's own Google Drive. There is no application serve
 - No tax filing or tax calculation engine
 - No multi-user collaboration or shared budgets
 - No mobile native app (responsive web only)
+- No cloud sync or remote access (localhost only in v1)
 
 ---
 
 ## 4. User Personas
 
 ### Primary — "The Planner"
-Mid-career professional with a salary, equity comp (RSU/ESPP), a mortgage, and investment accounts. Spends 30–60 min/month on finances. Currently uses a large Excel model.
+Mid-career professional with a salary, equity comp (RSU/ESPP), a mortgage, and investment accounts. Spends 30–60 min/month on finances. Currently uses a large Excel model. Comfortable enough to run a terminal command to start a server.
 
 ### Secondary — "The Curious Beginner"
-A friend or family member who wants to start tracking finances but finds budgeting apps overwhelming. Needs simple entry points and a clear dashboard.
+A friend or family member who wants to start tracking finances but finds budgeting apps overwhelming. Needs simple entry points and a clear dashboard. Can follow a README to install Python and run the app.
 
 ---
 
@@ -70,7 +72,7 @@ Each object carries a **predicted value** (derived from its schedule) and an **a
 
 ### 5.3 Data Storage
 
-All data is stored as JSON files in a dedicated folder in the user's Google Drive (`Personal Finance Suite/`). The app reads and writes these files via the Google Drive API after the user authenticates with OAuth 2.0. No data ever touches an application server.
+All data is stored in a **SQLite database file** (`finance.db`) in the app's data directory. The Flask server reads and writes this file directly. No network calls are required for data access. The database file can be backed up by copying the file; data can be exported as JSON from the Settings page.
 
 ---
 
@@ -83,13 +85,14 @@ All data is stored as JSON files in a dedicated folder in the user's Google Driv
 - Divergence alerts: accounts where actual vs. predicted delta exceeds threshold
 - Upcoming scheduled events (next 30 days)
 - Net worth trend chart (12-month rolling, predicted + actuals overlaid)
+- May cash flow waterfall chart (income sources and expense categories)
 
 ### F2 — Transactions
 
 - **Add one-time transaction:** amount, date, category, account, note
 - **Add recurring transaction:** amount, start date, end date (optional), frequency (daily/weekly/biweekly/monthly/quarterly/annually), category, account
 - **Add blanket expense:** a single monthly "catch-all" amount per category (e.g., "Misc Spending $500/mo")
-- Transaction list with search, filter by date range, category, account
+- Transaction list grouped by type (recurring / one-time / blanket) with search and filter
 - Edit and delete any transaction
 
 ### F3 — Equity Compensation
@@ -99,7 +102,7 @@ All data is stored as JSON files in a dedicated folder in the user's Google Driv
   - Cliff: months until first vest, percentage at cliff
   - Subsequent vests: frequency (monthly/quarterly), percentage per vest
 - Ticker symbol (user-supplied) for approximate value
-- Manual stock price override or "use today's price" prompt
+- Manual stock price entry
 - System generates all vest events automatically from one entry
 - Gross/net toggle: apply estimated withholding rate to compute after-tax proceeds
 
@@ -110,22 +113,21 @@ All data is stored as JSON files in a dedicated folder in the user's Google Driv
 - Discount rate (default 15%)
 - Lookback provision: yes/no; if yes, base price = lower of offering-start or purchase-date price
 - Estimated purchase calculation displayed at plan creation
-- One plan entry covers all purchase periods within the offering
 
 ### F4 — Accounts & Net Worth
 
 - **Add account:** name, type (checking, savings, brokerage, 401k/IRA, crypto, property, other), institution (free text), current balance/value
 - **Add loan:** name, type (mortgage, auto, student, personal, HELOC), balance, interest rate, monthly payment, payoff date
 - **Update snapshot:** user enters current balance; system records timestamp, calculates delta from predicted
-- **Divergence view:** side-by-side of predicted vs. actual for each account, with % difference
-- Property: enter current estimated value and linked mortgage loan
+- **Divergence view:** account cards grouped by category (Banking, Investments, Property, Liabilities) with color-coded status
+- Net worth trend chart (12-month history, inline SVG sparklines per card)
 
 ### F5 — Timeline & Projections
 
 - Month-by-month projection table (configurable horizon: 1, 3, 5, 10 years)
 - Columns: month, income, expenses, net cash flow, cumulative net worth (predicted)
 - Actual overlay: months with snapshots show actual net worth vs. predicted
-- Drill-down: click any month to see the contributing events
+- Drill-down: expand any month row to see contributing events
 - Scenario mode: temporarily toggle items on/off to model "what if" (e.g., what if I stop contributing to ESPP?)
 
 ### F6 — Reconciliation
@@ -133,16 +135,15 @@ All data is stored as JSON files in a dedicated folder in the user's Google Driv
 - Triggered by user manually (or prompted after divergence alert)
 - Shows predicted balance vs. user-entered actual balance per account
 - Options on divergence: (a) accept actual and adjust projection forward, (b) note the difference as a one-time adjustment transaction, (c) ignore / dismiss
+- Breakdown mode: label multiple contributing reasons for a gap
 - Reconciliation history log per account
 
-### F7 — Google Drive Integration
+### F7 — Data Management
 
-- Sign in with Google (OAuth 2.0, Drive scope)
-- First-run: create `Personal Finance Suite/` folder and initialize data files
-- Auto-save on every change (debounced 2 s write)
-- Manual "Sync now" button
-- Conflict detection: if file was modified externally (another device/browser), prompt user to reload
-- Export: download all data as a single JSON file for backup
+- **Export:** download all data as a single JSON file (portable backup)
+- **Import:** restore from a previously exported JSON file
+- **Database location:** settings page shows path to `finance.db` with copy button (for manual backup)
+- **Sample data:** one-click load of sample dataset for demo/testing
 
 ### F8 — Settings
 
@@ -167,7 +168,7 @@ All data is stored as JSON files in a dedicated folder in the user's Google Driv
 | US-07 | Beginner | See a summary of this month's income vs. spending | I can understand where I stand quickly | P0 |
 | US-08 | Planner | See which accounts are diverging from predictions | I know where I need to investigate | P1 |
 | US-09 | Planner | Run a "what if" scenario | I can model job change or large expense impact | P2 |
-| US-10 | Planner | Export my data | I have a local backup that isn't on someone's server | P1 |
+| US-10 | Planner | Export my data as JSON | I have a portable backup of my financial data | P1 |
 
 ---
 
@@ -177,8 +178,10 @@ All data is stored as JSON files in a dedicated folder in the user's Google Driv
 - Bill reminders / notifications
 - Multi-currency portfolios (single currency per workspace)
 - Shared/joint accounts with another user
-- Stock price API feeds (user enters or updates manually)
+- Stock price API feeds (user enters prices manually)
 - Tax optimization recommendations
+- Remote/cloud access
+- Multi-user authentication
 
 ---
 
@@ -189,7 +192,8 @@ All data is stored as JSON files in a dedicated folder in the user's Google Driv
 | Time to enter a full RSU grant | < 3 minutes |
 | Time to enter a monthly recurring bill | < 60 seconds |
 | Time to reconcile all accounts in a monthly review | < 10 minutes |
-| Data load time from Google Drive on app open | < 3 seconds |
+| App startup time (`flask run` to browser-ready) | < 5 seconds |
+| Page load time (data already in SQLite) | < 500 ms |
 | User can understand dashboard without documentation | Usability test pass rate ≥ 80% |
 
 ---
@@ -198,5 +202,5 @@ All data is stored as JSON files in a dedicated folder in the user's Google Driv
 
 1. Should RSU vesting automatically suggest a sell transaction on vest date, or leave it to the user?
 2. For ESPP, should the app track shares held after purchase, or treat each purchase as immediate cash proceeds?
-3. Should the app support multiple workspaces (e.g., one per family member)?
-4. Is a "read-only share" link (pointing to a read-only copy of the Google Drive data) useful for sharing with a financial advisor?
+3. Should a future v2 add optional password protection for the local web server?
+4. Should the JSON export format be compatible with a hypothetical cloud version for migration purposes?

@@ -15,131 +15,169 @@
 
 <div class="app">
 
-  <!-- Icon rail sidebar -->
   <nav class="sidebar">
-    <a href="01-dashboard.html" class="nav-icon-btn active" title="Dashboard"><span>▦</span><span class="nav-icon-label">Home</span></a>
-    <a href="06-timeline.html" class="nav-icon-btn" title="Timeline"><span>📈</span><span class="nav-icon-label">Timeline</span></a>
-    <hr class="nav-sep">
-    <a href="02-transactions.html" class="nav-icon-btn" title="Transactions"><span>↕</span><span class="nav-icon-label">Txns</span></a>
-    <a href="03-equity.html" class="nav-icon-btn" title="Equity"><span>◈</span><span class="nav-icon-label">Equity</span></a>
-    <hr class="nav-sep">
-    <a href="04-accounts.html" class="nav-icon-btn" title="Accounts"><span>🏦</span><span class="nav-icon-label">Accounts</span></a>
-    <a href="05-loans.html" class="nav-icon-btn" title="Loans"><span>📋</span><span class="nav-icon-label">Loans</span></a>
-    <a href="07-settings.html" class="nav-icon-btn bottom" title="Settings"><span>⚙</span><span class="nav-icon-label">Settings</span></a>
+    <div class="sb-logo"><div class="sb-logo-t">💰 Finance Suite</div><div class="sb-logo-s">Personal Financial Planner</div></div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Overview</div>
+      <a href="01-dashboard.html" class="nav-item active"><span class="nav-icon">▦</span>Dashboard</a>
+      <a href="06-timeline.html" class="nav-item"><span class="nav-icon">📈</span>Timeline</a>
+    </div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Money In / Out</div>
+      <a href="02-transactions.html" class="nav-item"><span class="nav-icon">↕</span>Transactions</a>
+      <a href="03-equity.html" class="nav-item"><span class="nav-icon">◈</span>Equity Comp</a>
+    </div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Balance Sheet</div>
+      <a href="04-accounts.html" class="nav-item"><span class="nav-icon">🏦</span>Accounts</a>
+      <a href="05-loans.html" class="nav-item"><span class="nav-icon">📋</span>Loans</a>
+    </div>
+    <div class="sb-sec"><a href="07-settings.html" class="nav-item"><span class="nav-icon">⚙</span>Settings</a></div>
+    <div class="sb-footer"><span class="sync-dot"></span>Local · finance.db</div>
   </nav>
 
   <div class="main">
     <div class="page-wrap">
 
-      <!-- Divergence alert — only when accounts need attention -->
-      <div class="alert-banner">
+      <!-- Page header -->
+      <div class="ph">
+        <div>
+          <div class="ph-title">Dashboard</div>
+          <div class="ph-sub">May 2026 · Projected through Dec 2031</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm">⟳ Reconcile Accounts</button>
+          <button class="btn btn-outline btn-sm">⬇ Export</button>
+        </div>
+      </div>
+
+      <!-- KPI cards -->
+      <div class="g4 mb16">
+        <div class="card" style="border-top:3px solid var(--accent)">
+          <div class="card-lbl">Net Worth</div>
+          <div class="card-val">$482,340</div>
+          <div class="card-delta pos">▲ $3,200 vs last month</div>
+        </div>
+        <div class="card" style="border-top:3px solid var(--green)">
+          <div class="card-lbl">Monthly Income</div>
+          <div class="card-val" style="font-size:22px">$14,500</div>
+          <div class="card-delta muted">Salary + RSU vest (May)</div>
+        </div>
+        <div class="card" style="border-top:3px solid var(--red)">
+          <div class="card-lbl">Monthly Expenses</div>
+          <div class="card-val neg" style="font-size:22px">$8,200</div>
+          <div class="card-delta muted">Recurring + blanket</div>
+        </div>
+        <div class="card" style="border-top:3px solid var(--green)">
+          <div class="card-lbl">Net Cash Flow</div>
+          <div class="card-val pos" style="font-size:22px">$6,300</div>
+          <div class="card-delta pos">▲ On track this month</div>
+        </div>
+      </div>
+
+      <!-- Divergence alert banner -->
+      <div class="alert-banner mb16">
         <span>⚠</span>
         <span>Fidelity Brokerage is <strong>7.5% below</strong> predicted. Chase Checking is <strong>4.2% above</strong>.</span>
         <a href="04-accounts.html" class="btn btn-outline btn-sm" style="margin-left:auto;white-space:nowrap">Review accounts</a>
       </div>
 
-      <!-- Hero: Net Worth -->
-      <div class="hero">
-        <div class="hero-eyebrow">Net Worth · May 2026</div>
-        <div class="hero-value">$482,340</div>
-        <div class="hero-delta">
-          <span class="badge badge-ok">▲ +$3,200 this month</span>
-          <span class="muted small">Predicted through Dec 2031</span>
-        </div>
-      </div>
+      <!-- Chart + right column -->
+      <div class="g21">
 
-      <!-- Stat row: income / expenses / net flow -->
-      <div class="stat-row">
-        <div class="stat">
-          <div class="stat-label">Monthly Income</div>
-          <div class="stat-value pos">$14,500</div>
-          <div class="stat-sub">Salary + RSU vest (May)</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Monthly Expenses</div>
-          <div class="stat-value neg">$8,200</div>
-          <div class="stat-sub">Recurring + blanket</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Net Cash Flow</div>
-          <div class="stat-value">$6,300</div>
-          <div class="stat-sub">On track ▲</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Total Assets</div>
-          <div class="stat-value">$831,200</div>
-          <div class="stat-sub">−$348,860 liabilities</div>
-        </div>
-      </div>
-
-      <!-- Chart + upcoming events -->
-      <div class="two-panel">
-
-        <!-- Chart -->
-        <div class="panel">
-          <div class="panel-hdr">
-            <span class="panel-title">Net Worth Trend</span>
+        <!-- Net Worth Trend + Waterfall -->
+        <div class="card" style="padding:20px">
+          <div class="sec-hdr mb12">
+            <span class="sec-title">Net Worth Trend</span>
             <div style="display:flex;gap:14px;font-size:12px;color:var(--muted)">
               <span><span style="color:var(--accent)">━</span> Predicted</span>
               <span><span style="color:var(--green)">●</span> Actual</span>
             </div>
           </div>
-          <div class="ph-box" style="height:160px">
-            <span class="ph-icon">📈</span>
-            <div>Area chart · 12-month rolling<br>
-            <span class="xs muted">Blue fill = predicted · Green dots = monthly snapshots</span></div>
+          <svg viewBox="0 0 560 100" style="width:100%;height:100px;display:block" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#3b5fc0" stop-opacity=".18"/>
+                <stop offset="100%" stop-color="#3b5fc0" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <polygon points="0,80 80,72 160,64 240,56 320,48 400,40 480,33 560,26 560,100 0,100" fill="url(#dashGrad)"/>
+            <polyline points="0,80 80,72 160,64 240,56 320,48 400,40 480,33 560,26" fill="none" stroke="#3b5fc0" stroke-width="1.5" stroke-dasharray="5,3"/>
+            <polyline points="0,82 80,75 160,68 240,60 320,52 400,44 480,38" fill="none" stroke="#166534" stroke-width="2"/>
+            <circle cx="0" cy="82" r="3.5" fill="#166534"/>
+            <circle cx="80" cy="75" r="3.5" fill="#166534"/>
+            <circle cx="160" cy="68" r="3.5" fill="#166534"/>
+            <circle cx="240" cy="60" r="3.5" fill="#166534"/>
+            <circle cx="320" cy="52" r="3.5" fill="#166534"/>
+            <circle cx="400" cy="44" r="3.5" fill="#166534"/>
+            <circle cx="480" cy="38" r="3.5" fill="#166534"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+            <span>Jun '25</span><span>Aug '25</span><span>Oct '25</span><span>Dec '25</span>
+            <span>Feb '26</span><span>Apr '26</span><span style="color:var(--accent);font-weight:600">May '26</span>
           </div>
-          <!-- x-axis tick labels -->
-          <div style="display:flex;justify-content:space-between;padding:10px 20px;font-size:11px;color:var(--muted);border-top:1px solid var(--border)">
-            <span>Jun '25</span><span>Aug</span><span>Oct</span><span>Dec</span>
-            <span>Feb '26</span><span>Apr</span><span style="color:var(--accent);font-weight:700">May '26</span>
-          </div>
-          <!-- Cash flow waterfall for this month -->
-          <div style="border-top:1px solid var(--border);padding:14px 20px">
+
+          <!-- Cash flow waterfall -->
+          <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:14px">
             <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px">May Cash Flow — Waterfall</div>
             <svg viewBox="0 0 420 72" style="width:100%;height:72px;overflow:visible">
-              <!-- Salary bar -->
-              <rect x="0"   y="16" width="50" height="40" fill="#dcfce7" rx="2"/>
-              <text x="25"  y="12" font-size="9" fill="#15803d" text-anchor="middle" font-weight="600">+$15k</text>
-              <text x="25"  y="66" font-size="8" fill="#9ca3af" text-anchor="middle">Salary</text>
-              <!-- RSU -->
-              <rect x="58"  y="26" width="40" height="30" fill="#dbeafe" rx="2"/>
-              <text x="78"  y="22" font-size="9" fill="#1d4ed8" text-anchor="middle" font-weight="600">+$4.4k</text>
-              <text x="78"  y="66" font-size="8" fill="#9ca3af" text-anchor="middle">RSU</text>
-              <!-- ESPP -->
+              <rect x="0" y="16" width="50" height="40" fill="#dcfce7" rx="2"/>
+              <text x="25" y="12" font-size="9" fill="#15803d" text-anchor="middle" font-weight="600">+$15k</text>
+              <text x="25" y="66" font-size="8" fill="#9ca3af" text-anchor="middle">Salary</text>
+              <rect x="58" y="26" width="40" height="30" fill="#dbeafe" rx="2"/>
+              <text x="78" y="22" font-size="9" fill="#1d4ed8" text-anchor="middle" font-weight="600">+$4.4k</text>
+              <text x="78" y="66" font-size="8" fill="#9ca3af" text-anchor="middle">RSU</text>
               <rect x="106" y="34" width="34" height="22" fill="#ede9fe" rx="2"/>
               <text x="123" y="30" font-size="9" fill="#6d28d9" text-anchor="middle" font-weight="600">+$0.7k</text>
               <text x="123" y="66" font-size="8" fill="#9ca3af" text-anchor="middle">ESPP</text>
-              <!-- subtotal connector -->
               <line x1="148" y1="56" x2="162" y2="56" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="2,2"/>
-              <!-- Mortgage out -->
               <rect x="162" y="34" width="44" height="22" fill="#fee2e2" rx="2"/>
               <text x="184" y="30" font-size="9" fill="#b91c1c" text-anchor="middle" font-weight="600">−$2.9k</text>
               <text x="184" y="66" font-size="8" fill="#9ca3af" text-anchor="middle">Mortgage</text>
-              <!-- 401k out -->
               <rect x="212" y="26" width="36" height="30" fill="#fee2e2" rx="2"/>
               <text x="230" y="22" font-size="9" fill="#b91c1c" text-anchor="middle" font-weight="600">−$2.3k</text>
               <text x="230" y="66" font-size="8" fill="#9ca3af" text-anchor="middle">401k</text>
-              <!-- Blanket out -->
               <rect x="254" y="36" width="34" height="20" fill="#fee2e2" rx="2"/>
               <text x="271" y="32" font-size="9" fill="#b91c1c" text-anchor="middle" font-weight="600">−$0.9k</text>
               <text x="271" y="66" font-size="8" fill="#9ca3af" text-anchor="middle">Blanket</text>
-              <!-- Net bar -->
-              <rect x="310" y="4"  width="54" height="52" fill="#3b5fc0" rx="2"/>
-              <text x="337" y="78" font-size="9" fill="#3b5fc0" text-anchor="middle" font-weight="700">Net +$12k</text>
-              <text x="337" y="0"  font-size="9" fill="#3b5fc0" text-anchor="middle" font-weight="700" dy="12">+$11,955</text>
+              <rect x="310" y="4" width="54" height="52" fill="#3b5fc0" rx="2"/>
+              <text x="337" y="14" font-size="9" fill="#fff" text-anchor="middle" font-weight="700">+$11,955</text>
+              <text x="337" y="72" font-size="9" fill="#3b5fc0" text-anchor="middle" font-weight="700">Net +$12k</text>
             </svg>
           </div>
         </div>
 
-        <!-- Upcoming events -->
-        <div class="panel">
-          <div class="panel-hdr">
-            <span class="panel-title">Upcoming (30 days)</span>
-            <a href="06-timeline.html" class="btn btn-ghost btn-sm">Full timeline →</a>
+        <!-- Right column -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- Divergence alerts -->
+          <div class="card">
+            <div class="sec-hdr mb12">
+              <span class="sec-title">⚠ Divergence Alerts</span>
+              <span class="badge badge-warn">2 accounts</span>
+            </div>
+            <div class="ev-row">
+              <div style="flex:1">
+                <div class="fw7 small">Fidelity Brokerage</div>
+                <div class="xs muted">Actual $48,200 · Predicted $52,100</div>
+              </div>
+              <div class="neg fw7">−7.5%</div>
+              <a href="04-accounts.html" class="btn btn-outline btn-sm">Review</a>
+            </div>
+            <div class="ev-row">
+              <div style="flex:1">
+                <div class="fw7 small">Chase Checking</div>
+                <div class="xs muted">Actual $12,400 · Predicted $11,900</div>
+              </div>
+              <div class="pos fw7">+4.2%</div>
+              <a href="04-accounts.html" class="btn btn-outline btn-sm">Review</a>
+            </div>
+            <div style="text-align:center;padding:10px 0 2px"><a href="04-accounts.html" class="btn btn-ghost btn-sm">View all accounts →</a></div>
           </div>
-          <div style="padding:4px 20px">
-            <!-- Income -->
+
+          <!-- Upcoming events -->
+          <div class="card">
+            <div class="sec-hdr mb12">
+              <span class="sec-title">Upcoming (30 days)</span>
+              <a href="06-timeline.html" class="btn btn-ghost btn-sm">Timeline →</a>
+            </div>
             <div class="feed-item">
               <div class="feed-dot feed-dot-rsu"></div>
               <div class="feed-name">
@@ -181,22 +219,58 @@
               <div class="feed-amount neg">−$180</div>
             </div>
           </div>
-        </div>
 
+        </div>
       </div>
 
-      <!-- Quick add strip -->
-      <div style="display:flex;gap:10px;margin-top:24px;padding:18px 20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;align-items:center">
-        <span class="small muted fw7" style="margin-right:4px;">Quick add:</span>
-        <button class="btn btn-outline btn-sm">+ Transaction</button>
-        <button class="btn btn-outline btn-sm">+ Recurring</button>
-        <button class="btn btn-outline btn-sm">+ Blanket Expense</button>
-        <button class="btn btn-outline btn-sm">+ RSU Grant</button>
-        <button class="btn btn-outline btn-sm">+ ESPP Plan</button>
-        <div style="margin-left:auto;font-size:11px;color:var(--muted)">⟳ Synced to Google Drive · 2 min ago</div>
+      <!-- Second row: monthly breakdown + quick add -->
+      <div class="g21 mt24">
+
+        <div class="card" style="padding:20px">
+          <div class="sec-hdr mb12">
+            <span class="sec-title">This Month — May 2026</span>
+            <a href="06-timeline.html" class="btn btn-ghost btn-sm">Full timeline →</a>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Category</th><th class="td-r">Budgeted / Scheduled</th><th class="td-r">Projected Total</th></tr></thead>
+              <tbody>
+                <tr><td><span class="badge badge-income">Income</span> Salary</td><td class="td-r">$7,500 × 2</td><td class="td-r pos fw7">$15,000</td></tr>
+                <tr><td><span class="badge badge-rsu">RSU</span> GOOG Vest (net)</td><td class="td-r">25 sh × $290 × 78%</td><td class="td-r pos fw7">$5,655</td></tr>
+                <tr><td><span class="badge badge-expense">Expense</span> Housing</td><td class="td-r">$2,850 mortgage</td><td class="td-r neg">−$2,850</td></tr>
+                <tr><td><span class="badge badge-expense">Expense</span> Recurring bills</td><td class="td-r">7 items</td><td class="td-r neg">−$2,350</td></tr>
+                <tr><td><span class="badge badge-neutral">Blanket</span> Misc spending</td><td class="td-r">$500/mo</td><td class="td-r neg">−$500</td></tr>
+                <tr style="background:#f8f9fb"><td colspan="2" class="fw7">Net cash flow</td><td class="td-r pos fw7">+$14,955</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="sec-title mb12">Quick Add</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <a href="02-transactions.html" class="btn btn-outline" style="justify-content:center">+ One-time Transaction</a>
+              <a href="02-transactions.html" class="btn btn-outline" style="justify-content:center">+ Recurring Transaction</a>
+              <a href="02-transactions.html" class="btn btn-outline" style="justify-content:center">+ Blanket Expense</a>
+              <a href="03-equity.html" class="btn btn-outline" style="justify-content:center">+ RSU Grant</a>
+              <a href="03-equity.html" class="btn btn-outline" style="justify-content:center">+ ESPP Plan</a>
+            </div>
+          </div>
+          <div class="card">
+            <div class="sec-title mb12">Assets Snapshot</div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span class="small">Cash &amp; Savings</span><span class="fw7">$54,700</span></div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span class="small">Investments</span><span class="fw7">$336,500</span></div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span class="small">Property (est.)</span><span class="fw7">$440,000</span></div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span class="small muted">Liabilities</span><span class="fw7 neg">−$348,860</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0 0"><span class="fw7">Net Worth</span><span class="fw7" style="font-size:16px">$482,340</span></div>
+          </div>
+        </div>
+
       </div>
 
     </div>
   </div>
 </div>
+
 </body></html>

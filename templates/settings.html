@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Personal Finance Suite{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div x-data="settingsPage()" x-init="init()" class="max-w-4xl space-y-6">
+
+    <div x-show="loading" class="text-center py-12 text-gray-500">Loading...</div>
+
+    <!-- Tabs -->
+    <div x-show="!loading" class="border-b border-gray-200">
+        <nav class="flex space-x-8">
+            <button @click="tab='general'" :class="tab==='general' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">General</button>
+            <button @click="tab='categories'" :class="tab==='categories' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">Categories</button>
+            <button @click="tab='data'" :class="tab==='data' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">Data</button>
+        </nav>
+    </div>
+
+    <!-- General Settings -->
+    <template x-if="!loading && tab==='general'">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-6">General Settings</h3>
+            <div class="space-y-5">
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                        <select x-model="settings.currency" class="w-full px-4 py-2 border rounded-lg bg-white text-sm">
+                            <option value="USD">USD ($)</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="GBP">GBP (£)</option>
+                            <option value="THB">THB (฿)</option>
+                            <option value="JPY">JPY (¥)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Locale</label>
+                        <select x-model="settings.locale" class="w-full px-4 py-2 border rounded-lg bg-white text-sm">
+                            <option value="en-US">en-US</option>
+                            <option value="en-GB">en-GB</option>
+                            <option value="de-DE">de-DE</option>
+                            <option value="th-TH">th-TH</option>
+                            <option value="ja-JP">ja-JP</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Fiscal Year Start Month</label>
+                        <select x-model.number="settings.fiscal_year_start_month" class="w-full px-4 py-2 border rounded-lg bg-white text-sm">
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="7">July</option>
+                            <option value="10">October</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Default Withholding Rate (%)</label>
+                        <div class="flex items-center">
+                            <input x-model.number="withholdingPct" type="number" min="0" max="100" step="0.1" class="w-full px-4 py-2 border rounded-lg text-sm">
+                            <span class="ml-2 text-gray-500">%</span>
+                        </div>
+                    </div>
+                </div>
+                <button @click="saveSettings()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm">Save Changes</button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Categories -->
+    <template x-if="!loading && tab==='categories'">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">Categories</h3>
+                <button @click="openAddCat()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">+ Add Category</button>
+            </div>
+
+            <template x-if="categories.length === 0">
+                <div class="text-center text-gray-400 py-8">No categories yet.</div>
+            </template>
+
+            <table x-show="categories.length > 0" class="w-full text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-4 py-2 text-left font-medium text-gray-600">Slug</th>
+                        <th class="px-4 py-2 text-left font-medium text-gray-600">Label</th>
+                        <th class="px-4 py-2 text-left font-medium text-gray-600">Type</th>
+                        <th class="px-4 py-2 text-left font-medium text-gray-600">Color</th>
+                        <th class="px-4 py-2"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    <template x-for="c in categories" :key="c.slug">
+                        <tr>
+                            <td class="px-4 py-3 text-gray-500 font-mono text-xs" x-text="c.slug"></td>
+                            <td class="px-4 py-3 font-medium" x-text="c.label"></td>
+                            <td class="px-4 py-3">
+                                <span :class="c.type === 'income' ? 'bg-green-100 text-green-800' : c.type === 'expense' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'" class="px-2 py-0.5 rounded text-xs font-medium capitalize" x-text="c.type"></span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="w-6 h-6 rounded border" :style="'background:' + c.color"></div>
+                            </td>
+                            <td class="px-4 py-3 text-right whitespace-nowrap">
+                                <button @click="openEditCat(c)" class="text-blue-600 hover:underline mr-3">Edit</button>
+                                <button @click="deleteCat(c.slug)" class="text-red-600 hover:underline">Delete</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <!-- Data Management -->
+    <template x-if="!loading && tab==='data'">
+        <div class="space-y-4">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-6">Data Management</h3>
+                <div class="space-y-4">
+
+                    <div class="p-4 border rounded-lg">
+                        <h4 class="font-semibold text-gray-900 mb-2">Export Data</h4>
+                        <p class="text-sm text-gray-500 mb-3">Download all your financial data as JSON</p>
+                        <a href="/api/export" class="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 inline-block">Export as JSON</a>
+                    </div>
+
+                    <div class="p-4 border rounded-lg">
+                        <h4 class="font-semibold text-gray-900 mb-2">Import Data</h4>
+                        <p class="text-sm text-gray-500 mb-3">Restore from a previously exported JSON file</p>
+                        <label class="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer inline-block">
+                            Import JSON
+                            <input type="file" accept=".json" class="hidden" @change="importData($event)">
+                        </label>
+                    </div>
+
+                    <div class="p-4 border rounded-lg bg-red-50 border-red-200">
+                        <h4 class="font-semibold text-red-900 mb-2">Danger Zone</h4>
+                        <p class="text-sm text-red-700 mb-3">Load sample data — this will erase all existing data.</p>
+                        <button @click="seedData()" class="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700">Load Sample Data</button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Category Modal -->
+    <div x-show="showCatModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" @click.self="showCatModal = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4" x-text="editingCatSlug ? 'Edit Category' : 'Add Category'"></h3>
+            <div class="space-y-3">
+                <div x-show="!editingCatSlug">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Slug (unique ID)</label>
+                    <input x-model="catForm.slug" type="text" placeholder="e.g. groceries" class="w-full px-3 py-2 border rounded-lg text-sm" :disabled="!!editingCatSlug">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Label</label>
+                    <input x-model="catForm.label" type="text" placeholder="e.g. Groceries" class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <select x-model="catForm.type" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        <option value="income">Income</option>
+                        <option value="expense">Expense</option>
+                        <option value="both">Both</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                    <input x-model="catForm.color" type="color" class="w-full h-9 border rounded-lg cursor-pointer">
+                </div>
+            </div>
+            <div class="mt-6 flex space-x-3 justify-end">
+                <button @click="showCatModal = false" class="px-4 py-2 text-gray-600 hover:text-gray-900">Cancel</button>
+                <button @click="saveCat()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Save</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function settingsPage() {
+    return {
+        settings: {},
+        categories: [],
+        loading: true,
+        tab: 'general',
+        showCatModal: false,
+        editingCatSlug: null,
+        catForm: {},
+        withholdingPct: 22,
+
+        async init() {
+            try {
+                const [s, cats] = await Promise.all([API.get('/settings'), API.get('/categories')]);
+                this.settings = s;
+                this.categories = cats;
+                this.withholdingPct = (s.default_withholding_rate / 100).toFixed(1);
+            } catch (e) {
+                showAlert('Failed to load: ' + e.message, 'error');
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async saveSettings() {
+            try {
+                await API.patch('/settings', {
+                    currency: this.settings.currency,
+                    locale: this.settings.locale,
+                    fiscal_year_start_month: parseInt(this.settings.fiscal_year_start_month),
+                    default_withholding_rate: Math.round(parseFloat(this.withholdingPct) * 100),
+                });
+                showAlert('Settings saved', 'success');
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
+
+        openAddCat() {
+            this.editingCatSlug = null;
+            this.catForm = { slug: '', label: '', type: 'expense', color: '#6b7280' };
+            this.showCatModal = true;
+        },
+        openEditCat(c) {
+            this.editingCatSlug = c.slug;
+            this.catForm = { slug: c.slug, label: c.label, type: c.type, color: c.color };
+            this.showCatModal = true;
+        },
+
+        async saveCat() {
+            try {
+                if (this.editingCatSlug) {
+                    await API.patch('/categories/' + this.editingCatSlug, { label: this.catForm.label, type: this.catForm.type, color: this.catForm.color });
+                } else {
+                    await API.post('/categories', this.catForm);
+                }
+                showAlert('Category saved', 'success');
+                this.showCatModal = false;
+                this.categories = await API.get('/categories');
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
+
+        async deleteCat(slug) {
+            if (!confirm('Delete category "' + slug + '"?')) return;
+            try {
+                await API.delete('/categories/' + slug);
+                showAlert('Deleted', 'success');
+                this.categories = await API.get('/categories');
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
+
+        async importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                await API.post('/import', data);
+                showAlert('Import successful', 'success');
+                await this.init();
+            } catch (e) {
+                showAlert('Import failed: ' + e.message, 'error');
+            }
+        },
+
+        async seedData() {
+            if (!confirm('This will erase all existing data and load sample data. Continue?')) return;
+            try {
+                await API.post('/seed', {});
+                showAlert('Sample data loaded', 'success');
+                await this.init();
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
+    };
+}
+</script>
+{% endblock %}

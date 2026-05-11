@@ -1,0 +1,823 @@
+{% extends "base.html" %}
+{% block title %}Cash Flow - Personal Finance Suite{% endblock %}
+{% block page_title %}Cash Flow{% endblock %}
+
+{% block content %}
+<div x-data="cashFlowPage()" x-init="init()" class="space-y-8">
+
+    <!-- ── 1. PROJECTION ─────────────────────────────────────────────────── -->
+    <div>
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h3 class="text-base font-semibold text-gray-900">Net Worth Projection</h3>
+                <p class="text-xs text-gray-400">Computed from rules + snapshots as starting point</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <select x-model="range" @change="reloadProjection()" class="px-3 py-2 border rounded-lg text-sm bg-white">
+                    <option value="1">1 Year</option><option value="2">2 Years</option>
+                    <option value="3">3 Years</option><option value="5">5 Years</option>
+                </select>
+                <button @click="reloadProjection()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Refresh</button>
+            </div>
+        </div>
+
+        <div x-show="projLoading" class="text-center py-8 text-gray-400 text-sm">Computing projection…</div>
+        <div x-show="projError" class="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm" x-text="projError"></div>
+
+        <template x-if="!projLoading && buckets.length > 0">
+            <div class="space-y-4">
+                <!-- Milestones -->
+                <div class="flex gap-3 overflow-x-auto pb-1">
+                    <div class="flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-100 p-4 min-w-36">
+                        <p class="text-xs font-medium text-gray-400 mb-1">Today</p>
+                        <p class="text-base font-bold text-gray-900" x-text="fmt(startNw)"></p>
+                    </div>
+                    <template x-if="milestones.yr1">
+                        <div class="flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-100 p-4 min-w-36">
+                            <p class="text-xs font-medium text-gray-400 mb-1">+1 Year</p>
+                            <p class="text-base font-bold text-blue-700" x-text="fmt(milestones.yr1.cumulative_net_worth)"></p>
+                            <p class="text-xs font-medium mt-0.5" :class="milestones.yr1.cumulative_net_worth-startNw>=0?'text-green-600':'text-red-500'"
+                               x-text="fmtSigned(milestones.yr1.cumulative_net_worth-startNw)"></p>
+                        </div>
+                    </template>
+                    <template x-if="milestones.yr3">
+                        <div class="flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-100 p-4 min-w-36">
+                            <p class="text-xs font-medium text-gray-400 mb-1">+3 Years</p>
+                            <p class="text-base font-bold text-blue-700" x-text="fmt(milestones.yr3.cumulative_net_worth)"></p>
+                            <p class="text-xs font-medium mt-0.5" :class="milestones.yr3.cumulative_net_worth-startNw>=0?'text-green-600':'text-red-500'"
+                               x-text="fmtSigned(milestones.yr3.cumulative_net_worth-startNw)"></p>
+                        </div>
+                    </template>
+                    <template x-if="milestones.yr5">
+                        <div class="flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-100 p-4 min-w-36">
+                            <p class="text-xs font-medium text-gray-400 mb-1">+5 Years</p>
+                            <p class="text-base font-bold text-blue-700" x-text="fmt(milestones.yr5.cumulative_net_worth)"></p>
+                            <p class="text-xs font-medium mt-0.5" :class="milestones.yr5.cumulative_net_worth-startNw>=0?'text-green-600':'text-red-500'"
+                               x-text="fmtSigned(milestones.yr5.cumulative_net_worth-startNw)"></p>
+                        </div>
+                    </template>
+                    <template x-if="milestones.million">
+                        <div class="flex-shrink-0 bg-amber-50 rounded-xl shadow-sm border border-amber-200 p-4 min-w-36">
+                            <p class="text-xs font-medium text-amber-600 mb-1">$1M Milestone</p>
+                            <p class="text-base font-bold text-amber-700">$1,000,000</p>
+                            <p class="text-xs text-amber-600 mt-0.5" x-text="milestones.million.month"></p>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                    <div class="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <h4 class="text-sm font-semibold text-gray-900 mb-4">Net Worth Projection</h4>
+                        <canvas id="projectionChart" height="90"></canvas>
+                    </div>
+                    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <h4 class="text-sm font-semibold text-gray-900 mb-4">Monthly Cash Flow</h4>
+                        <canvas id="cashFlowChart" height="90"></canvas>
+                    </div>
+                </div>
+
+                <!-- Monthly table (collapsible) -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <button @click="showTable=!showTable" class="w-full px-6 py-4 flex justify-between items-center hover:bg-gray-50 text-left">
+                        <span class="text-sm font-semibold text-gray-900">Month-by-Month Breakdown</span>
+                        <span class="text-xs text-gray-400" x-text="showTable?'Hide ▲':'Show ▼'"></span>
+                    </button>
+                    <div x-show="showTable" class="overflow-x-auto border-t border-gray-100">
+                        <table class="min-w-full">
+                            <thead class="bg-gray-50"><tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Month</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Income</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Expenses</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Net</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Net Worth</th>
+                            </tr></thead>
+                            <tbody class="divide-y divide-gray-50">
+                                <template x-for="b in buckets" :key="b.month">
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-3 text-sm font-medium text-gray-900" x-text="b.month"></td>
+                                        <td class="px-6 py-3 text-sm text-right text-green-600 font-medium" x-text="'+'+fmt(b.income)"></td>
+                                        <td class="px-6 py-3 text-sm text-right text-red-500" x-text="b.expenses>0?'−'+fmt(b.expenses):'—'"></td>
+                                        <td class="px-6 py-3 text-sm text-right font-bold" :class="b.net_cash_flow>=0?'text-green-600':'text-red-600'" x-text="fmtSigned(b.net_cash_flow)"></td>
+                                        <td class="px-6 py-3 text-sm text-right font-semibold text-gray-900" x-text="fmt(b.cumulative_net_worth)"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- ── 2. ACTIVITY LOG ────────────────────────────────────────────────── -->
+    <div class="border-t border-gray-200 pt-6">
+        <div class="flex justify-between items-center mb-3">
+            <div>
+                <h3 class="text-base font-semibold text-gray-900">Activity</h3>
+                <p class="text-xs text-gray-400">Manually recorded changes + upcoming projected events</p>
+            </div>
+            <button @click="openAddChange()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">+ Log Change</button>
+        </div>
+
+        <!-- Filter -->
+        <div class="flex gap-2 mb-4">
+            <template x-for="f in [{k:'all',l:'All'},{k:'past',l:'Past'},{k:'upcoming',l:'Upcoming'},{k:'adjustment',l:'Adjustments'}]" :key="f.k">
+                <button @click="activityFilter=f.k"
+                        :class="activityFilter===f.k?'bg-blue-600 text-white':'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'"
+                        class="px-3 py-1.5 rounded-lg text-xs font-medium transition" x-text="f.l"></button>
+            </template>
+        </div>
+
+        <div x-show="activityLoading" class="text-center py-6 text-gray-400 text-sm">Loading…</div>
+
+        <template x-if="!activityLoading">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <template x-if="filteredActivity.length === 0">
+                    <div class="p-12 text-center text-gray-400 text-sm">No activity yet. Log a change or add rules below.</div>
+                </template>
+                <div class="divide-y divide-gray-50">
+                    <template x-for="evt in filteredActivity" :key="evt.id">
+                        <div class="flex items-center px-5 py-3 gap-4" :class="evt.is_projected?'opacity-60':''">
+                            <span class="text-xs text-gray-400 w-24 flex-shrink-0" x-text="evt.date"></span>
+                            <span class="flex-1 text-sm font-medium text-gray-800 truncate" x-text="evt.label"></span>
+                            <span class="text-sm font-semibold flex-shrink-0 w-28 text-right"
+                                  :class="evt.amount>=0?'text-green-600':'text-red-600'"
+                                  x-text="fmtSigned(evt.amount)"></span>
+                            <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
+                                  :class="{
+                                      'bg-green-100 text-green-700': evt.source_type==='manual',
+                                      'bg-yellow-100 text-yellow-700': evt.source_type==='adjustment',
+                                      'bg-purple-100 text-purple-700': evt.source_type==='rsu',
+                                      'bg-blue-100 text-blue-700': evt.source_type==='espp',
+                                      'bg-orange-100 text-orange-700': evt.source_type==='loan_payment',
+                                      'bg-gray-100 text-gray-600': evt.source_type==='rule',
+                                  }"
+                                  x-text="evt.source_type==='rule'?'recurring':evt.source_type"></span>
+                            <div class="flex-shrink-0 w-12 text-right">
+                                <button x-show="evt.is_deletable" @click="deleteChange(evt.id)" class="text-xs text-red-400 hover:text-red-600">Delete</button>
+                                <span x-show="evt.is_projected" class="text-xs text-gray-300 italic">proj.</span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- ── 3. RULES ───────────────────────────────────────────────────────── -->
+    <div class="border-t border-gray-200 pt-6">
+        <div class="flex justify-between items-center mb-3">
+            <div>
+                <h3 class="text-base font-semibold text-gray-900">Rules</h3>
+                <p class="text-xs text-gray-400">Recurring income, expenses, and compensation schedules that drive the projection</p>
+            </div>
+            <button @click="openAddRule()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">+ Add Rule</button>
+        </div>
+
+        <!-- Rule type tabs -->
+        <div class="border-b border-gray-200 mb-4">
+            <nav class="flex gap-8">
+                <button @click="ruleTab='income'" :class="ruleTab==='income'?'border-b-2 border-blue-500 text-blue-600':'text-gray-500 hover:text-gray-700'" class="px-1 py-3 font-medium text-sm">Income</button>
+                <button @click="ruleTab='expense'" :class="ruleTab==='expense'?'border-b-2 border-blue-500 text-blue-600':'text-gray-500 hover:text-gray-700'" class="px-1 py-3 font-medium text-sm">Expenses</button>
+                <button @click="ruleTab='compensation'" :class="ruleTab==='compensation'?'border-b-2 border-blue-500 text-blue-600':'text-gray-500 hover:text-gray-700'" class="px-1 py-3 font-medium text-sm">Compensation</button>
+            </nav>
+        </div>
+
+        <div x-show="rulesLoading" class="text-center py-6 text-gray-400 text-sm">Loading…</div>
+
+        <!-- Income rules -->
+        <template x-if="!rulesLoading && ruleTab==='income'">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <template x-if="incomeRules.length===0">
+                    <div class="p-8 text-center text-gray-400 text-sm">No income rules yet.</div>
+                </template>
+                <div class="divide-y divide-gray-50">
+                    <template x-for="r in incomeRules" :key="r.id">
+                        <div class="flex items-center px-5 py-3 gap-4">
+                            <span class="flex-1 text-sm font-medium text-gray-800" x-text="r.name"></span>
+                            <span class="text-sm font-semibold text-green-600" x-text="'+'+fmt(r.amount||0)+' / '+(r.frequency||'—')"></span>
+                            <span class="text-xs text-gray-400" x-text="r.start_date + (r.end_date?' → '+r.end_date:'')"></span>
+                            <span class="text-xs text-gray-400" x-text="acctName(r.account_id)"></span>
+                            <div class="flex gap-2 flex-shrink-0">
+                                <button @click="openEditRule(r)" class="text-xs text-blue-600 hover:text-blue-800">Edit</button>
+                                <button @click="deleteRule(r.id)" class="text-xs text-red-400 hover:text-red-600">Delete</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+
+        <!-- Expense rules -->
+        <template x-if="!rulesLoading && ruleTab==='expense'">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <template x-if="expenseRules.length===0">
+                    <div class="p-8 text-center text-gray-400 text-sm">No expense rules yet.</div>
+                </template>
+                <div class="divide-y divide-gray-50">
+                    <template x-for="r in expenseRules" :key="r.id">
+                        <div class="flex items-center px-5 py-3 gap-4">
+                            <span class="flex-1 text-sm font-medium text-gray-800" x-text="r.name"></span>
+                            <span class="text-sm font-semibold text-red-600" x-text="'−'+fmt(r.amount||0)+' / '+(r.frequency||'—')"></span>
+                            <span class="text-xs text-gray-400" x-text="r.start_date + (r.end_date?' → '+r.end_date:'')"></span>
+                            <span class="text-xs text-gray-400" x-text="acctName(r.account_id)"></span>
+                            <div class="flex gap-2 flex-shrink-0">
+                                <button @click="openEditRule(r)" class="text-xs text-blue-600 hover:text-blue-800">Edit</button>
+                                <button @click="deleteRule(r.id)" class="text-xs text-red-400 hover:text-red-600">Delete</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+
+        <!-- Compensation rules (RSU + ESPP) -->
+        <template x-if="!rulesLoading && ruleTab==='compensation'">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <template x-if="compensationRules.length===0">
+                    <div class="p-8 text-center text-gray-400 text-sm">No compensation rules yet. Add RSU grants or ESPP plans here.</div>
+                </template>
+                <div class="divide-y divide-gray-50">
+                    <template x-for="r in compensationRules" :key="r.id">
+                        <div class="flex items-center px-5 py-3 gap-4">
+                            <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
+                                  :class="r.rule_type==='rsu'?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700'"
+                                  x-text="r.rule_type.toUpperCase()"></span>
+                            <span class="flex-1 text-sm font-medium text-gray-800" x-text="r.name"></span>
+                            <span class="text-sm text-gray-500" x-text="r.rule_type==='rsu'?(r.config?.ticker||'')+'  ·  '+(r.schedule?.length||0)+' vests':(r.schedule?.length||0)+' periods'"></span>
+                            <span class="text-xs text-gray-400" x-text="r.start_date"></span>
+                            <span class="text-xs text-gray-400" x-text="acctName(r.account_id)"></span>
+                            <div class="flex gap-2 flex-shrink-0">
+                                <button @click="openEditRule(r)" class="text-xs text-blue-600 hover:text-blue-800">Edit</button>
+                                <button @click="deleteRule(r.id)" class="text-xs text-red-400 hover:text-red-600">Delete</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- ── CHANGE EVENT MODAL ──────────────────────────────────────────────── -->
+    <div x-show="showChangeModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" @click.self="showChangeModal=false">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4" x-text="changeEditId?'Edit Change':'Log Change'"></h3>
+            <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <input x-model="changeForm.date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                        <select x-model="changeForm.change_type" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="manual">Manual</option>
+                            <option value="adjustment">Adjustment</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <input x-model="changeForm.description" type="text" placeholder="e.g. RSU vest, Bonus, Car repair" class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
+                        <input x-model="changeForm.amount_dollars" type="number" step="0.01" placeholder="+ income / − expense" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Account (opt.)</label>
+                        <select x-model="changeForm.account_id" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="">Any</option>
+                            <template x-for="a in accounts" :key="a.id">
+                                <option :value="a.id" x-text="a.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Note (opt.)</label>
+                    <input x-model="changeForm.note" type="text" class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+            </div>
+            <div class="mt-5 flex justify-end gap-3">
+                <button @click="showChangeModal=false" class="px-4 py-2 text-gray-600 hover:text-gray-900 text-sm">Cancel</button>
+                <button @click="saveChange()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── RULE MODAL ─────────────────────────────────────────────────────── -->
+    <div x-show="showRuleModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" @click.self="showRuleModal=false">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4" x-text="ruleEditId?'Edit Rule':'Add Rule'"></h3>
+
+            <!-- Type selector (only for new rules) -->
+            <template x-if="!ruleEditId">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Rule Type</label>
+                    <select x-model="ruleForm.rule_type" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        <option value="income">Income (salary, dividend, interest…)</option>
+                        <option value="expense">Expense (rent, bill, subscription…)</option>
+                        <option value="rsu">RSU Grant</option>
+                        <option value="espp">ESPP Plan</option>
+                    </select>
+                </div>
+            </template>
+
+            <!-- Common: Name -->
+            <div class="mb-3">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input x-model="ruleForm.name" type="text" placeholder="e.g. Biweekly Salary" class="w-full px-3 py-2 border rounded-lg text-sm">
+            </div>
+
+            <!-- Income / Expense fields -->
+            <template x-if="ruleForm.rule_type==='income' || ruleForm.rule_type==='expense'">
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Amount ($ per period)</label>
+                            <input x-model="ruleForm.amount_dollars" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
+                            <select x-model="ruleForm.frequency" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                <option value="weekly">Weekly</option>
+                                <option value="biweekly">Biweekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                                <option value="annually">Annually</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                            <input x-model="ruleForm.start_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">End Date (opt.)</label>
+                            <input x-model="ruleForm.end_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Account</label>
+                        <select x-model="ruleForm.account_id" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="">Any</option>
+                            <template x-for="a in accounts" :key="a.id"><option :value="a.id" x-text="a.name"></option></template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Note (opt.)</label>
+                        <input x-model="ruleForm.note" type="text" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+            </template>
+
+            <!-- RSU fields -->
+            <template x-if="ruleForm.rule_type==='rsu'">
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ticker</label>
+                            <input x-model="ruleForm.cfg.ticker" type="text" placeholder="AAPL" class="w-full px-3 py-2 border rounded-lg text-sm uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Total Shares</label>
+                            <input x-model="ruleForm.cfg.shares" type="number" step="1" placeholder="100" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Grant Date</label>
+                            <input x-model="ruleForm.cfg.grant_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Price at Grant ($/share, opt.)</label>
+                            <input x-model="ruleForm.cfg.price" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Withholding %</label>
+                            <input x-model="ruleForm.cfg.withholding" type="number" step="0.01" placeholder="22" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Account (brokerage)</label>
+                            <select x-model="ruleForm.account_id" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                <option value="">Any</option>
+                                <template x-for="a in accounts" :key="a.id"><option :value="a.id" x-text="a.name"></option></template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg space-y-2">
+                        <p class="text-xs font-medium text-gray-600">Vesting Schedule</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Cliff (months)</label>
+                                <input x-model="ruleForm.cfg.cliff_months" type="number" step="1" placeholder="12" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Cliff % vested</label>
+                                <input x-model="ruleForm.cfg.cliff_pct" type="number" step="0.01" placeholder="25" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Subsequent frequency</label>
+                                <select x-model="ruleForm.cfg.sub_freq" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                    <option value="monthly">Monthly</option>
+                                    <option value="quarterly">Quarterly</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">% per vest</label>
+                                <input x-model="ruleForm.cfg.sub_pct" type="number" step="0.0001" placeholder="2.0833" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            </div>
+                        </div>
+                        <button @click="previewRsuSchedule()" type="button" class="text-xs text-blue-600 hover:underline">Preview schedule →</button>
+                    </div>
+                    <!-- RSU schedule preview -->
+                    <template x-if="rsuSchedulePreview.length > 0">
+                        <div class="border rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                            <table class="min-w-full text-xs">
+                                <thead class="bg-gray-50"><tr>
+                                    <th class="px-3 py-2 text-left text-gray-500">Date</th>
+                                    <th class="px-3 py-2 text-right text-gray-500">Shares</th>
+                                </tr></thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <template x-for="v in rsuSchedulePreview" :key="v.date">
+                                        <tr>
+                                            <td class="px-3 py-1.5 text-gray-700" x-text="v.date"></td>
+                                            <td class="px-3 py-1.5 text-right text-gray-700" x-text="(v.shares/1000).toFixed(4)"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Note (opt.)</label>
+                        <input x-model="ruleForm.note" type="text" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+            </template>
+
+            <!-- ESPP fields -->
+            <template x-if="ruleForm.rule_type==='espp'">
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Offering Start</label>
+                            <input x-model="ruleForm.cfg.offer_start" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Offering End</label>
+                            <input x-model="ruleForm.cfg.offer_end" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Contribution mode</label>
+                            <select x-model="ruleForm.cfg.contrib_mode" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                <option value="percent">% of salary</option>
+                                <option value="fixed">Fixed $/period</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="ruleForm.cfg.contrib_mode==='percent'?'Contribution %':'Amount ($/period)'"></label>
+                            <input x-model="ruleForm.cfg.contrib_value" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3" x-show="ruleForm.cfg.contrib_mode==='percent'">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Base Salary ($/yr)</label>
+                            <input x-model="ruleForm.cfg.base_salary" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Discount %</label>
+                            <input x-model="ruleForm.cfg.discount" type="number" step="0.01" placeholder="15" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div class="flex items-end pb-2">
+                            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                <input x-model="ruleForm.cfg.lookback" type="checkbox" class="rounded">
+                                Has lookback
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Account (brokerage)</label>
+                        <select x-model="ruleForm.account_id" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="">Any</option>
+                            <template x-for="a in accounts" :key="a.id"><option :value="a.id" x-text="a.name"></option></template>
+                        </select>
+                    </div>
+                    <!-- Purchase periods -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-sm font-medium text-gray-700">Purchase Periods</label>
+                            <button @click="ruleForm.espp_periods.push({start_date:'',end_date:'',amount_dollars:''})" type="button" class="text-xs text-blue-600 hover:underline">+ Add Period</button>
+                        </div>
+                        <div class="space-y-2">
+                            <template x-for="(p, i) in ruleForm.espp_periods" :key="i">
+                                <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                                    <input x-model="p.start_date" type="date" class="flex-1 px-2 py-1 border rounded text-xs">
+                                    <span class="text-xs text-gray-400">→</span>
+                                    <input x-model="p.end_date" type="date" class="flex-1 px-2 py-1 border rounded text-xs">
+                                    <input x-model="p.amount_dollars" type="number" step="0.01" placeholder="Est. $" class="w-24 px-2 py-1 border rounded text-xs">
+                                    <button @click="ruleForm.espp_periods.splice(i,1)" type="button" class="text-xs text-red-400 hover:text-red-600">×</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Note (opt.)</label>
+                        <input x-model="ruleForm.note" type="text" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+            </template>
+
+            <div class="mt-5 flex justify-end gap-3">
+                <button @click="showRuleModal=false" class="px-4 py-2 text-gray-600 hover:text-gray-900 text-sm">Cancel</button>
+                <button @click="saveRule()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Save</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function cashFlowPage() {
+    return {
+        // projection
+        buckets: [], projEvents: [], projLoading: true, projError: '',
+        range: '1', showTable: false, chartInstance: null, cfChartInstance: null,
+
+        // activity
+        changes: [], activityFilter: 'all', activityLoading: true,
+
+        // rules
+        rules: [], ruleTab: 'income', rulesLoading: true,
+
+        // shared
+        accounts: [],
+
+        // change modal
+        showChangeModal: false, changeEditId: null,
+        changeForm: {},
+
+        // rule modal
+        showRuleModal: false, ruleEditId: null,
+        ruleForm: {}, rsuSchedulePreview: [],
+
+        // ── computed ──────────────────────────────────────────────────────
+        get today() { return new Date().toISOString().split('T')[0]; },
+
+        get startNw() { return this.buckets[0]?.cumulative_net_worth ?? 0; },
+        get endNw()   { return this.buckets.at(-1)?.cumulative_net_worth ?? 0; },
+
+        get milestones() {
+            const addM = (n) => { const d = new Date(); d.setMonth(d.getMonth()+n); return d.toISOString().slice(0,7); };
+            const nearest = (t) => this.buckets.length ? this.buckets.reduce((c,b) => !c||Math.abs(b.month.localeCompare(t))<Math.abs(c.month.localeCompare(t))?b:c, null) : null;
+            return {
+                yr1: parseInt(this.range)>=1 ? nearest(addM(12)) : null,
+                yr3: parseInt(this.range)>=3 ? nearest(addM(36)) : null,
+                yr5: parseInt(this.range)>=5 ? nearest(addM(60)) : null,
+                million: this.buckets.find(b=>b.cumulative_net_worth>=100000000) || null,
+            };
+        },
+
+        get incomeRules()       { return this.rules.filter(r=>r.rule_type==='income'); },
+        get expenseRules()      { return this.rules.filter(r=>r.rule_type==='expense'); },
+        get compensationRules() { return this.rules.filter(r=>r.rule_type==='rsu'||r.rule_type==='espp'); },
+
+        get filteredActivity() {
+            const today = this.today;
+            const items = [];
+            // Manual changes (all dates)
+            for (const c of this.changes) {
+                items.push({
+                    id: c.id, date: c.date, label: c.description,
+                    amount: c.amount, source_type: c.change_type,
+                    is_deletable: true, is_projected: false,
+                });
+            }
+            // Future projected events from rules (not manual changes)
+            for (const e of this.projEvents) {
+                if (e.date > today && e.source_type !== 'change') {
+                    items.push({
+                        id: 'proj:' + e.source_id + ':' + e.date, date: e.date, label: e.label,
+                        amount: e.type==='income' ? e.amount : -e.amount,
+                        source_type: e.source_type, is_deletable: false, is_projected: true,
+                    });
+                }
+            }
+            items.sort((a,b) => b.date.localeCompare(a.date));
+            const f = this.activityFilter;
+            if (f==='past') return items.filter(i=>i.date<today);
+            if (f==='upcoming') return items.filter(i=>i.date>=today);
+            if (f==='adjustment') return items.filter(i=>i.source_type==='adjustment');
+            return items;
+        },
+
+        // ── helpers ───────────────────────────────────────────────────────
+        fmt(cents) { return formatCurrency(cents); },
+        fmtSigned(cents) { return (cents>=0?'+':'-') + formatCurrency(Math.abs(cents)); },
+        acctName(id) { const a = this.accounts.find(x=>x.id===id); return a?a.name:''; },
+
+        // ── lifecycle ─────────────────────────────────────────────────────
+        async init() {
+            await Promise.all([this.reloadProjection(), this.loadActivity(), this.loadRules(), this.loadAccounts()]);
+        },
+
+        async loadAccounts() {
+            try { this.accounts = await API.get('/accounts'); } catch {}
+        },
+
+        async reloadProjection() {
+            this.projLoading = true; this.projError = '';
+            try {
+                const today = new Date();
+                const from = today.toISOString().split('T')[0];
+                const toD = new Date(today); toD.setFullYear(toD.getFullYear()+parseInt(this.range));
+                const to = toD.toISOString().split('T')[0];
+                const data = await API.get(`/projection?from=${from}&to=${to}`);
+                this.buckets = data.buckets || [];
+                this.projEvents = data.events || [];
+                this.$nextTick(() => { this.renderProjectionChart(); this.renderCashFlowChart(); });
+            } catch(e) { this.projError = 'Projection failed: ' + e.message; }
+            finally { this.projLoading = false; }
+        },
+
+        async loadActivity() {
+            this.activityLoading = true;
+            try { this.changes = await API.get('/changes'); } catch(e) { showAlert('Load failed: '+e.message,'error'); }
+            finally { this.activityLoading = false; }
+        },
+
+        async loadRules() {
+            this.rulesLoading = true;
+            try { this.rules = await API.get('/rules'); } catch {}
+            finally { this.rulesLoading = false; }
+        },
+
+        // ── charts ────────────────────────────────────────────────────────
+        renderProjectionChart() {
+            const canvas = document.getElementById('projectionChart');
+            if (!canvas || !this.buckets.length) return;
+            if (this.chartInstance) this.chartInstance.destroy();
+            this.chartInstance = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: { labels: this.buckets.map(b=>b.month), datasets: [{
+                    label: 'Net Worth', data: this.buckets.map(b=>b.cumulative_net_worth/100),
+                    borderColor: '#3b5fc0', backgroundColor: 'rgba(59,95,192,0.07)',
+                    tension: 0.3, fill: true, borderWidth: 2,
+                    pointRadius: this.buckets.length>24?0:3, pointHoverRadius: 4,
+                }]},
+                options: { responsive: true, plugins: { legend: { display: false },
+                    tooltip: { callbacks: { label: ctx=>' '+formatCurrency(Math.round(ctx.raw*100)) }}},
+                    scales: {
+                        y: { ticks: { callback: v=>'$'+(Math.abs(v)>=1e6?(v/1e6).toFixed(1)+'M':Math.abs(v)>=1e3?(v/1e3).toFixed(0)+'K':v) }, grid: { color: 'rgba(0,0,0,0.04)' }},
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 12 }},
+                    },
+                },
+            });
+        },
+
+        renderCashFlowChart() {
+            const canvas = document.getElementById('cashFlowChart');
+            if (!canvas || !this.buckets.length) return;
+            if (this.cfChartInstance) this.cfChartInstance.destroy();
+            this.cfChartInstance = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: { labels: this.buckets.map(b=>b.month), datasets: [
+                    { label: 'Income', data: this.buckets.map(b=>b.income/100), backgroundColor: 'rgba(34,197,94,0.65)', borderRadius: 2 },
+                    { label: 'Expenses', data: this.buckets.map(b=>b.expenses/100), backgroundColor: 'rgba(239,68,68,0.55)', borderRadius: 2 },
+                ]},
+                options: { responsive: true,
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }}},
+                        tooltip: { callbacks: { label: ctx=>' '+ctx.dataset.label+': '+formatCurrency(Math.round(ctx.raw*100)) }}},
+                    scales: {
+                        y: { ticks: { callback: v=>'$'+(v>=1e3?(v/1e3).toFixed(0)+'K':v), font: { size: 10 }}, grid: { color: 'rgba(0,0,0,0.04)' }},
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 12, font: { size: 9 }}},
+                    },
+                },
+            });
+        },
+
+        // ── change event CRUD ─────────────────────────────────────────────
+        openAddChange() {
+            this.changeEditId = null;
+            this.changeForm = { date: this.today, description: '', amount_dollars: '', account_id: '', change_type: 'manual', note: '' };
+            this.showChangeModal = true;
+        },
+        openEditChange(c) {
+            this.changeEditId = c.id;
+            this.changeForm = { date: c.date, description: c.description, amount_dollars: (c.amount/100).toFixed(2), account_id: c.account_id||'', change_type: c.change_type, note: c.note||'' };
+            this.showChangeModal = true;
+        },
+        async saveChange() {
+            const p = {
+                date: this.changeForm.date,
+                description: this.changeForm.description,
+                amount: Math.round(parseFloat(this.changeForm.amount_dollars||0)*100),
+                account_id: this.changeForm.account_id||null,
+                change_type: this.changeForm.change_type,
+                note: this.changeForm.note||null,
+            };
+            try {
+                if (this.changeEditId) await API.patch('/changes/'+this.changeEditId, p);
+                else await API.post('/changes', p);
+                showAlert('Saved','success'); this.showChangeModal = false;
+                await this.loadActivity(); await this.reloadProjection();
+            } catch(e) { showAlert('Error: '+e.message,'error'); }
+        },
+        async deleteChange(id) {
+            if (!confirm('Delete this entry?')) return;
+            await API.delete('/changes/'+id);
+            showAlert('Deleted','success'); await this.loadActivity(); await this.reloadProjection();
+        },
+
+        // ── rule CRUD ─────────────────────────────────────────────────────
+        _defaultCfg() { return { ticker:'',shares:'',grant_date:'',price:'',withholding:'22',cliff_months:12,cliff_pct:'25',sub_freq:'monthly',sub_pct:'2.0833',offer_start:'',offer_end:'',contrib_mode:'percent',contrib_value:'10',base_salary:'',discount:'15',lookback:true }; },
+
+        openAddRule() {
+            this.ruleEditId = null; this.rsuSchedulePreview = [];
+            this.ruleForm = { rule_type:'income', name:'', amount_dollars:'', frequency:'monthly', start_date:this.today, end_date:'', account_id:'', note:'', cfg:this._defaultCfg(), espp_periods:[] };
+            this.showRuleModal = true;
+        },
+        openEditRule(r) {
+            this.ruleEditId = r.id; this.rsuSchedulePreview = [];
+            const cfg = this._defaultCfg();
+            if (r.config) {
+                if (r.rule_type==='rsu') {
+                    cfg.ticker = r.config.ticker||'';
+                    cfg.shares = r.config.total_shares ? (r.config.total_shares/1000).toString() : '';
+                    cfg.grant_date = r.config.grant_date||r.start_date;
+                    cfg.price = r.config.price_at_grant ? (r.config.price_at_grant/100).toFixed(2) : '';
+                    cfg.withholding = r.config.withholding_rate ? (r.config.withholding_rate/100).toFixed(2) : '22';
+                    cfg.cliff_months = r.config.cliff_months||12;
+                    cfg.cliff_pct = r.config.cliff_percent ? (r.config.cliff_percent/100).toFixed(4) : '25';
+                    cfg.sub_freq = r.config.subsequent_frequency||'monthly';
+                    cfg.sub_pct = r.config.subsequent_percent ? (r.config.subsequent_percent/100).toFixed(4) : '2.0833';
+                } else if (r.rule_type==='espp') {
+                    cfg.offer_start = r.config.offering_start_date||'';
+                    cfg.offer_end = r.config.offering_end_date||'';
+                    cfg.contrib_mode = r.config.contribution_mode||'percent';
+                    cfg.contrib_value = r.config.contribution_value ? (r.config.contribution_value/100).toFixed(2) : '';
+                    cfg.base_salary = r.config.base_salary ? (r.config.base_salary/100).toFixed(2) : '';
+                    cfg.discount = r.config.discount_rate ? (r.config.discount_rate/100).toFixed(2) : '15';
+                    cfg.lookback = r.config.has_lookback!==false;
+                }
+            }
+            const espp_periods = (r.schedule||[]).map(p=>({ start_date:p.start_date||'', end_date:p.end_date||'', amount_dollars:p.estimated_purchase_amount?(p.estimated_purchase_amount/100).toFixed(2):'' }));
+            this.ruleForm = { rule_type:r.rule_type, name:r.name, amount_dollars:r.amount?(r.amount/100).toFixed(2):'', frequency:r.frequency||'monthly', start_date:r.start_date, end_date:r.end_date||'', account_id:r.account_id||'', note:r.note||'', cfg, espp_periods };
+            this.showRuleModal = true;
+        },
+
+        async previewRsuSchedule() {
+            const c = this.ruleForm.cfg;
+            const config = { ticker:c.ticker, total_shares:Math.round(parseFloat(c.shares||0)*1000), grant_date:c.grant_date||this.ruleForm.start_date, cliff_months:parseInt(c.cliff_months), cliff_percent:Math.round(parseFloat(c.cliff_pct||0)*100), subsequent_frequency:c.sub_freq, subsequent_percent:Math.round(parseFloat(c.sub_pct||0)*100) };
+            try { const r = await API.post('/rules/rsu-preview',{config}); this.rsuSchedulePreview = r.schedule||[]; } catch(e) { showAlert('Preview failed: '+e.message,'error'); }
+        },
+
+        async saveRule() {
+            const f = this.ruleForm;
+            const payload = { name:f.name, rule_type:f.rule_type, account_id:f.account_id||null, start_date:f.start_date, end_date:f.end_date||null, note:f.note||null };
+
+            if (f.rule_type==='income'||f.rule_type==='expense') {
+                payload.amount = Math.round(parseFloat(f.amount_dollars||0)*100);
+                payload.frequency = f.frequency;
+            } else if (f.rule_type==='rsu') {
+                const c = f.cfg;
+                payload.start_date = c.grant_date || f.start_date;
+                payload.config = { ticker:c.ticker, total_shares:Math.round(parseFloat(c.shares||0)*1000), grant_date:c.grant_date||f.start_date, price_at_grant:Math.round(parseFloat(c.price||0)*100), withholding_rate:Math.round(parseFloat(c.withholding||0)*100), cliff_months:parseInt(c.cliff_months), cliff_percent:Math.round(parseFloat(c.cliff_pct||0)*100), subsequent_frequency:c.sub_freq, subsequent_percent:Math.round(parseFloat(c.sub_pct||0)*100) };
+            } else if (f.rule_type==='espp') {
+                const c = f.cfg;
+                payload.start_date = c.offer_start || f.start_date;
+                payload.end_date = c.offer_end || null;
+                payload.config = { offering_start_date:c.offer_start, offering_end_date:c.offer_end, contribution_mode:c.contrib_mode, contribution_value:Math.round(parseFloat(c.contrib_value||0)*100), base_salary:Math.round(parseFloat(c.base_salary||0)*100), discount_rate:Math.round(parseFloat(c.discount||0)*100), has_lookback:c.lookback };
+                payload.schedule = f.espp_periods.map(p=>({ start_date:p.start_date, end_date:p.end_date, estimated_purchase_amount:Math.round(parseFloat(p.amount_dollars||0)*100) }));
+            }
+
+            try {
+                if (this.ruleEditId) await API.patch('/rules/'+this.ruleEditId, payload);
+                else await API.post('/rules', payload);
+                showAlert('Saved','success'); this.showRuleModal = false;
+                await this.loadRules(); await this.reloadProjection();
+            } catch(e) { showAlert('Error: '+e.message,'error'); }
+        },
+
+        async deleteRule(id) {
+            if (!confirm('Delete this rule?')) return;
+            await API.delete('/rules/'+id);
+            showAlert('Deleted','success'); await this.loadRules(); await this.reloadProjection();
+        },
+    };
+}
+</script>
+{% endblock %}

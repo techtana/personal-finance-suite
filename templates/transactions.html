@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions - Personal Finance Suite{% endblock %}
+{% block page_title %}Transactions{% endblock %}
+
+{% block content %}
+<div x-data="transactionsPage()" x-init="init()" class="space-y-6">
+
+    <div class="flex justify-between items-center">
+        <h3 class="text-lg font-semibold text-gray-900">Transactions</h3>
+        <button @click="openAdd()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">+ Add</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="border-b border-gray-200">
+        <nav class="flex space-x-8">
+            <button @click="tab='one-time'" :class="tab==='one-time' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">One-Time</button>
+            <button @click="tab='recurring'" :class="tab==='recurring' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">Recurring</button>
+            <button @click="tab='blanket'" :class="tab==='blanket' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">Blanket Expenses</button>
+        </nav>
+    </div>
+
+    <div x-show="loading" class="text-center py-12 text-gray-500">Loading...</div>
+
+    <!-- One-Time -->
+    <template x-if="!loading && tab==='one-time'">
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <template x-if="oneTime.length === 0">
+                <div class="p-12 text-center text-gray-400">No one-time transactions yet.</div>
+            </template>
+            <table x-show="oneTime.length > 0" class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Note</th>
+                        <th class="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <template x-for="t in oneTime" :key="t.id">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 text-sm text-gray-900" x-text="t.date"></td>
+                            <td class="px-6 py-4">
+                                <span :class="t.type==='income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" class="px-2 py-1 rounded text-xs font-medium capitalize" x-text="t.type"></span>
+                            </td>
+                            <td class="px-6 py-4 text-sm font-semibold" :class="t.type==='income' ? 'text-green-600' : 'text-red-600'" x-text="(t.type==='income'?'+':'-') + fmt(t.amount)"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600" x-text="catLabel(t.category)"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600" x-text="acctName(t.account_id)"></td>
+                            <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" x-text="t.note || '—'"></td>
+                            <td class="px-6 py-4 text-sm whitespace-nowrap">
+                                <button @click="openEditOneTime(t)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                                <button @click="deleteOneTime(t.id)" class="text-red-600 hover:text-red-900">Delete</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <!-- Recurring -->
+    <template x-if="!loading && tab==='recurring'">
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <template x-if="recurring.length === 0">
+                <div class="p-12 text-center text-gray-400">No recurring transactions yet.</div>
+            </template>
+            <table x-show="recurring.length > 0" class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Frequency</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">End</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account</th>
+                        <th class="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <template x-for="t in recurring" :key="t.id">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4">
+                                <span :class="t.type==='income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" class="px-2 py-1 rounded text-xs font-medium capitalize" x-text="t.type"></span>
+                            </td>
+                            <td class="px-6 py-4 text-sm font-semibold" :class="t.type==='income' ? 'text-green-600' : 'text-red-600'" x-text="(t.type==='income'?'+':'-') + fmt(t.amount)"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600 capitalize" x-text="t.frequency"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600" x-text="t.start_date"></td>
+                            <td class="px-6 py-4 text-sm text-gray-500" x-text="t.end_date || '—'"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600" x-text="catLabel(t.category)"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600" x-text="acctName(t.account_id)"></td>
+                            <td class="px-6 py-4 text-sm whitespace-nowrap">
+                                <button @click="openEditRecurring(t)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                                <button @click="deleteRecurring(t.id)" class="text-red-600 hover:text-red-900">Delete</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <!-- Blanket Expenses -->
+    <template x-if="!loading && tab==='blanket'">
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <template x-if="blanket.length === 0">
+                <div class="p-12 text-center text-gray-400">No blanket expenses yet.</div>
+            </template>
+            <table x-show="blanket.length > 0" class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Label</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Frequency</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                        <th class="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <template x-for="e in blanket" :key="e.id">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 text-sm font-medium text-gray-900" x-text="e.label"></td>
+                            <td class="px-6 py-4 text-sm font-semibold text-red-600" x-text="'−' + fmt(e.amount)"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600 capitalize" x-text="e.frequency"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600" x-text="e.start_date"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600" x-text="catLabel(e.category)"></td>
+                            <td class="px-6 py-4 text-sm whitespace-nowrap">
+                                <button @click="openEditBlanket(e)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                                <button @click="deleteBlanket(e.id)" class="text-red-600 hover:text-red-900">Delete</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <!-- Modal -->
+    <div x-show="showModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" @click.self="showModal = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6 max-h-screen overflow-y-auto">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4" x-text="modalTitle"></h3>
+            <div class="space-y-4">
+
+                <!-- One-Time fields -->
+                <template x-if="modalType==='one-time'">
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                <select x-model="form.type" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                    <option value="income">Income</option>
+                                    <option value="expense">Expense</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                                <input x-model="form.date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
+                            <input x-model="form.amount_dollars" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select x-model="form.category" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                <template x-for="c in categories" :key="c.slug">
+                                    <option :value="c.slug" x-text="c.label + ' (' + c.type + ')'"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Account</label>
+                            <select x-model="form.account_id" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                <template x-for="a in accounts" :key="a.id">
+                                    <option :value="a.id" x-text="a.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Note (optional)</label>
+                            <input x-model="form.note" type="text" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Recurring fields -->
+                <template x-if="modalType==='recurring'">
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                <select x-model="form.type" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                    <option value="income">Income</option>
+                                    <option value="expense">Expense</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
+                                <select x-model="form.frequency" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="biweekly">Biweekly</option>
+                                    <option value="monthly">Monthly</option>
+                                    <option value="quarterly">Quarterly</option>
+                                    <option value="annually">Annually</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
+                            <input x-model="form.amount_dollars" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                                <input x-model="form.start_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">End Date (opt.)</label>
+                                <input x-model="form.end_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select x-model="form.category" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                <template x-for="c in categories" :key="c.slug">
+                                    <option :value="c.slug" x-text="c.label + ' (' + c.type + ')'"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Account</label>
+                            <select x-model="form.account_id" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                <template x-for="a in accounts" :key="a.id">
+                                    <option :value="a.id" x-text="a.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Note (optional)</label>
+                            <input x-model="form.note" type="text" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Blanket fields -->
+                <template x-if="modalType==='blanket'">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Label</label>
+                            <input x-model="form.label" type="text" placeholder="e.g. Groceries budget" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
+                                <input x-model="form.amount_dollars" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
+                                <select x-model="form.frequency" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                    <option value="quarterly">Quarterly</option>
+                                    <option value="annually">Annually</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                                <input x-model="form.start_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">End Date (opt.)</label>
+                                <input x-model="form.end_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select x-model="form.category" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                <template x-for="c in categories" :key="c.slug">
+                                    <option :value="c.slug" x-text="c.label"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Note (optional)</label>
+                            <input x-model="form.note" type="text" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                    </div>
+                </template>
+
+            </div>
+            <div class="mt-6 flex space-x-3 justify-end">
+                <button @click="showModal = false" class="px-4 py-2 text-gray-600 hover:text-gray-900">Cancel</button>
+                <button @click="save()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Save</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function transactionsPage() {
+    return {
+        tab: 'one-time',
+        oneTime: [], recurring: [], blanket: [],
+        accounts: [], categories: [],
+        loading: true,
+        showModal: false,
+        modalType: 'one-time',
+        editingId: null,
+        form: {},
+
+        get modalTitle() {
+            const names = {'one-time': 'One-Time Transaction', 'recurring': 'Recurring Transaction', 'blanket': 'Blanket Expense'};
+            return (this.editingId ? 'Edit ' : 'Add ') + names[this.modalType];
+        },
+
+        fmt(cents) { return formatCurrency(cents); },
+        catLabel(slug) { const c = this.categories.find(x => x.slug === slug); return c ? c.label : slug; },
+        acctName(id) { const a = this.accounts.find(x => x.id === id); return a ? a.name : id; },
+
+        async init() {
+            try {
+                const [ot, rec, bl, accts, cats] = await Promise.all([
+                    API.get('/transactions/one-time'),
+                    API.get('/transactions/recurring'),
+                    API.get('/blanket-expenses'),
+                    API.get('/accounts'),
+                    API.get('/categories'),
+                ]);
+                this.oneTime = ot;
+                this.recurring = rec;
+                this.blanket = bl;
+                this.accounts = accts;
+                this.categories = cats;
+            } catch (e) {
+                showAlert('Failed to load: ' + e.message, 'error');
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        openAdd() {
+            this.editingId = null;
+            this.modalType = this.tab;
+            const today = new Date().toISOString().split('T')[0];
+            const firstCat = this.categories[0]?.slug || '';
+            const firstAcct = this.accounts[0]?.id || '';
+            if (this.tab === 'one-time') {
+                this.form = { type: 'income', date: today, amount_dollars: '', category: firstCat, account_id: firstAcct, note: '' };
+            } else if (this.tab === 'recurring') {
+                this.form = { type: 'income', frequency: 'monthly', amount_dollars: '', start_date: today, end_date: '', category: firstCat, account_id: firstAcct, note: '' };
+            } else {
+                this.form = { label: '', amount_dollars: '', frequency: 'monthly', start_date: today, end_date: '', category: firstCat, note: '' };
+            }
+            this.showModal = true;
+        },
+
+        openEditOneTime(t) {
+            this.editingId = t.id; this.modalType = 'one-time';
+            this.form = { type: t.type, date: t.date, amount_dollars: (t.amount / 100).toFixed(2), category: t.category, account_id: t.account_id, note: t.note || '' };
+            this.showModal = true;
+        },
+        openEditRecurring(t) {
+            this.editingId = t.id; this.modalType = 'recurring';
+            this.form = { type: t.type, frequency: t.frequency, amount_dollars: (t.amount / 100).toFixed(2), start_date: t.start_date, end_date: t.end_date || '', category: t.category, account_id: t.account_id, note: t.note || '' };
+            this.showModal = true;
+        },
+        openEditBlanket(e) {
+            this.editingId = e.id; this.modalType = 'blanket';
+            this.form = { label: e.label, amount_dollars: (e.amount / 100).toFixed(2), frequency: e.frequency, start_date: e.start_date, end_date: e.end_date || '', category: e.category, note: e.note || '' };
+            this.showModal = true;
+        },
+
+        async save() {
+            try {
+                if (this.modalType === 'one-time') {
+                    const p = { type: this.form.type, amount: Math.round(parseFloat(this.form.amount_dollars || 0) * 100), date: this.form.date, category: this.form.category, account_id: this.form.account_id, note: this.form.note || null };
+                    if (this.editingId) await API.patch('/transactions/one-time/' + this.editingId, p);
+                    else await API.post('/transactions/one-time', p);
+                } else if (this.modalType === 'recurring') {
+                    const p = { type: this.form.type, amount: Math.round(parseFloat(this.form.amount_dollars || 0) * 100), frequency: this.form.frequency, start_date: this.form.start_date, end_date: this.form.end_date || null, category: this.form.category, account_id: this.form.account_id, note: this.form.note || null };
+                    if (this.editingId) await API.patch('/transactions/recurring/' + this.editingId, p);
+                    else await API.post('/transactions/recurring', p);
+                } else {
+                    const p = { label: this.form.label, amount: Math.round(parseFloat(this.form.amount_dollars || 0) * 100), frequency: this.form.frequency, start_date: this.form.start_date, end_date: this.form.end_date || null, category: this.form.category, note: this.form.note || null };
+                    if (this.editingId) await API.patch('/blanket-expenses/' + this.editingId, p);
+                    else await API.post('/blanket-expenses', p);
+                }
+                showAlert('Saved', 'success');
+                this.showModal = false;
+                await this.init();
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
+
+        async deleteOneTime(id) {
+            if (!confirm('Delete?')) return;
+            await API.delete('/transactions/one-time/' + id);
+            showAlert('Deleted', 'success');
+            await this.init();
+        },
+        async deleteRecurring(id) {
+            if (!confirm('Delete?')) return;
+            await API.delete('/transactions/recurring/' + id);
+            showAlert('Deleted', 'success');
+            await this.init();
+        },
+        async deleteBlanket(id) {
+            if (!confirm('Delete?')) return;
+            await API.delete('/blanket-expenses/' + id);
+            showAlert('Deleted', 'success');
+            await this.init();
+        },
+    };
+}
+</script>
+{% endblock %}

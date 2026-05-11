@@ -1,0 +1,500 @@
+{% extends "base.html" %}
+
+{% block title %}Cash Accounts - Personal Finance Suite{% endblock %}
+{% block page_title %}Cash Accounts{% endblock %}
+
+{% block content %}
+<div x-data="accountsPage()" x-init="init()" class="space-y-6">
+
+    <div class="flex justify-between items-center">
+        <h3 class="text-lg font-semibold text-gray-900">All Accounts</h3>
+        <button @click="openAdd()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">+ Add Account</button>
+    </div>
+
+    <div x-show="loading" class="text-center py-12 text-gray-500">Loading...</div>
+
+    <template x-if="!loading">
+        <div class="space-y-6">
+
+            <!-- KPI row -->
+            <div class="grid grid-cols-3 gap-4">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 text-center">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Assets</p>
+                    <p class="text-2xl font-bold text-gray-900" x-text="fmt(totalAssets)"></p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 text-center">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Debt</p>
+                    <p class="text-2xl font-bold text-red-600" x-text="fmt(totalDebt)"></p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 text-center border-l-4 border-l-blue-500">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Net Worth</p>
+                    <p class="text-2xl font-bold" :class="netWorth >= 0 ? 'text-blue-700' : 'text-red-600'" x-text="fmt(netWorth)"></p>
+                </div>
+            </div>
+
+            <!-- Empty state -->
+            <template x-if="accounts.length === 0">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
+                    <p class="text-lg mb-2">No accounts yet</p>
+                    <button @click="openAdd()" class="text-blue-600 hover:underline text-sm">Add your first account</button>
+                </div>
+            </template>
+
+            <!-- Account cards grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <template x-for="a in accounts" :key="a.id">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <!-- Header -->
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h5 class="font-semibold text-gray-900 text-sm" x-text="a.name"></h5>
+                                <p class="text-xs text-gray-400" x-text="a.institution"></p>
+                            </div>
+                            <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded font-medium" x-text="a.type"></span>
+                        </div>
+
+                        <!-- Balance -->
+                        <div class="mb-3">
+                            <p class="text-2xl font-bold text-gray-900" x-text="fmt(a.current_balance)"></p>
+                            <p class="text-xs text-gray-400 mt-0.5" x-text="'Updated ' + a.last_updated_date"></p>
+                        </div>
+
+                        <!-- Sparkline (from snapshot history) -->
+                        <div class="mb-3 h-10"
+                             x-show="(accountSnapshots[a.id] || []).length >= 2">
+                            <svg class="w-full h-full" viewBox="0 0 120 36" preserveAspectRatio="none">
+                                <defs>
+                                    <linearGradient :id="'sg-' + a.id" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="#3b5fc0" stop-opacity="0.2"/>
+                                        <stop offset="100%" stop-color="#3b5fc0" stop-opacity="0"/>
+                                    </linearGradient>
+                                </defs>
+                                <polygon :fill="'url(#sg-' + a.id + ')'"
+                                         :points="getSparklinePolygon(a.id, 120, 32)"></polygon>
+                                <polyline :points="getSparklinePath(a.id, 120, 32)"
+                                          fill="none" stroke="#3b5fc0" stroke-width="1.5"
+                                          stroke-linecap="round" stroke-linejoin="round"></polyline>
+                            </svg>
+                        </div>
+
+                        <p x-show="a.note" class="text-xs text-gray-400 italic mb-2" x-text="a.note"></p>
+
+                        <!-- Actions -->
+                        <div class="flex space-x-2 mt-2">
+                            <button @click="openEdit(a)" class="flex-1 px-2 py-1.5 bg-blue-50 text-blue-600 rounded text-xs font-medium hover:bg-blue-100">Edit</button>
+                            <button @click="openHistory(a)" class="flex-1 px-2 py-1.5 bg-green-50 text-green-700 rounded text-xs font-medium hover:bg-green-100">History</button>
+                            <button @click="deleteAccount(a.id)" class="px-2 py-1.5 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100">Delete</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+        </div>
+    </template>
+
+    <!-- ── Add/Edit Account Modal ─────────────────────────────── -->
+    <div x-show="showModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" @click.self="showModal = false">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            <h3 class="text-base font-semibold text-gray-900 mb-4" x-text="editingId ? 'Edit Account' : 'Add Account'"></h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Name</label>
+                    <input x-model="form.name" type="text" placeholder="e.g. Chase Checking" class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Type</label>
+                        <select x-model="form.type" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="checking">Checking</option>
+                            <option value="savings">Savings</option>
+                            <option value="brokerage">Brokerage</option>
+                            <option value="retirement_401k">401(k)</option>
+                            <option value="retirement_ira">IRA</option>
+                            <option value="property">Property</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Currency</label>
+                        <select x-model="form.currency" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="GBP">GBP</option>
+                            <option value="THB">THB</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Institution</label>
+                    <input x-model="form.institution" type="text" placeholder="e.g. Chase Bank" class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Current Balance ($)</label>
+                    <input x-model="form.balance_dollars" type="number" step="0.01" placeholder="0.00" class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Note (optional)</label>
+                    <input x-model="form.note" type="text" class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+            </div>
+            <div class="mt-5 flex space-x-3 justify-end">
+                <button @click="showModal = false" class="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm">Cancel</button>
+                <button @click="save()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Balance History Modal ──────────────────────────────── -->
+    <div x-show="showHistoryModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" @click.self="closeHistory()">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 flex flex-col" style="max-height:90vh">
+
+            <!-- Modal header -->
+            <div class="flex justify-between items-center p-5 border-b">
+                <div>
+                    <h3 class="text-base font-semibold text-gray-900" x-text="'Balance History · ' + (historyAccount?.name || '')"></h3>
+                    <p class="text-xs text-gray-400 mt-0.5" x-text="(accountSnapshots[historyAccount?.id] || []).length + ' recorded snapshots'"></p>
+                </div>
+                <button @click="openSnapshotForm()" x-show="!showSnapshotForm"
+                        class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700">
+                    + Record Balance
+                </button>
+            </div>
+
+            <!-- Mini sparkline inside history modal -->
+            <div x-show="(accountSnapshots[historyAccount?.id] || []).length >= 2" class="px-5 pt-4">
+                <canvas :id="'historyChart'" height="60"></canvas>
+            </div>
+
+            <!-- Record Balance form -->
+            <div x-show="showSnapshotForm" class="mx-5 mt-4 bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h4 class="text-xs font-semibold text-gray-700 mb-3" x-text="editingSnapId ? 'Edit Snapshot' : 'Record Balance'"></h4>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                        <input x-model="snapForm.date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Actual Balance ($)</label>
+                        <input x-model="snapForm.balance_dollars" type="number" step="0.01" placeholder="0.00" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Note (optional)</label>
+                    <input x-model="snapForm.note" type="text" placeholder="e.g. after year-end bonus" class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+                <div class="mb-3 flex items-center gap-2" x-show="!editingSnapId">
+                    <input x-model="snapForm.updateAccount" type="checkbox" id="updateAcct" class="rounded">
+                    <label for="updateAcct" class="text-xs text-gray-600">Also update account's current balance</label>
+                </div>
+                <div class="flex space-x-2">
+                    <button @click="showSnapshotForm = false; editingSnapId = null" class="px-3 py-1.5 text-gray-500 text-xs hover:text-gray-700">Cancel</button>
+                    <button @click="saveSnapshot()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700">Save Snapshot</button>
+                </div>
+            </div>
+
+            <!-- Snapshot list -->
+            <div class="overflow-y-auto flex-1 px-5 py-3">
+                <template x-if="(accountSnapshots[historyAccount?.id] || []).length === 0">
+                    <p class="text-center text-gray-400 text-sm py-6">No snapshots yet. Record the first balance.</p>
+                </template>
+                <div class="space-y-2">
+                    <template x-for="s in accountSnapshots[historyAccount?.id] || []" :key="s.id">
+                        <div class="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-sm font-medium text-gray-900" x-text="fmt(s.value)"></span>
+                                    <template x-if="snapDelta(historyAccount?.id, s.id) !== null">
+                                        <span class="text-xs font-medium px-1.5 py-0.5 rounded"
+                                              :class="snapDelta(historyAccount?.id, s.id) >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'"
+                                              x-text="(snapDelta(historyAccount?.id, s.id) >= 0 ? '+' : '') + fmt(snapDelta(historyAccount?.id, s.id))"></span>
+                                    </template>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-0.5" x-text="s.date + (s.note ? ' · ' + s.note : '')"></p>
+                            </div>
+                            <div class="flex space-x-1">
+                                <button @click="openEditSnapshot(s)" class="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded">Edit</button>
+                                <button @click="deleteSnapshot(s)" class="px-2 py-1 text-xs text-red-500 hover:bg-red-50 rounded">Del</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Close -->
+            <div class="p-4 border-t">
+                <button @click="closeHistory()" class="w-full px-4 py-2 text-gray-600 hover:text-gray-900 text-sm">Close</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function accountsPage() {
+    return {
+        accounts: [],
+        loans: [],
+        accountSnapshots: {},   // { account_id: [snapshot, ...] }
+        loading: true,
+        showModal: false,
+        editingId: null,
+        form: {},
+
+        showHistoryModal: false,
+        historyAccount: null,
+        showSnapshotForm: false,
+        editingSnapId: null,
+        snapForm: {},
+        historyChartInstance: null,
+
+        get totalAssets() { return this.accounts.reduce((s, a) => s + a.current_balance, 0); },
+        get totalDebt()   { return this.loans.reduce((s, l) => s + l.current_balance, 0); },
+        get netWorth()    { return this.totalAssets - this.totalDebt; },
+
+        fmt(cents) { return formatCurrency(cents); },
+
+        async init() {
+            try {
+                const [accts, ls] = await Promise.all([API.get('/accounts'), API.get('/loans')]);
+                this.accounts = accts;
+                this.loans = ls;
+
+                // Load snapshots for all accounts in parallel
+                const results = await Promise.all(
+                    accts.map(a => API.get(`/snapshots?entity_type=cash&entity_id=${a.id}`)
+                        .then(snaps => ({ id: a.id, snaps }))
+                        .catch(() => ({ id: a.id, snaps: [] }))
+                    )
+                );
+                this.accountSnapshots = Object.fromEntries(results.map(r => [r.id, r.snaps]));
+            } catch (e) {
+                showAlert('Failed to load: ' + e.message, 'error');
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        // ── Snapshot delta ───────────────────────────────────────────────
+
+        snapDelta(accountId, snapId) {
+            const snaps = [...(this.accountSnapshots[accountId] || [])].sort((a, b) => a.date.localeCompare(b.date));
+            const idx = snaps.findIndex(s => s.id === snapId);
+            if (idx <= 0) return null;
+            return snaps[idx].value - snaps[idx - 1].value;
+        },
+
+        // ── Sparkline helpers ────────────────────────────────────────────
+
+        _sparkPoints(accountId, w, h) {
+            const snaps = [...(this.accountSnapshots[accountId] || [])]
+                .sort((a, b) => a.date.localeCompare(b.date));
+            if (snaps.length < 2) return [];
+            const vals = snaps.map(s => s.value);
+            const min = Math.min(...vals);
+            const max = Math.max(...vals);
+            const range = max - min || 1;
+            return snaps.map((s, i) => ({
+                x: +(i / (snaps.length - 1) * w).toFixed(1),
+                y: +(h - (s.value - min) / range * (h - 4) - 2).toFixed(1),
+            }));
+        },
+
+        getSparklinePath(accountId, w, h) {
+            const pts = this._sparkPoints(accountId, w, h);
+            return pts.map(p => `${p.x},${p.y}`).join(' ');
+        },
+
+        getSparklinePolygon(accountId, w, h) {
+            const pts = this._sparkPoints(accountId, w, h);
+            if (!pts.length) return '';
+            const line = pts.map(p => `${p.x},${p.y}`).join(' ');
+            return `${line} ${pts[pts.length-1].x},${h} 0,${h}`;
+        },
+
+        // ── Account CRUD ─────────────────────────────────────────────────
+
+        openAdd() {
+            this.editingId = null;
+            this.form = { name: '', type: 'checking', institution: '', currency: 'USD', balance_dollars: '', note: '' };
+            this.showModal = true;
+        },
+
+        openEdit(a) {
+            this.editingId = a.id;
+            this.form = {
+                name: a.name, type: a.type, institution: a.institution, currency: a.currency,
+                balance_dollars: (a.current_balance / 100).toFixed(2), note: a.note || '',
+            };
+            this.showModal = true;
+        },
+
+        async save() {
+            const payload = {
+                name: this.form.name, type: this.form.type, institution: this.form.institution,
+                currency: this.form.currency,
+                current_balance: Math.round(parseFloat(this.form.balance_dollars || 0) * 100),
+                last_updated_date: new Date().toISOString().split('T')[0],
+                note: this.form.note || null,
+            };
+            try {
+                if (this.editingId) {
+                    await API.patch('/accounts/' + this.editingId, payload);
+                    showAlert('Account updated', 'success');
+                } else {
+                    await API.post('/accounts', payload);
+                    showAlert('Account added', 'success');
+                }
+                this.showModal = false;
+                await this.init();
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
+
+        async deleteAccount(id) {
+            if (!confirm('Delete this account?')) return;
+            try {
+                await API.delete('/accounts/' + id);
+                showAlert('Account deleted', 'success');
+                await this.init();
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
+
+        // ── Balance History ──────────────────────────────────────────────
+
+        async openHistory(a) {
+            this.historyAccount = a;
+            this.showSnapshotForm = false;
+            this.editingSnapId = null;
+            this.showHistoryModal = true;
+
+            // Refresh snapshots for this account
+            try {
+                const snaps = await API.get(`/snapshots?entity_type=cash&entity_id=${a.id}`);
+                this.accountSnapshots = { ...this.accountSnapshots, [a.id]: snaps };
+            } catch (_) {}
+
+            await this.$nextTick();
+            this.renderHistoryChart();
+        },
+
+        closeHistory() {
+            if (this.historyChartInstance) { this.historyChartInstance.destroy(); this.historyChartInstance = null; }
+            this.showHistoryModal = false;
+            this.historyAccount = null;
+        },
+
+        renderHistoryChart() {
+            const canvas = document.getElementById('historyChart');
+            if (!canvas || !this.historyAccount) return;
+            if (this.historyChartInstance) this.historyChartInstance.destroy();
+
+            const snaps = [...(this.accountSnapshots[this.historyAccount.id] || [])]
+                .sort((a, b) => a.date.localeCompare(b.date));
+            if (snaps.length < 2) return;
+
+            this.historyChartInstance = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: snaps.map(s => s.date),
+                    datasets: [{
+                        data: snaps.map(s => s.value / 100),
+                        borderColor: '#3b5fc0',
+                        backgroundColor: 'rgba(59,95,192,0.08)',
+                        tension: 0.2,
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: 3,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { ticks: { callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0)+'K' : v), font: { size: 10 } } },
+                        x: { ticks: { font: { size: 9 }, maxTicksLimit: 6 } },
+                    },
+                },
+            });
+        },
+
+        openSnapshotForm() {
+            this.editingSnapId = null;
+            this.snapForm = {
+                date: new Date().toISOString().split('T')[0],
+                balance_dollars: this.historyAccount ? (this.historyAccount.current_balance / 100).toFixed(2) : '',
+                note: '',
+                updateAccount: true,
+            };
+            this.showSnapshotForm = true;
+        },
+
+        openEditSnapshot(s) {
+            this.editingSnapId = s.id;
+            this.snapForm = {
+                date: s.date,
+                balance_dollars: (s.value / 100).toFixed(2),
+                note: s.note || '',
+                updateAccount: false,
+            };
+            this.showSnapshotForm = true;
+        },
+
+        async saveSnapshot() {
+            const value = Math.round(parseFloat(this.snapForm.balance_dollars || 0) * 100);
+            try {
+                if (this.editingSnapId) {
+                    await API.patch(`/snapshots/${this.editingSnapId}`, {
+                        date: this.snapForm.date,
+                        value,
+                        note: this.snapForm.note || null,
+                    });
+                } else {
+                    await API.post('/snapshots', {
+                        entity_type: 'cash',
+                        entity_id: this.historyAccount.id,
+                        date: this.snapForm.date,
+                        value,
+                        note: this.snapForm.note || null,
+                    });
+                    if (this.snapForm.updateAccount) {
+                        await API.patch(`/accounts/${this.historyAccount.id}`, {
+                            current_balance: value,
+                            last_updated_date: this.snapForm.date,
+                        });
+                        const acct = this.accounts.find(a => a.id === this.historyAccount.id);
+                        if (acct) { acct.current_balance = value; acct.last_updated_date = this.snapForm.date; }
+                        this.historyAccount = { ...this.historyAccount, current_balance: value };
+                    }
+                }
+                showAlert('Snapshot saved', 'success');
+                this.showSnapshotForm = false;
+                this.editingSnapId = null;
+                const snaps = await API.get(`/snapshots?entity_type=cash&entity_id=${this.historyAccount.id}`);
+                this.accountSnapshots = { ...this.accountSnapshots, [this.historyAccount.id]: snaps };
+                await this.$nextTick();
+                this.renderHistoryChart();
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
+
+        async deleteSnapshot(s) {
+            if (!confirm('Delete this snapshot?')) return;
+            try {
+                await API.delete(`/snapshots/${s.id}`);
+                showAlert('Snapshot deleted', 'success');
+                const snaps = await API.get(`/snapshots?entity_type=cash&entity_id=${this.historyAccount.id}`);
+                this.accountSnapshots = { ...this.accountSnapshots, [this.historyAccount.id]: snaps };
+                await this.$nextTick();
+                this.renderHistoryChart();
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
+    };
+}
+</script>
+{% endblock %}

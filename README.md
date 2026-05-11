@@ -1,162 +1,259 @@
 # Personal Finance Suite
 
-A serverless personal finance tracking app. All data lives in your own Google Drive — no backend, no database, no third-party servers.
-
-**Stack:** React 18 · TypeScript · Vite · Zustand · Tailwind CSS · Google Drive REST API v3
-
----
+A self-hosted Flask web application for personal financial planning. Track income, expenses, equity compensation, and project your net worth over time—all stored locally on your device.
 
 ## Features
 
-- **Dashboard** — net worth hero, upcoming cash flow events, equity snapshot
-- **Transactions** — recurring income/expenses + one-time events, tabbed view
-- **Equity** — RSU grant vesting progress, ESPP purchase period tracking
-- **Accounts** — card layout per account, sparklines, reconciliation with balance history
-- **Loans** — amortization progress, payoff timeline
-- **Timeline** — month-grouped cash flow projection (3 / 6 / 12 / 24 months)
-- **Settings** — theme, accent color, sidebar style, density, locale
+- **Dashboard**: Net worth summary, monthly cash flow, upcoming events
+- **Transactions**: One-time and recurring income/expenses
+- **Equity Compensation**: RSU grants and ESPP plans with automatic calculations
+- **Accounts & Loans**: Track all financial accounts and liabilities
+- **Timeline & Projections**: Month-by-month cash flow and net worth forecasts
+- **Settings**: Configure categories, divergence thresholds, and more
+- **Data Management**: Export/import all data as JSON
 
----
+## Requirements
 
-## Who does what
+- Python 3.9+
+- SQLite3 (included in Python)
 
-There are two distinct roles — the **app owner** (you, the developer) and **users** (anyone who signs into the deployed app).
+## Setup
 
-### App owner (you — do this once)
-
-- Register one OAuth client in Google Cloud Console
-- Set environment variables in Vercel
-- Deploy the app
-
-That's it. You never need to touch Google Console again unless you add a new deployment URL.
-
-### Users (anyone with the link)
-
-- Visit the app URL
-- Click **Sign in with Google** — standard OAuth consent screen, same as any website
-- The app creates a **"Personal Finance Suite"** folder in **their own** Google Drive
-- Their data is completely isolated — no one else can see it
-
-Users never touch Google Cloud Console. They don't need a Google Cloud account. They just need a Google account to sign in with.
-
-> **User limit:** Google restricts unverified apps to 100 users. For a personal or small-group app this is plenty. Submit for Google's OAuth verification if you need to go beyond that.
-
----
-
-## How data is stored
-
-On first sign-in, the app creates a folder called **"Personal Finance Suite"** in the user's Google Drive and writes these JSON files into it:
-
-```
-Personal Finance Suite/
-├── accounts.json
-├── transactions.json
-├── blanket-expenses.json
-├── equity.json
-├── snapshots.json
-├── loans.json
-└── settings.json
-```
-
-The app requests `drive.file` scope only — it cannot read any files it didn't create. Each user's data is fully isolated in their own Drive.
-
----
-
-## Setup (app owner — one time)
-
-### 1. Google Cloud Console
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services → Credentials**
-2. Click **Create Credentials → OAuth 2.0 Client ID** → Application type: **Web application**
-3. Add the following (two separate fields — origins have no path, redirect URIs have the full path):
-
-   | Field | Value |
-   |---|---|
-   | Authorized JavaScript origins | `http://localhost:5173` |
-   | Authorized redirect URIs | `http://localhost:5173/auth/callback` |
-
-4. Copy the **Client ID** and **Client Secret**
-
-### 2. Local environment
+### 1. Clone and Navigate
 
 ```bash
-cp .env.example .env.local
-# Edit .env.local and fill in your Client ID and Client Secret
+cd personal-finance-suite
 ```
 
-### 3. Run locally
+### 2. Create Virtual Environment
 
 ```bash
-npm install
-npm run dev
-# → http://localhost:5173
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
----
-
-## Deploy to Vercel
+### 3. Install Dependencies
 
 ```bash
-npx vercel
+pip install -r requirements.txt
 ```
 
-Or connect the GitHub repo in the Vercel dashboard — zero config needed. The `vercel.json` SPA rewrite rule is already included.
+### 4. Initialize Database
 
-After deploying:
-
-1. In Google Cloud Console, add your production URL to the same OAuth client:
-
-   | Field | Value |
-   |---|---|
-   | Authorized JavaScript origins | `https://your-app.vercel.app` |
-   | Authorized redirect URIs | `https://your-app.vercel.app/auth/callback` |
-
-2. In Vercel project settings → **Environment Variables**, add:
-
-   ```
-   VITE_GOOGLE_CLIENT_ID      = your-client-id
-   VITE_GOOGLE_CLIENT_SECRET  = your-client-secret
-   ```
-
-After that, share the URL — users just click "Sign in with Google", no setup required on their end.
-
----
-
-## Project structure
-
-```
-src/
-├── lib/
-│   ├── auth.ts          # OAuth 2.0 PKCE flow
-│   ├── drive.ts         # Google Drive REST API client
-│   ├── projection.ts    # Cash flow expansion engine (pure function)
-│   └── format.ts        # Currency, date, share formatters
-├── store/
-│   ├── authStore.ts     # Tokens + DriveClient instance (Zustand)
-│   ├── dataStore.ts     # All app data, read-through from Drive
-│   └── settingsStore.ts # Persisted to localStorage + Drive
-├── components/
-│   ├── Layout.tsx / Sidebar.tsx
-│   ├── Badge.tsx / Sparkline.tsx / Panel.tsx
-├── pages/
-│   ├── Login.tsx        # Google sign-in button
-│   ├── AuthCallback.tsx # OAuth redirect handler
-│   ├── Dashboard.tsx
-│   ├── Accounts.tsx
-│   ├── Transactions.tsx
-│   ├── Equity.tsx
-│   ├── Loans.tsx
-│   ├── Timeline.tsx
-│   └── Settings.tsx
-└── types/index.ts       # All TypeScript types + encoding conventions
+```bash
+flask db upgrade
 ```
 
-## Data encoding conventions
+This creates the SQLite database with all tables at `instance/finance.db`.
 
-| Thing | Convention | Example |
-|---|---|---|
-| Money | Integer cents | `$12.40 → 1240` |
-| Shares | Integer milliShares (×1000) | `25 shares → 25000` |
-| Interest rate | Integer basis points × 10 | `6.875% → 68750` |
-| Discount / withholding | Integer percent × 100 | `22% → 2200` |
-| Dates | ISO 8601 string | `"2026-05-09"` |
+### 5. Load Sample Data (Optional)
+
+```bash
+flask shell
+>>> from app import create_app, db
+>>> from api.settings import seed_sample_data
+>>> app = create_app()
+>>> with app.app_context():
+...     seed_sample_data()
+```
+
+Or call the API endpoint:
+
+```bash
+curl -X POST http://localhost:5000/api/seed
+```
+
+### 6. Run the App
+
+```bash
+flask run
+```
+
+Open http://localhost:5000 in your browser.
+
+## Environment Variables
+
+Create a `.env` file in the project root:
+
+```
+FLASK_ENV=development
+FLASK_APP=app.py
+SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_hex())">
+FINANCE_DB_PATH=instance/finance.db
+```
+
+## Database Backup
+
+The SQLite database file is located at `instance/finance.db`. Back it up by:
+
+1. **Manual copy**: `cp instance/finance.db instance/finance.backup.$(date +%Y%m%d).db`
+2. **Export from app**: Go to Settings → Export JSON
+
+## API Endpoints
+
+### Accounts & Loans
+
+- `GET /api/accounts` — List accounts
+- `POST /api/accounts` — Create account
+- `PATCH /api/accounts/<id>` — Update account
+- `GET /api/loans` — List loans
+- `POST /api/loans` — Create loan
+- `GET /api/accounts/<id>/snapshots` — Reconciliation history
+
+### Transactions
+
+- `GET /api/transactions/one-time` — List one-time transactions
+- `POST /api/transactions/one-time` — Create
+- `GET /api/transactions/recurring` — List recurring transactions
+- `GET /api/blanket-expenses` — List blanket expenses
+
+### Equity
+
+- `GET /api/equity/rsu` — List RSU grants
+- `POST /api/equity/rsu` — Create RSU grant
+- `GET /api/equity/espp` — List ESPP plans
+- `POST /api/equity/espp` — Create ESPP plan
+
+### Projection
+
+- `GET /api/projection?from=2026-05-10&to=2027-05-10` — Run projection
+- `GET /api/projection/month/2026-05` — Drill-down for a month
+
+### Settings & Data
+
+- `GET /api/settings` — Get settings
+- `GET /api/categories` — List categories
+- `GET /api/export` — Download all data as JSON
+- `POST /api/import` — Restore from JSON
+- `POST /api/seed` — Load sample data
+
+## Project Structure
+
+```
+personal-finance-suite/
+├── app.py                  ← Flask app factory
+├── config.py               ← Configuration
+├── models.py               ← SQLAlchemy models
+├── schemas.py              ← Pydantic validation schemas
+├── api/                    ← REST API blueprints
+│   ├── accounts.py
+│   ├── transactions.py
+│   ├── equity.py
+│   ├── projection.py
+│   └── settings.py
+├── pages/                  ← Page routes (Jinja2)
+│   └── routes.py
+├── engine/                 ← Business logic
+│   ├── projection.py       ← Core projection engine
+│   ├── recurrence.py       ← Recurring date expansion
+│   ├── vest_builder.py     ← RSU vest schedule
+│   ├── espp.py             ← ESPP calculations
+│   └── amortization.py     ← Loan amortization
+├── templates/              ← Jinja2 templates
+├── static/                 ← CSS and JavaScript
+├── migrations/             ← Alembic database migrations
+├── tests/                  ← Unit and integration tests
+├── instance/               ← Runtime data (git-ignored)
+│   └── finance.db          ← SQLite database
+└── requirements.txt        ← Python dependencies
+```
+
+## Data Format
+
+- **Monetary amounts**: Stored as integers in minor units (cents for USD)
+  - Example: $1,234.56 → 123456
+- **Dates**: ISO 8601 strings (YYYY-MM-DD)
+- **IDs**: 21-character nanoids
+
+## Technical Stack
+
+- **Web Framework**: Flask 3.x
+- **ORM**: Flask-SQLAlchemy 3.x
+- **Database**: SQLite 3
+- **Validation**: Pydantic v2
+- **Templating**: Jinja2
+- **Frontend**: htmx + Alpine.js (minimal, no build step)
+- **Testing**: pytest + pytest-flask
+
+## Security Notes
+
+- **No authentication**: Single-user, localhost only (v1)
+- **Data locality**: All data stays on your device; no cloud sync
+- **SQL injection prevention**: SQLAlchemy parameterized queries
+- **XSS prevention**: Jinja2 auto-escaping
+- **CSRF protection**: Flask-WTF tokens on state-changing requests
+
+## Development
+
+### Run Tests
+
+```bash
+pytest --cov=. --cov-report=term-missing
+```
+
+### Run with Debugger
+
+```bash
+export FLASK_ENV=development
+export FLASK_DEBUG=1
+flask run
+```
+
+### Database Migrations
+
+```bash
+flask db migrate -m "Add new column"
+flask db upgrade
+```
+
+## Troubleshooting
+
+### "database is locked"
+
+SQLite uses file-level locking. This can happen if:
+- Multiple processes are accessing the database simultaneously
+- A transaction was not properly committed
+
+Solution: Restart the Flask server.
+
+### "ModuleNotFoundError"
+
+Ensure your virtual environment is activated:
+
+```bash
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+pip install -r requirements.txt
+```
+
+### Database file not created
+
+Run migrations first:
+
+```bash
+flask db upgrade
+```
+
+## Limitations (v1)
+
+- Single-user, no multi-user support
+- No automatic bank/brokerage data pulls (manual entry only)
+- No password protection for local web server
+- SQLite limits concurrent writes (works for personal use)
+- No tax optimization or filing features
+
+## Future Roadmap
+
+- Optional password protection
+- Stock price API feeds
+- CSV bulk import
+- Multi-workspace support
+- Optional cloud sync (Dropbox, iCloud)
+- PWA "install as app" support
+
+## License
+
+Personal use only.
+
+## Support
+
+For issues, questions, or feature requests, refer to the Software Requirements Document (SRD.md) and Product Requirements Document (PRD.md) in the docs/ folder.

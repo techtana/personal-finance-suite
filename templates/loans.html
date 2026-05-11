@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}Liabilities - Personal Finance Suite{% endblock %}
+{% block page_title %}Liabilities{% endblock %}
+
+{% block content %}
+<div x-data="loansPage()" x-init="init()" class="space-y-6">
+
+    <div class="flex justify-between items-center">
+        <h3 class="text-lg font-semibold text-gray-900">Liabilities</h3>
+        <button @click="openAdd()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">+ Add Liability</button>
+    </div>
+
+    <div x-show="loading" class="text-center py-12 text-gray-500">Loading...</div>
+
+    <template x-if="!loading">
+        <div class="space-y-6">
+
+            <!-- Summary -->
+            <div class="bg-white rounded-lg shadow p-6 grid grid-cols-3 gap-4 text-center">
+                <div>
+                    <p class="text-sm text-gray-500">Total Debt</p>
+                    <p class="text-2xl font-bold text-red-600" x-text="fmt(totalDebt)"></p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Monthly Payments</p>
+                    <p class="text-2xl font-bold text-gray-900" x-text="fmt(totalMonthlyPayment)"></p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Loans</p>
+                    <p class="text-2xl font-bold text-gray-900" x-text="loans.length"></p>
+                </div>
+            </div>
+
+            <!-- Empty state -->
+            <template x-if="loans.length === 0">
+                <div class="bg-white rounded-lg shadow p-12 text-center text-gray-400">
+                    <p class="text-lg mb-2">No loans yet</p>
+                    <button @click="openAdd()" class="text-blue-600 hover:underline text-sm">Add a loan</button>
+                </div>
+            </template>
+
+            <!-- Loans grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <template x-for="l in loans" :key="l.id">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h4 class="text-lg font-semibold text-gray-900" x-text="l.name"></h4>
+                                <p class="text-sm text-gray-500" x-text="l.institution + ' · ' + l.type"></p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Current Balance</span>
+                                <span class="font-bold text-lg" x-text="fmt(l.current_balance)"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Original Balance</span>
+                                <span x-text="fmt(l.original_balance)"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Interest Rate</span>
+                                <span x-text="(l.interest_rate / 100).toFixed(3) + '%'"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Monthly Payment</span>
+                                <span class="font-semibold text-red-600" x-text="'−' + fmt(l.monthly_payment)"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Payoff Date</span>
+                                <span x-text="l.payoff_date"></span>
+                            </div>
+                        </div>
+
+                        <!-- Amortization progress -->
+                        <div class="mt-4">
+                            <div class="flex justify-between text-xs text-gray-500 mb-1">
+                                <span>Progress</span>
+                                <span x-text="paidPct(l) + '% paid'"></span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full" :style="'width:' + paidPct(l) + '%'"></div>
+                            </div>
+                        </div>
+
+                        <p x-show="l.note" class="text-xs text-gray-500 mt-3 italic" x-text="l.note"></p>
+
+                        <div class="mt-4 flex space-x-2">
+                            <button @click="openEdit(l)" class="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded text-sm font-medium hover:bg-blue-100">Edit</button>
+                            <button @click="deleteLoan(l.id)" class="px-3 py-2 bg-red-50 text-red-600 rounded text-sm font-medium hover:bg-red-100">Delete</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+        </div>
+    </template>
+
+    <!-- Modal -->
+    <div x-show="showModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" @click.self="showModal = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 p-6 max-h-screen overflow-y-auto">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4" x-text="editingId ? 'Edit Loan' : 'Add Loan'"></h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input x-model="form.name" type="text" placeholder="e.g. Primary Mortgage" class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                        <select x-model="form.type" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="mortgage">Mortgage</option>
+                            <option value="auto">Auto</option>
+                            <option value="student">Student</option>
+                            <option value="personal">Personal</option>
+                            <option value="heloc">HELOC</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Institution</label>
+                        <input x-model="form.institution" type="text" placeholder="e.g. Chase" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Original Balance ($)</label>
+                        <input x-model="form.original_balance_dollars" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Current Balance ($)</label>
+                        <input x-model="form.current_balance_dollars" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Interest Rate (%)</label>
+                        <input x-model="form.rate_pct" type="number" step="0.001" placeholder="6.875" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Monthly Payment ($)</label>
+                        <input x-model="form.monthly_payment_dollars" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                        <input x-model="form.start_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Payoff Date</label>
+                        <input x-model="form.payoff_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Note (optional)</label>
+                    <input x-model="form.note" type="text" class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+            </div>
+            <div class="mt-6 flex space-x-3 justify-end">
+                <button @click="showModal = false" class="px-4 py-2 text-gray-600 hover:text-gray-900">Cancel</button>
+                <button @click="save()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Save</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function loansPage() {
+    return {
+        loans: [],
+        loading: true,
+        showModal: false,
+        editingId: null,
+        form: {},
+
+        get totalDebt() {
+            return this.loans.reduce((s, l) => s + l.current_balance, 0);
+        },
+        get totalMonthlyPayment() {
+            return this.loans.reduce((s, l) => s + l.monthly_payment, 0);
+        },
+
+        fmt(cents) { return formatCurrency(cents); },
+
+        paidPct(l) {
+            if (!l.original_balance) return 0;
+            const paid = l.original_balance - l.current_balance;
+            return Math.max(0, Math.min(100, Math.round((paid / l.original_balance) * 100)));
+        },
+
+        async init() {
+            try {
+                this.loans = await API.get('/loans');
+            } catch (e) {
+                showAlert('Failed to load: ' + e.message, 'error');
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        openAdd() {
+            this.editingId = null;
+            this.form = {
+                name: '', type: 'mortgage', institution: '',
+                original_balance_dollars: '', current_balance_dollars: '',
+                rate_pct: '', monthly_payment_dollars: '',
+                start_date: '', payoff_date: '', note: '',
+            };
+            this.showModal = true;
+        },
+
+        openEdit(l) {
+            this.editingId = l.id;
+            this.form = {
+                name: l.name, type: l.type, institution: l.institution,
+                original_balance_dollars: (l.original_balance / 100).toFixed(2),
+                current_balance_dollars: (l.current_balance / 100).toFixed(2),
+                rate_pct: (l.interest_rate / 100).toFixed(3),
+                monthly_payment_dollars: (l.monthly_payment / 100).toFixed(2),
+                start_date: l.start_date, payoff_date: l.payoff_date, note: l.note || '',
+            };
+            this.showModal = true;
+        },
+
+        async save() {
+            const payload = {
+                name: this.form.name,
+                type: this.form.type,
+                institution: this.form.institution,
+                original_balance: Math.round(parseFloat(this.form.original_balance_dollars || 0) * 100),
+                current_balance: Math.round(parseFloat(this.form.current_balance_dollars || 0) * 100),
+                interest_rate: Math.round(parseFloat(this.form.rate_pct || 0) * 100),
+                monthly_payment: Math.round(parseFloat(this.form.monthly_payment_dollars || 0) * 100),
+                start_date: this.form.start_date,
+                payoff_date: this.form.payoff_date,
+                last_updated_date: new Date().toISOString().split('T')[0],
+                note: this.form.note || null,
+            };
+            try {
+                if (this.editingId) {
+                    await API.patch('/loans/' + this.editingId, payload);
+                    showAlert('Loan updated', 'success');
+                } else {
+                    await API.post('/loans', payload);
+                    showAlert('Loan added', 'success');
+                }
+                this.showModal = false;
+                await this.init();
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
+
+        async deleteLoan(id) {
+            if (!confirm('Delete this loan?')) return;
+            try {
+                await API.delete('/loans/' + id);
+                showAlert('Loan deleted', 'success');
+                await this.init();
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
+    };
+}
+</script>
+{% endblock %}

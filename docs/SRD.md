@@ -1,30 +1,46 @@
 # Software Requirements Document
 ## Personal Finance Suite
 
-**Version:** 0.1  
+**Version:** 0.2  
 **Date:** 2026-05-09  
-**Status:** Draft
+**Status:** Draft  
+**Changed from v0.1:** Replaced React SPA + Google Drive with Flask + SQLite. Removed OAuth/Drive integration. Updated stack, architecture, API, deployment.
 
 ---
 
 ## 1. System Overview
 
-Personal Finance Suite is a **client-side single-page application (SPA)**. There is no application server. All business logic runs in the browser. Persistence is handled by the **Google Drive API**, which the browser calls directly via OAuth 2.0 user credentials.
+Personal Finance Suite is a **Flask web application** running on localhost. The Flask server handles all business logic, serves Jinja2-rendered pages, and exposes a REST JSON API consumed by lightweight frontend JavaScript. All data is persisted in a **local SQLite database**.
 
 ```
-┌──────────────────────────────────────────────────────┐
-│                    Browser (SPA)                     │
-│                                                      │
-│  ┌────────────┐   ┌──────────────┐  ┌────────────┐  │
-│  │ React UI   │ → │ State Store  │→ │ Drive Sync │  │
-│  │ (Vite)    │   │ (Zustand)    │  │ (gapi)     │  │
-│  └────────────┘   └──────────────┘  └────────────┘  │
-│                                             │        │
-└─────────────────────────────────────────────│────────┘
-                                              ▼
-                                   Google Drive REST API
-                                   (user's own account)
+┌──────────────────────────────────────────────────────────┐
+│                    Browser (localhost)                    │
+│                                                          │
+│  ┌─────────────────────────────────────────────────────┐ │
+│  │  Jinja2 Pages + Vanilla JS / htmx                  │ │
+│  └─────────────────────────────────────────────────────┘ │
+└────────────────────────────┬─────────────────────────────┘
+                             │ HTTP (localhost)
+┌────────────────────────────▼─────────────────────────────┐
+│                    Flask App (Python)                     │
+│                                                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
+│  │  Page Routes  │  │  REST API    │  │  Projection   │  │
+│  │  (Jinja2)    │  │  /api/*      │  │  Engine       │  │
+│  └──────────────┘  └──────────────┘  └───────────────┘  │
+│                             │                            │
+│                    ┌────────▼────────┐                   │
+│                    │  SQLAlchemy ORM │                   │
+│                    └────────┬────────┘                   │
+│                             │                            │
+│                    ┌────────▼────────┐                   │
+│                    │   SQLite DB     │                   │
+│                    │  (finance.db)   │                   │
+│                    └─────────────────┘                   │
+└──────────────────────────────────────────────────────────┘
 ```
+
+No cloud services. No OAuth. No build step. Start with `flask run`, open `http://localhost:5000`.
 
 ---
 
@@ -32,421 +48,464 @@ Personal Finance Suite is a **client-side single-page application (SPA)**. There
 
 | Layer | Choice | Rationale |
 |-------|--------|-----------|
-| Framework | React 18 + TypeScript | Ecosystem size, component model, good for first JS project |
-| Build tool | Vite | Fast dev server, simple config, good TS support |
-| State management | Zustand | Minimal boilerplate, no context/provider pyramid |
-| Routing | React Router v6 | Industry standard for SPAs |
-| Styling | Tailwind CSS | Utility-first, no CSS file sprawl |
-| Charts | Recharts | React-native, declarative, good for financial line charts |
-| Date math | date-fns | Lightweight, tree-shakeable, no global side effects |
-| Forms | React Hook Form | Low re-render overhead, good validation integration |
-| Validation | Zod | Schema-first; share type definitions between runtime validation and TS types |
-| Google API | gapi-script + google-auth-library | Drive REST v3 |
-| Testing | Vitest + React Testing Library | Same config as Vite, fast |
+| Web framework | Flask 3.x (Python) | Lightweight, no boilerplate, easy to run locally |
+| ORM | Flask-SQLAlchemy 3.x | Declarative models, SQLite-native, migrations support |
+| Migrations | Flask-Migrate (Alembic) | Schema versioning without manual SQL |
+| Database | SQLite 3 | Zero-config, single file, sufficient for personal use |
+| Templating | Jinja2 (bundled with Flask) | Server-rendered HTML, no JS build toolchain |
+| Frontend interactivity | htmx + Alpine.js (CDN) | Lightweight; handles form submissions, modals, live updates without a build step |
+| Charts | Chart.js 4.x (CDN) | Canvas-based; works with server-rendered data |
+| Inline sparklines | Inline SVG (server-rendered) | No JS dependency; pre-computed in Python |
+| Date math | Python `datetime` + `dateutil` | stdlib-first, `dateutil` for recurrence rules |
+| Validation | Pydantic v2 | Schema-first validation shared between API and business logic |
+| Serialization | `marshmallow` (for API responses) | Clean JSON serialization layer |
+| Testing | `pytest` + `pytest-flask` | Standard Python testing stack |
 
-No backend. No database. No Docker. Deploy target: GitHub Pages or any static host (Netlify, Vercel, Cloudflare Pages).
+No Node.js. No npm. No build step. No OAuth library. No CDN for data.
 
 ---
 
 ## 3. Data Architecture
 
-### 3.1 Storage Layout (Google Drive)
+### 3.1 Database File
+
+The SQLite database is stored at `{APP_DATA_DIR}/finance.db`. `APP_DATA_DIR` defaults to `./instance/` (Flask's default instance folder), configurable via environment variable `FINANCE_DB_PATH`.
+
+### 3.2 Schema Overview
 
 ```
-Personal Finance Suite/          ← app root folder (created on first run)
-├── meta.json                    ← workspace metadata, schema version
-├── accounts.json                ← Account[] + Loan[]
-├── transactions.json            ← OneTimeTransaction[] + RecurringTransaction[]
-├── blanket-expenses.json        ← BlanketExpense[]
-├── equity.json                  ← RSUGrant[] + ESPPPlan[]
-├── snapshots.json               ← AccountSnapshot[] (reconciliation history)
-└── settings.json                ← UserSettings
+accounts            ← bank, brokerage, retirement, property accounts
+loans               ← mortgage, auto, student, HELOC liabilities
+one_time_txns       ← single income/expense events
+recurring_txns      ← repeating income/expense events
+blanket_expenses    ← catch-all spending buckets
+rsu_grants          ← equity grants with vest schedules (JSON column)
+espp_plans          ← ESPP offering periods (purchase_periods as JSON)
+account_snapshots   ← reconciliation history per account
+categories          ← user-defined income/expense categories
+settings            ← single-row app configuration
 ```
 
-Each file is a standalone JSON document. Files are read once on app load and written individually on change (only the file containing the mutated collection is re-written).
+### 3.3 Schema Versioning
 
-### 3.2 Schema Version
-
-`meta.json` carries a `schemaVersion: number` field. On load, if the stored version is older than the app's current version, a migration function runs in-memory and re-saves all files. Migrations are append-only numbered functions.
+A `schema_version` integer is stored in the `settings` table. On each app start, Flask compares the stored version against the application's current version constant. If older, Alembic migrations run automatically. Migrations are numbered and append-only.
 
 ---
 
 ## 4. Data Models
 
-All monetary amounts are stored as **integers in the minor unit of the user's currency** (cents for USD). The UI layer converts for display.
+All monetary amounts are stored as **integers in the minor unit of the user's currency** (cents for USD). The template layer converts for display.
 
-All dates are **ISO 8601 date strings** (`"YYYY-MM-DD"`). No timestamps; the app works at day granularity.
+All dates are stored as **ISO 8601 date strings** (`"YYYY-MM-DD"`). SQLite stores them as TEXT; Python compares them as strings (lexicographic order matches chronological order for ISO dates).
 
-### 4.1 Common Fields
+### 4.1 Common Columns
 
-Every object has:
-```typescript
-id: string          // nanoid(), 21 chars
-createdAt: string   // ISO date
-updatedAt: string   // ISO date
-note?: string       // free-text annotation
+Every table has:
+```
+id          TEXT PRIMARY KEY    -- nanoid(), 21 chars
+created_at  TEXT NOT NULL       -- ISO date
+updated_at  TEXT NOT NULL       -- ISO date
+note        TEXT                -- nullable free-text annotation
 ```
 
-### 4.2 OneTimeTransaction
+### 4.2 accounts
 
-```typescript
-interface OneTimeTransaction {
-  id: string
-  type: 'income' | 'expense'
-  amount: number            // minor units, always positive
-  date: string              // when it occurs / occurred
-  category: string          // user-defined category slug
-  accountId: string         // destination/source account
-  note?: string
-  createdAt: string
-  updatedAt: string
-}
+```sql
+CREATE TABLE accounts (
+  id                TEXT PRIMARY KEY,
+  name              TEXT NOT NULL,
+  type              TEXT NOT NULL,  -- see AccountType enum
+  institution       TEXT NOT NULL,
+  currency          TEXT NOT NULL DEFAULT 'USD',
+  current_balance   INTEGER NOT NULL DEFAULT 0,  -- minor units
+  last_updated_date TEXT NOT NULL,
+  linked_loan_id    TEXT REFERENCES loans(id),
+  is_active         INTEGER NOT NULL DEFAULT 1,  -- boolean
+  note              TEXT,
+  created_at        TEXT NOT NULL,
+  updated_at        TEXT NOT NULL
+);
 ```
 
-### 4.3 RecurringTransaction
+`type` values: `checking`, `savings`, `brokerage`, `retirement_401k`, `retirement_ira`, `retirement_roth`, `hsa`, `crypto`, `property`, `other_asset`
 
-```typescript
-type Frequency = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annually'
+### 4.3 loans
 
-interface RecurringTransaction {
-  id: string
-  type: 'income' | 'expense'
-  amount: number
-  frequency: Frequency
-  startDate: string
-  endDate?: string          // null = indefinite
-  category: string
-  accountId: string
-  note?: string
-  createdAt: string
-  updatedAt: string
-}
+```sql
+CREATE TABLE loans (
+  id               TEXT PRIMARY KEY,
+  name             TEXT NOT NULL,
+  type             TEXT NOT NULL,  -- mortgage|auto|student|personal|heloc|other
+  institution      TEXT NOT NULL,
+  original_balance INTEGER NOT NULL,   -- minor units
+  current_balance  INTEGER NOT NULL,   -- minor units; updated manually
+  interest_rate    INTEGER NOT NULL,   -- annual rate × 10000 (e.g., 6.5% = 65000)
+  monthly_payment  INTEGER NOT NULL,   -- minor units
+  start_date       TEXT NOT NULL,
+  payoff_date      TEXT NOT NULL,
+  last_updated_date TEXT NOT NULL,
+  linked_account_id TEXT REFERENCES accounts(id),
+  note             TEXT,
+  created_at       TEXT NOT NULL,
+  updated_at       TEXT NOT NULL
+);
 ```
 
-### 4.4 BlanketExpense
+### 4.4 one_time_txns
 
-```typescript
-interface BlanketExpense {
-  id: string
-  label: string             // e.g., "Misc Spending", "Cash / Small purchases"
-  amount: number            // per-period amount
-  frequency: Frequency      // typically 'monthly'
-  startDate: string
-  endDate?: string
-  category: string
-  note?: string
-  createdAt: string
-  updatedAt: string
-}
+```sql
+CREATE TABLE one_time_txns (
+  id          TEXT PRIMARY KEY,
+  type        TEXT NOT NULL,     -- 'income' | 'expense'
+  amount      INTEGER NOT NULL,  -- minor units, always positive
+  date        TEXT NOT NULL,
+  category    TEXT NOT NULL REFERENCES categories(slug),
+  account_id  TEXT NOT NULL REFERENCES accounts(id),
+  note        TEXT,
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);
 ```
 
-### 4.5 RSUGrant
+### 4.5 recurring_txns
 
-```typescript
-interface VestEvent {
-  date: string
-  shares: number            // fractional shares stored as integer × 1000 (milliShares)
-}
-
-interface RSUGrant {
-  id: string
-  label: string             // e.g., "2024 Annual Refresh"
-  grantDate: string
-  totalShares: number       // milliShares
-  ticker: string            // e.g., "GOOG"
-  priceAtGrant?: number     // minor units, optional reference
-  vestSchedule: VestEvent[] // generated by builder, stored explicitly
-  withholdingRate: number   // percentage × 100, e.g., 2200 = 22.00%
-  accountId: string         // which brokerage receives vested shares
-  note?: string
-  createdAt: string
-  updatedAt: string
-}
+```sql
+CREATE TABLE recurring_txns (
+  id          TEXT PRIMARY KEY,
+  type        TEXT NOT NULL,     -- 'income' | 'expense'
+  amount      INTEGER NOT NULL,
+  frequency   TEXT NOT NULL,     -- daily|weekly|biweekly|monthly|quarterly|annually
+  start_date  TEXT NOT NULL,
+  end_date    TEXT,              -- NULL = indefinite
+  category    TEXT NOT NULL REFERENCES categories(slug),
+  account_id  TEXT NOT NULL REFERENCES accounts(id),
+  note        TEXT,
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);
 ```
 
-**Vest schedule builder inputs (not stored — used only during creation/edit):**
-```typescript
-interface VestScheduleBuilder {
-  cliffMonths: number
-  cliffPercent: number          // percentage × 100
-  subsequentFrequency: Frequency
-  subsequentPercent: number     // percentage × 100 per period
-}
+### 4.6 blanket_expenses
+
+```sql
+CREATE TABLE blanket_expenses (
+  id          TEXT PRIMARY KEY,
+  label       TEXT NOT NULL,
+  amount      INTEGER NOT NULL,  -- per-period, minor units
+  frequency   TEXT NOT NULL,
+  start_date  TEXT NOT NULL,
+  end_date    TEXT,
+  category    TEXT NOT NULL REFERENCES categories(slug),
+  note        TEXT,
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);
 ```
 
-The builder validates that cliff + subsequent periods sum to 100%. It generates and stores the explicit `VestEvent[]` array, so future changes to builder logic don't silently alter existing grants.
+### 4.7 rsu_grants
 
-### 4.6 ESPPPlan
-
-```typescript
-interface ESPPPurchasePeriod {
-  startDate: string
-  endDate: string           // purchase date
-  estimatedPurchaseAmount: number  // computed at plan creation, minor units
-}
-
-interface ESPPPlan {
-  id: string
-  label: string             // e.g., "2024 ESPP Offering"
-  offeringStartDate: string
-  offeringEndDate: string
-  contributionMode: 'percent' | 'fixed'
-  contributionValue: number  // percent × 100, or minor units
-  baseSalary?: number        // minor units/yr; required if contributionMode = 'percent'
-  discountRate: number       // percentage × 100, default 1500 = 15%
-  hasLookback: boolean
-  purchasePeriods: ESPPPurchasePeriod[]  // generated from offering period
-  accountId: string
-  note?: string
-  createdAt: string
-  updatedAt: string
-}
+```sql
+CREATE TABLE rsu_grants (
+  id               TEXT PRIMARY KEY,
+  label            TEXT NOT NULL,
+  grant_date       TEXT NOT NULL,
+  total_shares     INTEGER NOT NULL,  -- milliShares (× 1000)
+  ticker           TEXT NOT NULL,
+  price_at_grant   INTEGER,           -- minor units, optional
+  vest_schedule    TEXT NOT NULL,     -- JSON: [{date, shares}, ...]
+  withholding_rate INTEGER NOT NULL,  -- percent × 100, e.g., 2200 = 22%
+  account_id       TEXT NOT NULL REFERENCES accounts(id),
+  note             TEXT,
+  created_at       TEXT NOT NULL,
+  updated_at       TEXT NOT NULL
+);
 ```
 
-### 4.7 Account
+`vest_schedule` is stored as a JSON string. The vest schedule builder (Python function) accepts cliff/subsequent parameters and outputs the explicit `[{date, shares}]` list before save — future builder logic changes do not silently alter existing grants.
 
-```typescript
-type AccountType =
-  | 'checking'
-  | 'savings'
-  | 'brokerage'
-  | 'retirement_401k'
-  | 'retirement_ira'
-  | 'retirement_roth'
-  | 'hsa'
-  | 'crypto'
-  | 'property'
-  | 'other_asset'
+**Vest Schedule Builder inputs (used during create/edit only, not stored):**
+```python
+cliffMonths:           int
+cliffPercent:          int   # percent × 100
+subsequentFrequency:   str   # 'monthly' | 'quarterly'
+subsequentPercent:     int   # percent × 100 per period
+```
+Builder validates cliff + all subsequent periods sum to exactly 100%.
 
-interface Account {
-  id: string
-  name: string
-  type: AccountType
-  institution: string       // free text
-  currency: string          // ISO 4217, default from settings
-  currentBalance: number    // minor units; updated manually
-  lastUpdatedDate: string   // date of last manual update
-  linkedLoanId?: string     // for property → mortgage linkage
-  isActive: boolean
-  note?: string
-  createdAt: string
-  updatedAt: string
-}
+### 4.8 espp_plans
+
+```sql
+CREATE TABLE espp_plans (
+  id                  TEXT PRIMARY KEY,
+  label               TEXT NOT NULL,
+  offering_start_date TEXT NOT NULL,
+  offering_end_date   TEXT NOT NULL,
+  contribution_mode   TEXT NOT NULL,   -- 'percent' | 'fixed'
+  contribution_value  INTEGER NOT NULL,
+  base_salary         INTEGER,         -- minor units/yr; required if mode = 'percent'
+  discount_rate       INTEGER NOT NULL DEFAULT 1500,  -- percent × 100
+  has_lookback        INTEGER NOT NULL DEFAULT 1,     -- boolean
+  purchase_periods    TEXT NOT NULL,   -- JSON: [{start_date, end_date, estimated_purchase_amount}]
+  account_id          TEXT NOT NULL REFERENCES accounts(id),
+  note                TEXT,
+  created_at          TEXT NOT NULL,
+  updated_at          TEXT NOT NULL
+);
 ```
 
-### 4.8 Loan
+### 4.9 account_snapshots
 
-```typescript
-type LoanType = 'mortgage' | 'auto' | 'student' | 'personal' | 'heloc' | 'other'
-
-interface Loan {
-  id: string
-  name: string
-  type: LoanType
-  institution: string
-  originalBalance: number   // minor units
-  currentBalance: number    // minor units; updated manually
-  interestRate: number      // annual rate × 10000, e.g., 6.5% = 65000
-  monthlyPayment: number    // minor units (principal + interest)
-  startDate: string
-  payoffDate: string        // computed or user-entered
-  lastUpdatedDate: string
-  linkedAccountId?: string  // property account this loan finances
-  note?: string
-  createdAt: string
-  updatedAt: string
-}
+```sql
+CREATE TABLE account_snapshots (
+  id                         TEXT PRIMARY KEY,
+  account_id                 TEXT NOT NULL REFERENCES accounts(id),
+  date                       TEXT NOT NULL,
+  actual_balance             INTEGER NOT NULL,   -- minor units
+  predicted_balance          INTEGER NOT NULL,   -- minor units; computed at snapshot time
+  delta                      INTEGER NOT NULL,   -- actual - predicted
+  resolution                 TEXT NOT NULL,      -- 'accepted' | 'adjusted' | 'ignored'
+  adjustment_transaction_id  TEXT REFERENCES one_time_txns(id),
+  note                       TEXT,
+  created_at                 TEXT NOT NULL
+);
 ```
 
-### 4.9 AccountSnapshot (Reconciliation Record)
+### 4.10 categories
 
-```typescript
-interface AccountSnapshot {
-  id: string
-  accountId: string
-  date: string
-  actualBalance: number     // minor units; what user entered
-  predictedBalance: number  // minor units; computed at snapshot time
-  delta: number             // actual - predicted
-  resolution: 'accepted' | 'adjusted' | 'ignored'
-  adjustmentTransactionId?: string  // if resolution = 'adjusted'
-  note?: string
-  createdAt: string
-}
+```sql
+CREATE TABLE categories (
+  slug        TEXT PRIMARY KEY,   -- kebab-case, foreign key used across tables
+  label       TEXT NOT NULL,
+  type        TEXT NOT NULL,      -- 'income' | 'expense' | 'both'
+  color       TEXT NOT NULL       -- hex, e.g., '#3b82f6'
+);
 ```
 
-### 4.10 UserSettings
+### 4.11 settings
 
-```typescript
-interface UserSettings {
-  currency: string          // ISO 4217
-  locale: string            // BCP 47, e.g., "en-US"
-  fiscalYearStartMonth: number  // 1–12
-  defaultWithholdingRate: number  // percentage × 100
-  divergenceThresholds: {
-    [key in AccountType]?: number  // percentage × 100; alert if |delta| exceeds this
-  }
-  categories: Category[]
-}
-
-interface Category {
-  slug: string              // kebab-case, used as foreign key
-  label: string             // display name
-  type: 'income' | 'expense' | 'both'
-  color: string             // hex color for UI
-}
+```sql
+CREATE TABLE settings (
+  id                      INTEGER PRIMARY KEY DEFAULT 1,  -- single row
+  currency                TEXT NOT NULL DEFAULT 'USD',
+  locale                  TEXT NOT NULL DEFAULT 'en-US',
+  fiscal_year_start_month INTEGER NOT NULL DEFAULT 1,     -- 1–12
+  default_withholding_rate INTEGER NOT NULL DEFAULT 2200, -- percent × 100
+  divergence_thresholds   TEXT NOT NULL,  -- JSON: {account_type: percent×100, ...}
+  schema_version          INTEGER NOT NULL DEFAULT 1
+);
 ```
 
 ---
 
 ## 5. Projection Engine
 
-The projection engine is a **pure function** with no side effects. It is the computational heart of the application.
+The projection engine is a **pure Python function** with no side effects and no database access. It is called by API endpoints and passes its output to templates/JSON responses.
 
-```typescript
-function project(
-  inputs: ProjectionInputs,
-  fromDate: string,
-  toDate: string
-): ProjectionResult
+```python
+def project(inputs: ProjectionInputs, from_date: str, to_date: str) -> ProjectionResult:
+    ...
 ```
 
-### 5.1 ProjectionInputs
+### 5.1 ProjectionInputs (Pydantic model)
 
-```typescript
-interface ProjectionInputs {
-  transactions: (OneTimeTransaction | RecurringTransaction)[]
-  blanketExpenses: BlanketExpense[]
-  rsuGrants: RSUGrant[]
-  esppPlans: ESPPPlan[]
-  accounts: Account[]
-  loans: Loan[]
-  stockPrices: Record<string, number>  // ticker → minor units per share
-}
+```python
+class ProjectionInputs(BaseModel):
+    transactions:      list[OneTimeTxn | RecurringTxn]
+    blanket_expenses:  list[BlanketExpense]
+    rsu_grants:        list[RSUGrant]
+    espp_plans:        list[ESPPPlan]
+    accounts:          list[Account]
+    loans:             list[Loan]
+    stock_prices:      dict[str, int]   # ticker → minor units per share
+    disabled_ids:      set[str] = set() # scenario mode: filter out these source IDs
 ```
 
 ### 5.2 Algorithm
 
-1. **Expand all recurring objects** into a flat list of `CashFlowEvent[]` over the date range:
-   - `RecurringTransaction`: one event per occurrence
+1. **Expand all recurring objects** into a flat `list[CashFlowEvent]` over `[from_date, to_date]`:
+   - `RecurringTxn`: one event per occurrence date (see §9.4 for date rules)
    - `BlanketExpense`: one event per period
-   - `RSUGrant`: one event per VestEvent (gross and net-of-withholding variants)
-   - `ESPPPlan`: one event per purchase period
+   - `RSUGrant`: one event per `VestEvent` (gross and net-of-withholding variants)
+   - `ESPPPlan`: one event per purchase period end date
    - `Loan`: one event per monthly payment
-2. **Sort events by date.**
-3. **Bucket by month.** For each calendar month, sum income events and expense events.
-4. **Carry-forward balance.** Starting from the sum of all `Account.currentBalance` minus all `Loan.currentBalance`, add each month's net cash flow to produce projected net worth.
-5. **Return** a `MonthlyBucket[]` for the timeline view and a `CashFlowEvent[]` for drill-down.
+2. **Filter** events whose `source_id` is in `disabled_ids` (scenario mode).
+3. **Sort events by date.**
+4. **Bucket by month.** For each `YYYY-MM`, sum `income` events and `expense` events.
+5. **Carry-forward balance.** Starting from `sum(account.current_balance) − sum(loan.current_balance)`, add each month's net cash flow to produce projected net worth.
+6. **Attach actuals.** For months where an `AccountSnapshot` exists, attach `actual_net_worth`.
+7. **Return** `MonthlyBucket[]` (for timeline table) and `CashFlowEvent[]` (for drill-down and waterfall chart).
 
-```typescript
-interface CashFlowEvent {
-  date: string
-  sourceId: string          // id of originating object
-  sourceType: 'transaction' | 'recurring' | 'blanket' | 'rsu' | 'espp' | 'loan_payment'
-  type: 'income' | 'expense'
-  amount: number
-  label: string
-  category: string
-}
+```python
+@dataclass
+class CashFlowEvent:
+    date:        str
+    source_id:   str
+    source_type: str   # 'transaction'|'recurring'|'blanket'|'rsu'|'espp'|'loan_payment'
+    type:        str   # 'income' | 'expense'
+    amount:      int
+    label:       str
+    category:    str
 
-interface MonthlyBucket {
-  month: string             // "YYYY-MM"
-  income: number
-  expenses: number
-  netCashFlow: number
-  cumulativeNetWorth: number  // predicted
-  actualNetWorth?: number     // present only if a snapshot exists for this month
-  events: CashFlowEvent[]
-}
+@dataclass
+class MonthlyBucket:
+    month:                str   # "YYYY-MM"
+    income:               int
+    expenses:             int
+    net_cash_flow:        int
+    cumulative_net_worth: int   # predicted
+    actual_net_worth:     int | None
+    events:               list[CashFlowEvent]
 ```
 
 ### 5.3 Scenario Mode
 
-Scenario mode passes a `disabledIds: Set<string>` to the projection function. Events from disabled objects are filtered out before bucketing. The UI overlays the scenario projection on the baseline in a different color.
+Pass `disabled_ids` as a set of object IDs to exclude from projection. The API `/api/projection?scenario=custom&disabled=id1,id2` accepts a comma-separated disabled list. The timeline page overlays the scenario line on the baseline chart in a distinct color.
 
 ---
 
-## 6. Google Drive Integration
+## 6. REST API Endpoints
 
-### 6.1 Authentication
+All endpoints are under `/api/`. Request and response bodies are JSON. Errors return `{"error": "message"}` with appropriate HTTP status.
 
-- OAuth 2.0 with PKCE flow (no client secret needed for SPA)
-- Scopes: `https://www.googleapis.com/auth/drive.file` (access only files created by this app)
-- Token stored in `sessionStorage` only (cleared on tab close)
-- On expiry, silent refresh via refresh token in memory; if unavailable, prompt re-login
+### 6.1 Accounts & Loans
 
-### 6.2 File Operations
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/accounts` | List all active accounts |
+| POST | `/api/accounts` | Create account |
+| GET | `/api/accounts/<id>` | Get account |
+| PATCH | `/api/accounts/<id>` | Update account fields |
+| DELETE | `/api/accounts/<id>` | Soft-delete (set `is_active = false`) |
+| GET | `/api/loans` | List all loans |
+| POST | `/api/loans` | Create loan |
+| PATCH | `/api/loans/<id>` | Update loan |
+| DELETE | `/api/loans/<id>` | Delete loan |
+| POST | `/api/accounts/<id>/snapshots` | Record a reconciliation snapshot |
+| GET | `/api/accounts/<id>/snapshots` | List snapshot history |
 
-```
-Read:  GET  /drive/v3/files/:fileId?alt=media
-Write: PATCH /upload/drive/v3/files/:fileId (multipart, replaces content)
-Create: POST /upload/drive/v3/files (multipart, with metadata)
-List:  GET /drive/v3/files?q='<folderId>' in parents
-```
+### 6.2 Transactions
 
-### 6.3 Sync Strategy
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/transactions/one-time` | List one-time transactions (filter: `?from=&to=&category=&account=`) |
+| POST | `/api/transactions/one-time` | Create |
+| PATCH | `/api/transactions/one-time/<id>` | Update |
+| DELETE | `/api/transactions/one-time/<id>` | Delete |
+| GET | `/api/transactions/recurring` | List recurring transactions |
+| POST | `/api/transactions/recurring` | Create |
+| PATCH | `/api/transactions/recurring/<id>` | Update |
+| DELETE | `/api/transactions/recurring/<id>` | Delete |
+| GET | `/api/blanket-expenses` | List blanket expenses |
+| POST | `/api/blanket-expenses` | Create |
+| PATCH | `/api/blanket-expenses/<id>` | Update |
+| DELETE | `/api/blanket-expenses/<id>` | Delete |
 
-- **On load:** read all files from Drive into Zustand store
-- **On change:** debounced write (2 s) of the affected JSON file only
-- **Conflict detection:** store `modifiedTime` from Drive metadata. Before each write, re-fetch metadata; if `modifiedTime` has advanced beyond what the app last wrote, display a conflict banner with "Reload from Drive" / "Overwrite Drive" options
-- **Offline:** changes accumulate in store; a sync queue flushes when connectivity resumes (navigator.onLine + online event)
+### 6.3 Equity
 
-### 6.4 File Initialization
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/equity/rsu` | List RSU grants |
+| POST | `/api/equity/rsu` | Create grant (vest schedule built server-side) |
+| PATCH | `/api/equity/rsu/<id>` | Update grant |
+| DELETE | `/api/equity/rsu/<id>` | Delete grant |
+| POST | `/api/equity/rsu/preview-schedule` | Preview vest schedule from builder inputs (no save) |
+| GET | `/api/equity/espp` | List ESPP plans |
+| POST | `/api/equity/espp` | Create plan |
+| PATCH | `/api/equity/espp/<id>` | Update plan |
+| DELETE | `/api/equity/espp/<id>` | Delete plan |
 
-On first run (folder not found):
-1. Create folder `Personal Finance Suite` in Drive root
-2. Create all JSON files with empty arrays / default settings
-3. Write `meta.json` with `schemaVersion: 1`
+### 6.4 Projection
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/projection` | Run projection (`?from=YYYY-MM-DD&to=YYYY-MM-DD&disabled=id1,id2`) |
+| GET | `/api/projection/month/<YYYY-MM>` | Get drill-down events for a specific month |
+
+### 6.5 Settings & Data Management
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/settings` | Get current settings |
+| PATCH | `/api/settings` | Update settings |
+| GET | `/api/categories` | List categories |
+| POST | `/api/categories` | Create category |
+| PATCH | `/api/categories/<slug>` | Update category |
+| DELETE | `/api/categories/<slug>` | Delete category (validate no FK references first) |
+| GET | `/api/export` | Download full database as JSON |
+| POST | `/api/import` | Restore from JSON export (replaces all data) |
+| POST | `/api/seed` | Load sample dataset (dev/demo only) |
 
 ---
 
-## 7. Component Architecture
+## 7. Flask Route Structure (Page Routes)
+
+Page routes render Jinja2 templates. Data is passed as template context, computed server-side. JavaScript fetches only incremental updates via the API.
 
 ```
-App
-├── AuthGate                    ← handles Google sign-in / loading state
-├── Layout
-│   ├── Sidebar (nav)
-│   └── Outlet
-│       ├── Dashboard           ← F1
-│       ├── Transactions
-│       │   ├── TransactionList
-│       │   ├── AddOneTime (modal/drawer)
-│       │   └── AddRecurring (modal/drawer)
-│       ├── Equity
-│       │   ├── RSUGrantList
-│       │   ├── RSUGrantForm    ← vest schedule builder
-│       │   ├── ESPPPlanList
-│       │   └── ESPPPlanForm
-│       ├── Accounts
-│       │   ├── AccountList
-│       │   ├── AccountForm
-│       │   ├── LoanList
-│       │   ├── LoanForm
-│       │   └── ReconcileModal
-│       ├── Timeline            ← F5 — projection table + chart
-│       └── Settings
+/                   → dashboard (redirect to /dashboard)
+/dashboard          → Dashboard template (F1)
+/transactions       → Transactions list template (F2)
+/equity             → Equity Comp template (F3)
+/accounts           → Accounts & Net Worth template (F4)
+/loans              → Loans template (within Accounts section)
+/timeline           → Timeline & Projections template (F5)
+/settings           → Settings template (F8)
 ```
+
+Drawers/modals are rendered as partial templates fetched via htmx (`hx-get`) or pre-embedded in the page and toggled with Alpine.js.
 
 ---
 
-## 8. State Management
+## 8. Python Module Structure
 
-Zustand store slices:
-
-```typescript
-// One slice per data file
-useTransactionStore     → transactions[], blanketExpenses[]
-useEquityStore          → rsuGrants[], esppPlans[]
-useAccountStore         → accounts[], loans[], snapshots[]
-useSettingsStore        → settings
-useSyncStore            → syncStatus, lastSyncedAt, pendingWrites, conflicts[]
-
-// Derived (computed, not persisted)
-useProjectionStore      → memoized output of project(), refreshed when inputs change
 ```
-
-The projection store subscribes to all data slices and re-runs the projection engine on any change, gated by a 200 ms debounce to avoid thrashing on bulk imports.
+personal-finance-suite/
+├── app.py                  ← Flask app factory, config
+├── config.py               ← Config classes (dev/prod/test)
+├── models.py               ← SQLAlchemy ORM models (all tables)
+├── api/
+│   ├── __init__.py
+│   ├── accounts.py         ← /api/accounts, /api/loans, /api/accounts/<id>/snapshots
+│   ├── transactions.py     ← /api/transactions/*, /api/blanket-expenses
+│   ├── equity.py           ← /api/equity/rsu, /api/equity/espp
+│   ├── projection.py       ← /api/projection
+│   └── settings.py         ← /api/settings, /api/categories, /api/export, /api/import
+├── pages/
+│   ├── __init__.py
+│   └── routes.py           ← Page routes (GET /dashboard etc.)
+├── engine/
+│   ├── __init__.py
+│   ├── projection.py       ← Pure projection function
+│   ├── vest_builder.py     ← RSU vest schedule builder
+│   ├── espp.py             ← ESPP calculation helpers
+│   ├── amortization.py     ← Loan amortization math
+│   └── recurrence.py       ← Recurring date expansion
+├── schemas.py              ← Pydantic models for API validation
+├── templates/
+│   ├── base.html           ← Layout with sidebar
+│   ├── dashboard.html
+│   ├── transactions.html
+│   ├── equity.html
+│   ├── accounts.html
+│   ├── loans.html
+│   ├── timeline.html
+│   ├── settings.html
+│   └── partials/           ← htmx partial templates (drawers, modals, rows)
+├── static/
+│   ├── wf.css              ← Main stylesheet (from wireframes)
+│   └── app.js              ← Minimal JS (Alpine.js init, chart setup)
+├── migrations/             ← Alembic migration files
+├── tests/
+│   ├── test_projection.py
+│   ├── test_vest_builder.py
+│   ├── test_espp.py
+│   ├── test_amortization.py
+│   └── test_api.py
+├── instance/
+│   └── finance.db          ← SQLite database (gitignored)
+├── requirements.txt
+└── README.md
+```
 
 ---
 
@@ -454,51 +513,54 @@ The projection store subscribes to all data slices and re-runs the projection en
 
 ### 9.1 RSU Net Value
 
-```
-grossValue    = shares × stockPricePerShare
-taxWithheld   = grossValue × (withholdingRate / 10000)
-netProceeds   = grossValue - taxWithheld
+```python
+gross_value   = (shares / 1000) * stock_price_per_share   # shares in milliShares
+tax_withheld  = gross_value * (withholding_rate / 10000)
+net_proceeds  = gross_value - tax_withheld
 ```
 
 The UI shows both gross and net. Net proceeds flow into projected cash flow for the linked account.
 
 ### 9.2 ESPP Purchase Price
 
-```
-priceAtPeriodStart  = user-entered estimate
-priceAtPurchase     = user-entered estimate
-basePrice           = hasLookback
-                        ? min(priceAtPeriodStart, priceAtPurchase)
-                        : priceAtPurchase
-purchasePrice       = basePrice × (1 − discountRate / 10000)
-contributionAmount  = contributionMode === 'percent'
-                        ? (baseSalary / 12) × periodsInOffering × (contributionValue / 10000)
-                        : contributionValue × periodsInOffering
-sharesPurchased     = contributionAmount / purchasePrice   (display only; stored as milliShares)
-immediateGain       = contributionAmount × (discountRate / 10000)
+```python
+base_price      = min(price_at_period_start, price_at_purchase) if has_lookback \
+                  else price_at_purchase
+purchase_price  = base_price * (1 - discount_rate / 10000)
+
+if contribution_mode == 'percent':
+    periods_in_offering    = len(purchase_periods)
+    contribution_per_period = (base_salary / 12) * (contribution_value / 10000)
+    contribution_total     = contribution_per_period * periods_in_offering
+else:
+    contribution_total = contribution_value * len(purchase_periods)
+
+shares_purchased  = contribution_total / purchase_price   # display only; stored as milliShares
+immediate_gain    = contribution_total * (discount_rate / 10000)
 ```
 
-### 9.3 Loan Payment Allocation (for payoff date computation)
+### 9.3 Loan Amortization
 
-Standard amortization:
-```
-monthlyRate = interestRate / 10000 / 12
-payment     = balance × monthlyRate / (1 − (1 + monthlyRate)^−remainingMonths)
+Standard amortization formula for monthly payment and payoff date computation:
+
+```python
+monthly_rate     = (interest_rate / 10000) / 12
+payment          = balance * monthly_rate / (1 - (1 + monthly_rate) ** -remaining_months)
 ```
 
-If `payoffDate` is provided by user, it is stored as-is. If not, it is computed from the amortization.
+If `payoff_date` is provided by the user, it is stored as-is. If not, it is computed from amortization starting from `start_date` and `original_balance`.
 
 ### 9.4 Recurring Transaction Occurrence Dates
 
-Given `startDate`, `endDate` (optional), `frequency`:
+Given `start_date`, `end_date` (optional), `frequency`:
 - `daily`: every calendar day
-- `weekly`: same weekday as startDate
-- `biweekly`: every 14 days from startDate
-- `monthly`: same day-of-month as startDate (clamped to last day of month)
-- `quarterly`: 3-month intervals
-- `annually`: same month+day each year
+- `weekly`: same weekday as `start_date`
+- `biweekly`: every 14 days from `start_date`
+- `monthly`: same day-of-month as `start_date` (clamped to last day of month for short months)
+- `quarterly`: 3-month intervals from `start_date`
+- `annually`: same month + day each year
 
-All occurrence dates within the projection window are returned as an array.
+All occurrence dates within the projection window are returned as a list of ISO date strings.
 
 ---
 
@@ -506,13 +568,13 @@ All occurrence dates within the projection window are returned as an array.
 
 | Requirement | Implementation |
 |-------------|---------------|
-| No data on app servers | Pure SPA; no API backend; no telemetry |
-| OAuth least-privilege | `drive.file` scope (only files this app created) |
-| Token storage | Access token in memory only; refresh token in memory |
-| No third-party analytics | No GA, Segment, Sentry, or equivalent in v1 |
-| XSS prevention | React's default escaping; no `dangerouslySetInnerHTML` |
-| Content Security Policy | Strict CSP header on static host: no inline scripts |
-| Dependency audit | `npm audit` run in CI; no known high/critical CVEs |
+| Data stays local | No network calls except localhost; no telemetry; no CDN for data |
+| No authentication (v1) | Single-user, localhost-only; bind to `127.0.0.1` in production mode |
+| SQL injection prevention | SQLAlchemy parameterized queries; no raw string interpolation in SQL |
+| XSS prevention | Jinja2 auto-escaping on all template variables; `Content-Security-Policy` header |
+| CSRF protection | `Flask-WTF` CSRF token on all state-changing form submissions |
+| Import validation | JSON import validated against Pydantic schemas before writing to DB; reject unknown keys |
+| Debug mode off | `FLASK_DEBUG=0` in production; debug mode must never be on when binding to non-loopback addresses |
 
 ---
 
@@ -520,12 +582,13 @@ All occurrence dates within the projection window are returned as an array.
 
 | Scenario | Target |
 |----------|--------|
-| Initial data load from Drive | < 3 s on typical broadband |
-| Projection re-compute (5-yr horizon, ~500 events) | < 100 ms |
-| Dashboard render (cold, data already in store) | < 200 ms |
-| Bundle size (gzipped, initial chunk) | < 250 KB |
+| App startup (`flask run` to first response) | < 3 s |
+| Page load (server-rendered, SQLite read) | < 300 ms |
+| Projection re-compute (5-yr horizon, ~500 events) | < 150 ms in Python |
+| Dashboard render including projection | < 500 ms total |
+| Database file size at 5 years of data | < 10 MB |
 
-The projection engine must run on the main thread without a Web Worker in v1; introduce a Worker only if benchmarks show > 100 ms on a 10-year horizon.
+The projection engine runs synchronously in the request cycle in v1. If benchmarks exceed 500 ms on a 10-year horizon, move computation to a background thread with a cached result.
 
 ---
 
@@ -533,12 +596,15 @@ The projection engine must run on the main thread without a Web Worker in v1; in
 
 | Error Type | Behavior |
 |------------|----------|
-| Drive API 401 | Clear tokens, redirect to sign-in |
-| Drive API 429 | Exponential backoff, max 3 retries, then toast error |
-| Drive API 5xx | Retry once after 2 s, then surface error banner |
-| File parse error | Show "data file corrupted" error, offer download of raw JSON |
-| Offline | Queue writes locally, sync on reconnect; read-only banner while offline |
-| Schema migration failure | Abort load, display migration error with raw JSON download |
+| API validation error | 422 with `{"error": "...", "fields": {...}}` |
+| Database constraint violation | 409 Conflict with descriptive message |
+| Object not found | 404 with `{"error": "not found"}` |
+| Projection math error (e.g., division by zero in amortization) | 400 with explanation; log to stderr |
+| JSON import parse failure | 400 with `{"error": "invalid JSON"}` before any DB write |
+| Import schema mismatch | 422 with list of failed fields; DB unchanged (transaction rollback) |
+| Unhandled exception | 500; stack trace logged to stderr; generic error page shown to user |
+
+All API errors are logged to stderr (structured log line with method, path, status, duration).
 
 ---
 
@@ -546,33 +612,70 @@ The projection engine must run on the main thread without a Web Worker in v1; in
 
 | Layer | Tool | Coverage target |
 |-------|------|-----------------|
-| Projection engine (pure functions) | Vitest | 90% branch coverage |
-| Vest schedule builder | Vitest | 100% (finite rule set) |
-| ESPP calculation | Vitest | 100% |
-| Amortization | Vitest | 90% |
-| Component smoke tests | React Testing Library | Key flows: add transaction, add RSU, reconcile |
-| Drive sync module | Vitest + msw (mock Drive API) | Happy path + conflict + offline |
+| Projection engine (`engine/projection.py`) | pytest | 90% branch coverage |
+| Vest schedule builder (`engine/vest_builder.py`) | pytest | 100% (finite rule set) |
+| ESPP calculations (`engine/espp.py`) | pytest | 100% |
+| Amortization (`engine/amortization.py`) | pytest | 90% |
+| Recurrence date expansion (`engine/recurrence.py`) | pytest | 90% |
+| REST API endpoints | pytest-flask | Happy path + validation errors for each resource |
+| Import/export round-trip | pytest | Full export → import → re-export; assert equality |
+
+Run with: `pytest --cov=. --cov-report=term-missing`
 
 ---
 
 ## 14. Deployment
 
-- Build: `vite build` → `dist/` (static assets only)
-- Host: GitHub Pages (initial), any static CDN acceptable
-- Environment variables (baked at build time via Vite):
-  - `VITE_GOOGLE_CLIENT_ID` — OAuth client ID from Google Cloud Console
-  - `VITE_APP_VERSION` — semver, used for schema migration checks
-- No server-side rendering required
-- CI: GitHub Actions — lint → typecheck → test → build on every PR
+### Local Development
+
+```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+flask db upgrade                 # apply migrations, creates finance.db
+flask run                        # http://localhost:5000
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FLASK_ENV` | `development` | `production` disables debug mode |
+| `FINANCE_DB_PATH` | `instance/finance.db` | Path to SQLite database file |
+| `SECRET_KEY` | (required) | Flask session secret; generate with `python -c "import secrets; print(secrets.token_hex())"` |
+
+### Database Backup
+
+```bash
+# Manual backup
+cp instance/finance.db instance/finance.backup.$(date +%Y%m%d).db
+
+# Or use the in-app Export button (Settings → Export JSON)
+```
+
+### `requirements.txt` (key packages)
+
+```
+flask>=3.0
+flask-sqlalchemy>=3.1
+flask-migrate>=4.0
+pydantic>=2.0
+python-dateutil>=2.9
+nanoid>=2.0
+pytest>=8.0
+pytest-flask>=1.3
+pytest-cov>=5.0
+```
 
 ---
 
 ## 15. Future Considerations (Not in v1 Scope)
 
-- Plaid integration for automated transaction import
-- Stock price feed (e.g., Yahoo Finance scrape or free tier API)
-- PWA / offline-first with IndexedDB cache
-- Multi-workspace (one Drive folder per family member)
-- CSV import for bulk historical data entry
-- Read-only share link via Google Drive sharing
+- Optional password protection for the local web server (single password, no user accounts)
+- Stock price feed via free API (Yahoo Finance or similar) to auto-populate ticker prices
+- PWA manifest for "install as app" on desktop
+- CSV bulk import for historical transaction data
+- Multi-workspace support (multiple SQLite databases, workspace switcher in UI)
+- Optional cloud sync via rsync/Dropbox/iCloud folder (user-managed, not app-managed)
+- Read-only advisor view (export static HTML snapshot of dashboard)
 - 401k contribution limit tracking and warnings

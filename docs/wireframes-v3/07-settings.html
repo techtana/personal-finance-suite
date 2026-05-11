@@ -13,15 +13,21 @@
 </div>
 <div class="app">
   <nav class="sidebar">
-    <a href="01-dashboard.html" class="nav-icon-btn"><span>▦</span><span class="nav-icon-label">Home</span></a>
-    <a href="06-timeline.html" class="nav-icon-btn"><span>📈</span><span class="nav-icon-label">Timeline</span></a>
-    <hr class="nav-sep">
-    <a href="02-transactions.html" class="nav-icon-btn"><span>↕</span><span class="nav-icon-label">Txns</span></a>
-    <a href="03-equity.html" class="nav-icon-btn"><span>◈</span><span class="nav-icon-label">Equity</span></a>
-    <hr class="nav-sep">
-    <a href="04-accounts.html" class="nav-icon-btn"><span>🏦</span><span class="nav-icon-label">Accounts</span></a>
-    <a href="05-loans.html" class="nav-icon-btn"><span>📋</span><span class="nav-icon-label">Loans</span></a>
-    <a href="07-settings.html" class="nav-icon-btn active bottom"><span>⚙</span><span class="nav-icon-label">Settings</span></a>
+    <div class="sb-logo"><div class="sb-logo-t">💰 Finance Suite</div><div class="sb-logo-s">Personal Financial Planner</div></div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Overview</div>
+      <a href="01-dashboard.html" class="nav-item"><span class="nav-icon">▦</span>Dashboard</a>
+      <a href="06-timeline.html" class="nav-item"><span class="nav-icon">📈</span>Timeline</a>
+    </div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Money In / Out</div>
+      <a href="02-transactions.html" class="nav-item"><span class="nav-icon">↕</span>Transactions</a>
+      <a href="03-equity.html" class="nav-item"><span class="nav-icon">◈</span>Equity Comp</a>
+    </div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Balance Sheet</div>
+      <a href="04-accounts.html" class="nav-item"><span class="nav-icon">🏦</span>Accounts</a>
+      <a href="05-loans.html" class="nav-item"><span class="nav-icon">📋</span>Loans</a>
+    </div>
+    <div class="sb-sec"><a href="07-settings.html" class="nav-item active"><span class="nav-icon">⚙</span>Settings</a></div>
+    <div class="sb-footer"><span class="sync-dot"></span>Local · finance.db</div>
   </nav>
 
   <div class="main">
@@ -41,7 +47,6 @@
         <button class="btn btn-ghost" style="border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:10px 18px;color:var(--muted)">Appearance</button>
         <button class="btn btn-ghost" style="border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:10px 18px;color:var(--muted)">Categories</button>
         <button class="btn btn-ghost" style="border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:10px 18px;color:var(--muted)">Alerts</button>
-        <button class="btn btn-ghost" style="border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:10px 18px;color:var(--muted)">Google Drive</button>
         <button class="btn btn-ghost" style="border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:10px 18px;color:var(--muted)">Data</button>
       </div>
 
@@ -248,24 +253,15 @@
         </div>
 
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:20px">
-          <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Google Drive Sync</div>
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Database</div>
           <div style="padding:20px">
-            <div style="display:flex;align-items:center;gap:14px;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:16px">
-              <span style="color:var(--green);font-size:18px">●</span>
-              <div>
-                <div style="font-weight:600;font-size:13px">Connected as phacharapol.tana@gmail.com</div>
-                <div style="font-size:11px;color:var(--muted);margin-top:2px">My Drive / Personal Finance Suite/ · Last synced May 9, 2026 at 9:41 AM</div>
+            <div style="display:flex;align-items:center;gap:14px;padding:14px;background:#f8f9fb;border:1px solid var(--border);border-radius:8px;margin-bottom:16px">
+              <span style="font-size:18px">🗄</span>
+              <div style="flex:1">
+                <div style="font-weight:600;font-size:13px">finance.db</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px;font-family:monospace">C:\Users\You\AppData\Local\personal-finance-suite\finance.db</div>
               </div>
-            </div>
-            <div class="fr2" style="margin-bottom:16px">
-              <div class="fg"><label class="fl">Auto-save Delay</label><select class="fs"><option>2 seconds (default)</option><option>5 seconds</option><option>Manual only</option></select></div>
-              <div class="fg"><label class="fl">Conflict Resolution</label><select class="fs"><option>Prompt me (default)</option><option>Always use local</option><option>Always use Drive</option></select></div>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button class="btn btn-outline btn-sm">⟳ Sync Now</button>
-              <button class="btn btn-outline btn-sm">⬇ Export JSON Backup</button>
-              <button class="btn btn-outline btn-sm">📂 Open Drive Folder</button>
-              <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--red)">Sign Out</button>
+              <button class="btn btn-outline btn-sm">📋 Copy Path</button>
             </div>
           </div>
         </div>
@@ -295,15 +291,15 @@
   </div>
 </div>
 
-<!-- First-run / Sign-in screen -->
+<!-- First-run screen -->
 <div class="drawer-section">
-  <div class="drawer-label">Screen — First Run / Google Sign-In</div>
+  <div class="drawer-label">Screen — First Run</div>
   <div class="drawer-box" style="text-align:center;padding:48px 36px;max-width:440px">
     <div style="font-size:40px;margin-bottom:14px">💰</div>
     <div style="font-size:22px;font-weight:800;margin-bottom:8px">Personal Finance Suite</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.7">Your financial planner, stored entirely in<br>your own Google Drive. No servers. No subscriptions.</div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:14px">G &nbsp; Sign in with Google</button>
-    <div style="font-size:12px;color:var(--muted);margin-top:16px;line-height:1.6">Requests only <code style="background:#f0f2f5;padding:2px 6px;border-radius:4px;font-size:11px">drive.file</code> scope — the app only sees files it creates.</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.7">Your financial data stays on your machine.<br>No accounts, no cloud, no subscriptions.</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:14px">Get Started</button>
+    <div style="font-size:12px;color:var(--muted);margin-top:16px;line-height:1.6">Data stored in <code style="background:#f0f2f5;padding:2px 6px;border-radius:4px;font-size:11px">finance.db</code> on your local disk.</div>
   </div>
 </div>
 </body></html>

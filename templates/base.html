@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Personal Finance Suite{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-slate-900 text-white shadow-lg">
+            <div class="p-6">
+                <h1 class="text-2xl font-bold">Finance</h1>
+                <p class="text-sm text-gray-400">Personal Suite</p>
+            </div>
+
+            <nav class="mt-10">
+                <a href="/dashboard" class="{% if request.path == '/dashboard' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
+                    📊 Dashboard
+                </a>
+                <a href="/timeline" class="{% if request.path in ['/timeline', '/transactions'] %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
+                    📅 Cash Flow
+                </a>
+                <a href="/equity" class="{% if request.path == '/equity' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
+                    📈 Assets
+                </a>
+                <a href="/accounts" class="{% if request.path == '/accounts' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
+                    💰 Cash
+                </a>
+                <a href="/loans" class="{% if request.path == '/loans' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
+                    ⚠️ Liabilities
+                </a>
+                <a href="/settings" class="{% if request.path == '/settings' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
+                    ⚙️ Settings
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1">
+            <!-- Header -->
+            <header class="bg-white border-b border-gray-200 shadow-sm">
+                <div class="px-8 py-4">
+                    <h2 class="text-xl font-semibold text-gray-900">{% block page_title %}{% endblock %}</h2>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="p-8">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

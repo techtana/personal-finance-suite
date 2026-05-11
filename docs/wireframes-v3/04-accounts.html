@@ -27,15 +27,21 @@
 </div>
 <div class="app">
   <nav class="sidebar">
-    <a href="01-dashboard.html" class="nav-icon-btn"><span>▦</span><span class="nav-icon-label">Home</span></a>
-    <a href="06-timeline.html" class="nav-icon-btn"><span>📈</span><span class="nav-icon-label">Timeline</span></a>
-    <hr class="nav-sep">
-    <a href="02-transactions.html" class="nav-icon-btn"><span>↕</span><span class="nav-icon-label">Txns</span></a>
-    <a href="03-equity.html" class="nav-icon-btn"><span>◈</span><span class="nav-icon-label">Equity</span></a>
-    <hr class="nav-sep">
-    <a href="04-accounts.html" class="nav-icon-btn active"><span>🏦</span><span class="nav-icon-label">Accounts</span></a>
-    <a href="05-loans.html" class="nav-icon-btn"><span>📋</span><span class="nav-icon-label">Loans</span></a>
-    <a href="07-settings.html" class="nav-icon-btn bottom"><span>⚙</span><span class="nav-icon-label">Settings</span></a>
+    <div class="sb-logo"><div class="sb-logo-t">💰 Finance Suite</div><div class="sb-logo-s">Personal Financial Planner</div></div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Overview</div>
+      <a href="01-dashboard.html" class="nav-item"><span class="nav-icon">▦</span>Dashboard</a>
+      <a href="06-timeline.html" class="nav-item"><span class="nav-icon">📈</span>Timeline</a>
+    </div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Money In / Out</div>
+      <a href="02-transactions.html" class="nav-item"><span class="nav-icon">↕</span>Transactions</a>
+      <a href="03-equity.html" class="nav-item"><span class="nav-icon">◈</span>Equity Comp</a>
+    </div>
+    <div class="sb-sec"><div class="sb-sec-lbl">Balance Sheet</div>
+      <a href="04-accounts.html" class="nav-item active"><span class="nav-icon">🏦</span>Accounts</a>
+      <a href="05-loans.html" class="nav-item"><span class="nav-icon">📋</span>Loans</a>
+    </div>
+    <div class="sb-sec"><a href="07-settings.html" class="nav-item"><span class="nav-icon">⚙</span>Settings</a></div>
+    <div class="sb-footer"><span class="sync-dot"></span>Local · finance.db</div>
   </nav>
 
   <div class="main">
@@ -49,51 +55,44 @@
         <button class="btn btn-primary">+ Add Account</button>
       </div>
 
-      <!-- Hero + composition chart -->
-      <div class="two-panel" style="margin-bottom:28px;grid-template-columns:1fr 1fr">
-
-        <div>
-          <div class="hero" style="padding:0 0 20px">
-            <div class="hero-eyebrow">Net Worth · May 2026</div>
-            <div class="hero-value">$482,340</div>
-            <div class="hero-delta">
-              <span class="badge badge-ok">▲ +$3,200 this month</span>
-            </div>
-          </div>
-          <!-- Stacked asset/liability bar -->
-          <div style="margin-bottom:8px">
-            <div class="stack-bar">
-              <div class="stack-seg" style="flex:12400;background:#dbeafe" title="Chase Checking $12.4k"></div>
-              <div class="stack-seg" style="flex:21800;background:#bfdbfe" title="Chase Savings $21.8k"></div>
-              <div class="stack-seg" style="flex:142800;background:#3b82f6" title="Fidelity Brokerage $142.8k"></div>
-              <div class="stack-seg" style="flex:185400;background:#1d4ed8" title="Fidelity 401k $185.4k"></div>
-              <div class="stack-seg" style="flex:20400;background:#6d28d9" title="Roth IRA $20.4k"></div>
-              <div class="stack-seg" style="flex:448400;background:#f97316" title="Primary Home $448.4k"></div>
-              <div class="stack-seg" style="flex:348860;background:#fecaca" title="Mortgage −$348.9k"></div>
-            </div>
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--muted)">
-            <span><span style="display:inline-block;width:10px;height:10px;background:#bfdbfe;border-radius:2px;vertical-align:middle;margin-right:4px"></span>Banking $34.2k</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#1d4ed8;border-radius:2px;vertical-align:middle;margin-right:4px"></span>Investments $348.6k</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#f97316;border-radius:2px;vertical-align:middle;margin-right:4px"></span>Property $448.4k</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#fecaca;border-radius:2px;vertical-align:middle;margin-right:4px"></span>Liabilities −$348.9k</span>
-          </div>
+      <!-- KPI summary cards -->
+      <div class="g3 mb16">
+        <div class="card" style="border-top:3px solid var(--green)">
+          <div class="card-lbl">Total Assets</div>
+          <div class="card-val pos">$831,200</div>
+          <div class="card-delta muted">6 accounts</div>
         </div>
+        <div class="card" style="border-top:3px solid var(--red)">
+          <div class="card-lbl">Total Liabilities</div>
+          <div class="card-val neg">−$348,860</div>
+          <div class="card-delta muted"><a href="05-loans.html" style="color:var(--muted)">3 loans →</a></div>
+        </div>
+        <div class="card" style="border-top:3px solid var(--accent)">
+          <div class="card-lbl">Net Worth</div>
+          <div class="card-val">$482,340</div>
+          <div class="card-delta pos">▲ $3,200 vs. predicted $479,140</div>
+        </div>
+      </div>
 
-        <!-- Net worth trend mini chart -->
-        <div class="panel">
-          <div class="panel-hdr">
-            <span class="panel-title" style="font-size:13px">Balance History · 12 mo</span>
-            <span style="font-size:11px;color:var(--muted)">All accounts combined</span>
-          </div>
-          <div class="ph-box" style="height:130px;font-size:12px">
-            <span class="ph-icon">📈</span>
-            <div>Area chart · net worth Jun '25 → May '26<br>
-            <span class="xs muted">Green fill · monthly data points</span></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:8px 16px;font-size:10px;color:var(--muted);border-top:1px solid var(--border)">
-            <span>Jun '25</span><span>Sep</span><span>Dec</span><span>Mar '26</span><span style="color:var(--accent);font-weight:700">May '26</span>
-          </div>
+      <!-- Net worth trend chart -->
+      <div class="panel mb20">
+        <div class="panel-hdr">
+          <span class="panel-title" style="font-size:13px">Net Worth Trend · 12 mo</span>
+          <span style="font-size:11px;color:var(--muted)">All accounts combined</span>
+        </div>
+        <svg viewBox="0 0 780 90" style="width:100%;height:90px;display:block" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="nwGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3b5fc0" stop-opacity=".2"/>
+              <stop offset="100%" stop-color="#3b5fc0" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <polygon points="0,70 65,65 130,62 195,60 260,55 325,52 390,50 455,46 520,43 585,42 650,38 715,35 780,32 780,90 0,90" fill="url(#nwGrad)"/>
+          <polyline points="0,70 65,65 130,62 195,60 260,55 325,52 390,50 455,46 520,43 585,42 650,38 715,35 780,32" fill="none" stroke="#3b5fc0" stroke-width="2"/>
+          <circle cx="780" cy="32" r="4" fill="#3b5fc0"/>
+        </svg>
+        <div style="display:flex;justify-content:space-between;padding:6px 20px;font-size:10px;color:var(--muted);border-top:1px solid var(--border)">
+          <span>Jun '25</span><span>Aug</span><span>Oct</span><span>Dec</span><span>Feb '26</span><span>Apr</span><span style="color:var(--accent);font-weight:700">May '26</span>
         </div>
       </div>
 
@@ -112,7 +111,7 @@
       <div class="acct-card-grid acct-card-grid-2">
 
         <!-- Chase Checking -->
-        <div class="acct-card" style="border-top:3px solid #3b82f6">
+        <div class="acct-card" style="border-top:3px solid var(--green)">
           <div class="acct-card-hdr">
             <div>
               <div class="acct-card-name">Chase Checking</div>
@@ -137,7 +136,7 @@
         </div>
 
         <!-- Chase Savings -->
-        <div class="acct-card" style="border-top:3px solid #3b82f6">
+        <div class="acct-card" style="border-top:3px solid var(--green)">
           <div class="acct-card-hdr">
             <div>
               <div class="acct-card-name">Chase Savings (HYSA)</div>
@@ -171,7 +170,7 @@
       <div class="acct-card-grid">
 
         <!-- Fidelity Brokerage — diverged -->
-        <div class="acct-card" style="border-top:3px solid var(--red)">
+        <div class="acct-card" style="border-top:3px solid var(--blue)">
           <div class="acct-card-hdr">
             <div>
               <div class="acct-card-name">Fidelity Brokerage</div>
@@ -197,7 +196,7 @@
         </div>
 
         <!-- Fidelity 401k -->
-        <div class="acct-card" style="border-top:3px solid var(--green)">
+        <div class="acct-card" style="border-top:3px solid var(--blue)">
           <div class="acct-card-hdr">
             <div>
               <div class="acct-card-name">Fidelity 401k</div>
@@ -222,7 +221,7 @@
         </div>
 
         <!-- Fidelity Roth IRA -->
-        <div class="acct-card" style="border-top:3px solid var(--purple)">
+        <div class="acct-card" style="border-top:3px solid var(--blue)">
           <div class="acct-card-hdr">
             <div>
               <div class="acct-card-name">Fidelity Roth IRA</div>
@@ -255,7 +254,7 @@
       </div>
       <div class="acct-card-grid" style="grid-template-columns:repeat(2,1fr)">
 
-        <div class="acct-card" style="border-top:3px solid #f97316">
+        <div class="acct-card" style="border-top:3px solid var(--green)">
           <div class="acct-card-hdr">
             <div>
               <div class="acct-card-name">Primary Home</div>
@@ -284,7 +283,7 @@
       </div>
       <div class="acct-card-grid" style="grid-template-columns:repeat(2,1fr)">
 
-        <div class="acct-card" style="border-top:3px solid var(--red)">
+        <div class="acct-card" style="border-top:3px solid var(--orange)">
           <div class="acct-card-hdr">
             <div>
               <div class="acct-card-name">Chase Mortgage</div>
@@ -437,8 +436,61 @@
           <option>401k / Retirement</option><option>IRA</option><option>Property</option><option>Other</option>
         </select>
       </div>
-      <div class="fg"><label class="fl">Current Balance</label><input class="fi" placeholder="$0.00"></div>
+      <div class="fg"><label class="fl">Institution (optional)</label><input class="fi" placeholder="e.g., Chase, Fidelity"></div>
     </div>
+
+    <!-- Card color -->
+    <div class="fg">
+      <label class="fl">Card Color</label>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <label style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;font-size:10px;color:var(--muted)">
+          <input type="radio" name="acct-color" checked style="display:none">
+          <div style="width:28px;height:28px;border-radius:6px;background:var(--green);box-shadow:0 0 0 3px #fff,0 0 0 5px var(--green)"></div>
+          Green
+        </label>
+        <label style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;font-size:10px;color:var(--muted)">
+          <input type="radio" name="acct-color" style="display:none">
+          <div style="width:28px;height:28px;border-radius:6px;background:var(--blue)"></div>
+          Blue
+        </label>
+        <label style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;font-size:10px;color:var(--muted)">
+          <input type="radio" name="acct-color" style="display:none">
+          <div style="width:28px;height:28px;border-radius:6px;background:var(--accent)"></div>
+          Indigo
+        </label>
+        <label style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;font-size:10px;color:var(--muted)">
+          <input type="radio" name="acct-color" style="display:none">
+          <div style="width:28px;height:28px;border-radius:6px;background:var(--purple)"></div>
+          Purple
+        </label>
+        <label style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;font-size:10px;color:var(--muted)">
+          <input type="radio" name="acct-color" style="display:none">
+          <div style="width:28px;height:28px;border-radius:6px;background:var(--orange)"></div>
+          Orange
+        </label>
+        <label style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;font-size:10px;color:var(--muted)">
+          <input type="radio" name="acct-color" style="display:none">
+          <div style="width:28px;height:28px;border-radius:6px;background:var(--red)"></div>
+          Red
+        </label>
+        <label style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;font-size:10px;color:var(--muted)">
+          <input type="radio" name="acct-color" style="display:none">
+          <div style="width:28px;height:28px;border-radius:6px;background:#6b7280"></div>
+          Gray
+        </label>
+      </div>
+      <div class="fh">Sets the card's accent stripe. Defaults to the category color.</div>
+    </div>
+
+    <div class="fr2">
+      <div class="fg"><label class="fl">Current Balance</label><input class="fi" placeholder="$0.00"></div>
+      <div class="fg">
+        <label class="fl">Target Balance <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(optional)</span></label>
+        <input class="fi" placeholder="e.g., $25,000">
+        <div class="fh">Goal to track on the card. Shows a progress bar toward this amount.</div>
+      </div>
+    </div>
+
     <div class="fr2">
       <div class="fg"><label class="fl">Divergence Alert Threshold</label><input class="fi" placeholder="5% (from Settings)"><div class="fh">Leave blank to use global default.</div></div>
       <div class="fg"><label class="fl">Linked Loan (optional)</label><select class="fs"><option>None</option><option>Chase Mortgage</option></select><div class="fh">Links liability to asset for net worth.</div></div>
@@ -446,6 +498,40 @@
     <div class="drawer-ftr">
       <button class="btn btn-outline">Cancel</button>
       <button class="btn btn-primary">Add Account</button>
+    </div>
+  </div>
+
+  <div class="drawer-label">Account Card — with Target Goal (example: Chase Savings)</div>
+  <div style="max-width:320px;margin:0 auto 40px">
+    <div class="acct-card" style="border-top:3px solid var(--green)">
+      <div class="acct-card-hdr">
+        <div>
+          <div class="acct-card-name">Chase Savings (HYSA)</div>
+          <div class="acct-card-type">Savings · Chase Bank</div>
+        </div>
+        <span class="badge badge-neutral">On track</span>
+      </div>
+      <svg viewBox="0 0 160 36" style="width:100%;height:36px;margin-bottom:4px" preserveAspectRatio="none">
+        <polyline points="0,30 27,28 53,26 80,24 107,22 133,20 160,18" fill="none" stroke="#3b82f6" stroke-width="1.8"/>
+        <circle cx="160" cy="18" r="3" fill="#3b82f6"/>
+      </svg>
+      <div class="acct-balance">$21,800</div>
+      <div class="acct-updated">Updated May 7 · Predicted $21,800</div>
+      <!-- Target goal section -->
+      <div style="margin-top:8px;padding-top:10px;border-top:1px solid var(--border)">
+        <div class="acct-vs">
+          <span class="muted">Target: $25,000</span>
+          <span class="fw7" style="color:var(--accent)">87%</span>
+        </div>
+        <div class="prog-t" style="margin-bottom:4px">
+          <div class="prog-f" style="width:87%;background:var(--accent)"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted)">$3,200 to go</div>
+      </div>
+      <div class="acct-card-ftr">
+        <button class="btn btn-outline btn-sm" style="flex:1">Reconcile</button>
+        <button class="btn btn-ghost btn-sm">···</button>
+      </div>
     </div>
   </div>
 
