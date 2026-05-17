@@ -12,12 +12,7 @@
         <div class="space-y-6">
 
             <!-- KPI Row -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Equity Comp</p>
-                    <p class="text-xl font-bold text-purple-700" x-text="rsus.length + ' RSU · ' + espps.length + ' ESPP'"></p>
-                    <p class="text-xs text-gray-400 mt-0.5">grants tracked</p>
-                </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                     <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Investments</p>
                     <p class="text-xl font-bold text-blue-700" x-text="fmt(kpi.investments)"></p>
@@ -31,7 +26,7 @@
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 border-l-4 border-l-amber-500">
                     <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Tracked Value</p>
                     <p class="text-xl font-bold text-amber-600" x-text="fmt(kpi.total)"></p>
-                    <p class="text-xs text-gray-400 mt-0.5">excl. cash &amp; equity comp</p>
+                    <p class="text-xs text-gray-400 mt-0.5">excl. cash &amp; liabilities</p>
                 </div>
             </div>
 
@@ -49,85 +44,6 @@
                 </nav>
             </div>
 
-            <!-- ── Equity Comp Tab ─────────────────────────────────────── -->
-            <div x-show="activeTab === 'equity_comp'" class="space-y-6">
-
-                <div class="flex justify-between items-center">
-                    <p class="text-xs text-gray-400">RSU grants and ESPP plans from your employer</p>
-                    <div class="flex gap-2">
-                        <button @click="openAddRsu()" class="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-xs font-medium">+ RSU Grant</button>
-                        <button @click="openAddEspp()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium">+ ESPP Plan</button>
-                    </div>
-                </div>
-
-                <!-- RSU Grants -->
-                <div>
-                    <h4 class="text-sm font-semibold text-gray-700 mb-3">RSU Grants</h4>
-                    <template x-if="rsus.length === 0">
-                        <div class="bg-white rounded-xl border border-dashed border-gray-200 p-8 text-center text-gray-400 text-sm">
-                            No RSU grants. <button @click="openAddRsu()" class="text-purple-600 hover:underline">Add one</button>
-                        </div>
-                    </template>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <template x-for="g in rsus" :key="g.id">
-                            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 border-l-4 border-l-purple-500">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div>
-                                        <h5 class="font-semibold text-gray-900 text-sm" x-text="g.label"></h5>
-                                        <p class="text-xs text-gray-400" x-text="'Granted ' + g.grant_date"></p>
-                                    </div>
-                                    <span class="text-xs font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded" x-text="g.ticker"></span>
-                                </div>
-                                <div class="space-y-0.5 text-xs mb-3">
-                                    <div class="flex justify-between"><span class="text-gray-500">Total Shares</span><span x-text="g.total_shares.toLocaleString()"></span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">Withholding</span><span x-text="(g.withholding_rate / 100).toFixed(1) + '%'"></span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">Vest Events</span><span x-text="g.vest_schedule.length"></span></div>
-                                </div>
-                                <div class="mb-3" x-show="g.vest_schedule.length > 0">
-                                    <p class="text-xs text-gray-400 mb-1">Next vests:</p>
-                                    <ul class="text-xs text-gray-600 space-y-0.5">
-                                        <template x-for="(v, i) in g.vest_schedule.slice(0, 3)" :key="i">
-                                            <li x-text="v.date + ' · ' + v.shares.toLocaleString() + ' sh'"></li>
-                                        </template>
-                                    </ul>
-                                </div>
-                                <div class="flex space-x-2">
-                                    <button @click="openEditRsu(g)" class="flex-1 px-2 py-1.5 bg-blue-50 text-blue-600 rounded text-xs font-medium hover:bg-blue-100">Edit</button>
-                                    <button @click="deleteRsu(g.id)" class="px-2 py-1.5 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100">Delete</button>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- ESPP Plans -->
-                <div>
-                    <h4 class="text-sm font-semibold text-gray-700 mb-3">ESPP Plans</h4>
-                    <template x-if="espps.length === 0">
-                        <div class="bg-white rounded-xl border border-dashed border-gray-200 p-8 text-center text-gray-400 text-sm">
-                            No ESPP plans. <button @click="openAddEspp()" class="text-blue-600 hover:underline">Add one</button>
-                        </div>
-                    </template>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <template x-for="p in espps" :key="p.id">
-                            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 border-l-4 border-l-blue-500">
-                                <h5 class="font-semibold text-gray-900 text-sm mb-0.5" x-text="p.label"></h5>
-                                <p class="text-xs text-gray-400 mb-3" x-text="p.offering_start_date + ' → ' + p.offering_end_date"></p>
-                                <div class="space-y-0.5 text-xs mb-3">
-                                    <div class="flex justify-between"><span class="text-gray-500">Contribution</span><span x-text="p.contribution_mode === 'percent' ? (p.contribution_value / 100).toFixed(1) + '%' : fmt(p.contribution_value)"></span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">Discount</span><span x-text="(p.discount_rate / 100).toFixed(0) + '%'"></span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">Lookback</span><span x-text="p.has_lookback ? 'Yes' : 'No'"></span></div>
-                                </div>
-                                <div class="flex space-x-2">
-                                    <button @click="openEditEspp(p)" class="flex-1 px-2 py-1.5 bg-blue-50 text-blue-600 rounded text-xs font-medium hover:bg-blue-100">Edit</button>
-                                    <button @click="deleteEspp(p.id)" class="px-2 py-1.5 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100">Delete</button>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </div>
-
             <!-- ── Investments Tab ────────────────────────────────────────── -->
             <div x-show="activeTab === 'investments'" class="space-y-4">
                 <div class="flex justify-between items-center">
@@ -142,48 +58,47 @@
                 </template>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <template x-for="a in investmentAssets" :key="a.id">
-                        <div x-data="{ showEvents: false }">
-                            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div>
-                                        <h5 class="font-semibold text-gray-900 text-sm" x-text="a.name"></h5>
-                                        <div class="flex items-center gap-1.5 mt-0.5">
-                                            <span class="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded capitalize" x-text="a.category"></span>
-                                            <span x-show="a.ticker" class="text-xs text-gray-400 font-mono" x-text="a.ticker"></span>
-                                        </div>
-                                    </div>
-                                    <span x-show="a.cost_basis"
-                                          class="text-xs font-medium px-1.5 py-0.5 rounded"
-                                          :class="a.current_value >= a.cost_basis ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'"
-                                          x-text="a.cost_basis ? ((a.current_value - a.cost_basis) / a.cost_basis * 100).toFixed(1) + '%' : ''"></span>
-                                </div>
-                                <p class="text-2xl font-bold text-gray-900 mb-0.5" x-text="fmt(a.current_value)"></p>
-                                <div class="space-y-0.5 text-xs mb-3">
-                                    <div class="flex justify-between" x-show="a.quantity">
-                                        <span class="text-gray-400">Quantity</span>
-                                        <span x-text="(a.quantity || 0).toLocaleString() + (a.ticker ? ' shares' : ' units')"></span>
-                                    </div>
-                                    <div class="flex justify-between" x-show="a.cost_basis">
-                                        <span class="text-gray-400">Cost Basis</span>
-                                        <span x-text="fmt(a.cost_basis)"></span>
-                                    </div>
-                                    <div class="flex justify-between" x-show="a.cost_basis">
-                                        <span class="text-gray-400">Gain / Loss</span>
-                                        <span :class="a.current_value >= a.cost_basis ? 'text-green-600' : 'text-red-500'"
-                                              x-text="(a.current_value >= a.cost_basis ? '+' : '') + fmt(a.current_value - (a.cost_basis || 0))"></span>
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <h5 class="font-semibold text-gray-900 text-sm" x-text="a.name"></h5>
+                                    <div class="flex items-center gap-1.5 mt-0.5">
+                                        <span class="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded capitalize" x-text="a.category"></span>
+                                        <span x-show="a.ticker" class="text-xs text-gray-400 font-mono" x-text="a.ticker"></span>
                                     </div>
                                 </div>
-                                <template x-if="(a.scheduled_events || []).length > 0">
-                                    <div class="mb-2 p-2 bg-amber-50 rounded-lg">
-                                        <p class="text-xs font-medium text-amber-700" x-text="(a.scheduled_events || []).length + ' scheduled event(s)'"></p>
-                                        <p class="text-xs text-amber-600" x-text="'Next: ' + ((a.scheduled_events || []).sort((x,y) => x.date.localeCompare(y.date))[0]?.date || '')"></p>
-                                    </div>
-                                </template>
-                                <div class="flex space-x-2">
-                                    <button @click="openEditAsset(a)" class="flex-1 px-2 py-1.5 bg-blue-50 text-blue-600 rounded text-xs font-medium hover:bg-blue-100">Edit</button>
-                                    <button @click="openAssetEvents(a); showEvents = !showEvents" class="px-2 py-1.5 bg-amber-50 text-amber-600 rounded text-xs font-medium hover:bg-amber-100">Events</button>
-                                    <button @click="deleteAsset(a.id)" class="px-2 py-1.5 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100">Del</button>
+                                <span x-show="a.cost_basis"
+                                      class="text-xs font-medium px-1.5 py-0.5 rounded"
+                                      :class="a.current_value >= a.cost_basis ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'"
+                                      x-text="a.cost_basis ? ((a.current_value - a.cost_basis) / a.cost_basis * 100).toFixed(1) + '%' : ''"></span>
+                            </div>
+                            <p class="text-2xl font-bold text-gray-900 mb-0.5" x-text="fmt(a.current_value)"></p>
+                            <div class="space-y-0.5 text-xs mb-3">
+                                <div class="flex justify-between" x-show="a.quantity">
+                                    <span class="text-gray-400">Quantity</span>
+                                    <span x-text="(a.quantity || 0).toLocaleString() + (a.ticker ? ' shares' : ' units')"></span>
                                 </div>
+                                <div class="flex justify-between" x-show="a.cost_basis">
+                                    <span class="text-gray-400">Cost Basis</span>
+                                    <span x-text="fmt(a.cost_basis)"></span>
+                                </div>
+                                <div class="flex justify-between" x-show="a.cost_basis">
+                                    <span class="text-gray-400">Gain / Loss</span>
+                                    <span :class="a.current_value >= a.cost_basis ? 'text-green-600' : 'text-red-500'"
+                                          x-text="(a.current_value >= a.cost_basis ? '+' : '') + fmt(a.current_value - (a.cost_basis || 0))"></span>
+                                </div>
+                            </div>
+                            <template x-if="(a.scheduled_events || []).length > 0">
+                                <div class="mb-2 p-2 bg-amber-50 rounded-lg">
+                                    <p class="text-xs font-medium text-amber-700" x-text="(a.scheduled_events || []).length + ' scheduled event(s)'"></p>
+                                    <p class="text-xs text-amber-600" x-text="'Next: ' + ((a.scheduled_events || []).sort((x,y) => x.date.localeCompare(y.date))[0]?.date || '')"></p>
+                                </div>
+                            </template>
+                            <div class="flex space-x-2">
+                                <button @click="openEditAsset(a)" class="flex-1 px-2 py-1.5 bg-blue-50 text-blue-600 rounded text-xs font-medium hover:bg-blue-100">Edit</button>
+                                <button @click="openAssetHistory(a)" class="px-2 py-1.5 bg-green-50 text-green-700 rounded text-xs font-medium hover:bg-green-100">History</button>
+                                <button @click="openAssetEvents(a)" class="px-2 py-1.5 bg-amber-50 text-amber-600 rounded text-xs font-medium hover:bg-amber-100">Events</button>
+                                <button @click="deleteAsset(a.id)" class="px-2 py-1.5 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100">Del</button>
                             </div>
                         </div>
                     </template>
@@ -234,6 +149,7 @@
                             </template>
                             <div class="flex space-x-2">
                                 <button @click="openEditAsset(a)" class="flex-1 px-2 py-1.5 bg-blue-50 text-blue-600 rounded text-xs font-medium hover:bg-blue-100">Edit</button>
+                                <button @click="openAssetHistory(a)" class="px-2 py-1.5 bg-green-50 text-green-700 rounded text-xs font-medium hover:bg-green-100">History</button>
                                 <button @click="openAssetEvents(a)" class="px-2 py-1.5 bg-amber-50 text-amber-600 rounded text-xs font-medium hover:bg-amber-100">Events</button>
                                 <button @click="deleteAsset(a.id)" class="px-2 py-1.5 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100">Del</button>
                             </div>
@@ -274,6 +190,7 @@
                             </div>
                             <div class="flex space-x-2">
                                 <button @click="openEditAsset(a)" class="flex-1 px-2 py-1.5 bg-blue-50 text-blue-600 rounded text-xs font-medium hover:bg-blue-100">Edit</button>
+                                <button @click="openAssetHistory(a)" class="px-2 py-1.5 bg-green-50 text-green-700 rounded text-xs font-medium hover:bg-green-100">History</button>
                                 <button @click="openAssetEvents(a)" class="px-2 py-1.5 bg-amber-50 text-amber-600 rounded text-xs font-medium hover:bg-amber-100">Events</button>
                                 <button @click="deleteAsset(a.id)" class="px-2 py-1.5 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100">Del</button>
                             </div>
@@ -284,69 +201,6 @@
 
         </div>
     </template>
-
-    <!-- ── RSU Modal ─────────────────────────────────────────────────────── -->
-    <div x-show="showRsuModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" @click.self="showRsuModal = false">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-screen overflow-y-auto">
-            <h3 class="text-base font-semibold text-gray-900 mb-4" x-text="editingRsuId ? 'Edit RSU Grant' : 'Add RSU Grant'"></h3>
-            <div class="space-y-3">
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Label</label><input x-model="rsuForm.label" type="text" placeholder="e.g. ACME 2024 Grant" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Ticker</label><input x-model="rsuForm.ticker" type="text" placeholder="ACME" class="w-full px-3 py-2 border rounded-lg text-sm uppercase"></div>
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Grant Date</label><input x-model="rsuForm.grant_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Total Shares</label><input x-model="rsuForm.total_shares" type="number" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Price at Grant ($)</label><input x-model="rsuForm.price_at_grant_dollars" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Cliff Months</label><input x-model="rsuForm.cliff_months" type="number" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Cliff %</label><input x-model="rsuForm.cliff_pct" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Subsequent Frequency</label><select x-model="rsuForm.subsequent_frequency" class="w-full px-3 py-2 border rounded-lg text-sm bg-white"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option></select></div>
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Subsequent %</label><input x-model="rsuForm.subsequent_pct" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Withholding %</label><input x-model="rsuForm.withholding_pct" type="number" step="0.1" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Account</label><select x-model="rsuForm.account_id" class="w-full px-3 py-2 border rounded-lg text-sm bg-white"><template x-for="a in accounts" :key="a.id"><option :value="a.id" x-text="a.name"></option></template></select></div>
-                </div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Note</label><input x-model="rsuForm.note" type="text" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-            </div>
-            <div class="mt-5 flex justify-end space-x-3">
-                <button @click="showRsuModal = false" class="px-4 py-2 text-gray-500 text-sm">Cancel</button>
-                <button @click="saveRsu()" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">Save</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ── ESPP Modal ────────────────────────────────────────────────────── -->
-    <div x-show="showEsppModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" @click.self="showEsppModal = false">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-screen overflow-y-auto">
-            <h3 class="text-base font-semibold text-gray-900 mb-4" x-text="editingEsppId ? 'Edit ESPP Plan' : 'Add ESPP Plan'"></h3>
-            <div class="space-y-3">
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Label</label><input x-model="esppForm.label" type="text" placeholder="e.g. ACME ESPP 2026-H1" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Offering Start</label><input x-model="esppForm.offering_start_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Offering End</label><input x-model="esppForm.offering_end_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Contribution Mode</label><select x-model="esppForm.contribution_mode" class="w-full px-3 py-2 border rounded-lg text-sm bg-white"><option value="percent">Percent</option><option value="fixed">Fixed $</option></select></div>
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1" x-text="esppForm.contribution_mode === 'percent' ? 'Contribution %' : 'Amount ($/mo)'"></label><input x-model="esppForm.contribution_value_raw" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Discount %</label><input x-model="esppForm.discount_pct" type="number" step="0.1" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                    <div class="flex items-center mt-5"><input x-model="esppForm.has_lookback" type="checkbox" id="lb2" class="mr-2"><label for="lb2" class="text-xs text-gray-700">Has Lookback</label></div>
-                </div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Account</label><select x-model="esppForm.account_id" class="w-full px-3 py-2 border rounded-lg text-sm bg-white"><template x-for="a in accounts" :key="a.id"><option :value="a.id" x-text="a.name"></option></template></select></div>
-                <div><label class="block text-xs font-medium text-gray-700 mb-1">Note</label><input x-model="esppForm.note" type="text" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-            </div>
-            <div class="mt-5 flex justify-end space-x-3">
-                <button @click="showEsppModal = false" class="px-4 py-2 text-gray-500 text-sm">Cancel</button>
-                <button @click="saveEspp()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Save</button>
-            </div>
-        </div>
-    </div>
 
     <!-- ── Asset Add/Edit Modal ──────────────────────────────────────────── -->
     <div x-show="showAssetModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" @click.self="showAssetModal = false">
@@ -420,8 +274,6 @@
                 <button @click="showEventForm = true" x-show="!showEventForm"
                         class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700">+ Add Event</button>
             </div>
-
-            <!-- Add event form -->
             <div x-show="showEventForm" class="mx-5 mt-4 bg-gray-50 rounded-lg p-4 border">
                 <h4 class="text-xs font-semibold text-gray-700 mb-3">New Scheduled Event</h4>
                 <div class="grid grid-cols-2 gap-3 mb-3">
@@ -451,8 +303,6 @@
                     <button @click="saveEvent()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700">Save Event</button>
                 </div>
             </div>
-
-            <!-- Events list -->
             <div class="overflow-y-auto flex-1 px-5 py-3">
                 <template x-if="!(eventsAsset?.scheduled_events || []).length">
                     <p class="text-center text-gray-400 text-sm py-6">No scheduled events. Add a future buy, sell, or receive event.</p>
@@ -462,7 +312,7 @@
                         <div class="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
                             <div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-sm font-medium text-gray-900" x-text="ev.type === 'dispose' ? '−' + fmt(ev.value) : '+' + fmt(ev.value)"
+                                    <span class="text-sm font-medium" x-text="ev.type === 'dispose' ? '−' + fmt(ev.value) : '+' + fmt(ev.value)"
                                           :class="ev.type === 'dispose' ? 'text-red-600' : 'text-green-600'"></span>
                                     <span class="text-xs px-1.5 py-0.5 rounded capitalize"
                                           :class="ev.type === 'dispose' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'"
@@ -476,9 +326,85 @@
                     </template>
                 </div>
             </div>
-
             <div class="p-4 border-t">
                 <button @click="showEventsModal = false" class="w-full px-4 py-2 text-gray-600 hover:text-gray-900 text-sm">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Asset Value History Modal ─────────────────────────────────────── -->
+    <div x-show="showHistoryModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" @click.self="closeHistory()">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 flex flex-col" style="max-height:90vh">
+            <div class="flex justify-between items-center p-5 border-b">
+                <div>
+                    <h3 class="text-base font-semibold text-gray-900" x-text="'Value History · ' + (historyAsset?.name || '')"></h3>
+                    <p class="text-xs text-gray-400 mt-0.5" x-text="(assetSnapshots[historyAsset?.id] || []).length + ' recorded snapshots'"></p>
+                </div>
+                <button @click="openSnapForm()" x-show="!showSnapForm"
+                        class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700">
+                    + Record Value
+                </button>
+            </div>
+
+            <div x-show="(assetSnapshots[historyAsset?.id] || []).length >= 2" class="px-5 pt-4">
+                <canvas id="assetHistoryChart" height="60"></canvas>
+            </div>
+
+            <div x-show="showSnapForm" class="mx-5 mt-4 bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h4 class="text-xs font-semibold text-gray-700 mb-3" x-text="editingSnapId ? 'Edit Snapshot' : 'Record Value'"></h4>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                        <input x-model="snapForm.date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Value ($)</label>
+                        <input x-model="snapForm.value_dollars" type="number" step="0.01" placeholder="0.00" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Note (optional)</label>
+                    <input x-model="snapForm.note" type="text" placeholder="e.g. after Q1 appraisal" class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+                <div class="mb-3 flex items-center gap-2" x-show="!editingSnapId">
+                    <input x-model="snapForm.updateAsset" type="checkbox" id="updateAssetCb" class="rounded">
+                    <label for="updateAssetCb" class="text-xs text-gray-600">Also update asset's current value</label>
+                </div>
+                <div class="flex space-x-2">
+                    <button @click="showSnapForm = false; editingSnapId = null" class="px-3 py-1.5 text-gray-500 text-xs hover:text-gray-700">Cancel</button>
+                    <button @click="saveAssetSnapshot()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700">Save</button>
+                </div>
+            </div>
+
+            <div class="overflow-y-auto flex-1 px-5 py-3">
+                <template x-if="(assetSnapshots[historyAsset?.id] || []).length === 0">
+                    <p class="text-center text-gray-400 text-sm py-6">No snapshots yet. Record the first value.</p>
+                </template>
+                <div class="space-y-2">
+                    <template x-for="s in assetSnapshots[historyAsset?.id] || []" :key="s.id">
+                        <div class="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-sm font-medium text-gray-900" x-text="fmt(s.value)"></span>
+                                    <template x-if="assetSnapDelta(historyAsset?.id, s.id) !== null">
+                                        <span class="text-xs font-medium px-1.5 py-0.5 rounded"
+                                              :class="assetSnapDelta(historyAsset?.id, s.id) >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'"
+                                              x-text="(assetSnapDelta(historyAsset?.id, s.id) >= 0 ? '+' : '') + fmt(assetSnapDelta(historyAsset?.id, s.id))"></span>
+                                    </template>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-0.5" x-text="s.date + (s.note ? ' · ' + s.note : '')"></p>
+                            </div>
+                            <div class="flex space-x-1">
+                                <button @click="openEditAssetSnap(s)" class="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded">Edit</button>
+                                <button @click="deleteAssetSnapshot(s)" class="px-2 py-1 text-xs text-red-500 hover:bg-red-50 rounded">Del</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="p-4 border-t">
+                <button @click="closeHistory()" class="w-full px-4 py-2 text-gray-600 hover:text-gray-900 text-sm">Close</button>
             </div>
         </div>
     </div>
@@ -488,18 +414,18 @@
 <script>
 function assetsPage() {
     return {
-        rsus: [], espps: [], assets: [], accounts: [], loans: [],
+        assets: [], accounts: [], loans: [],
+        assetSnapshots: {},
         loading: true,
-        activeTab: 'equity_comp',
+        activeTab: 'investments',
 
-        showRsuModal: false, editingRsuId: null, rsuForm: {},
-        showEsppModal: false, editingEsppId: null, esppForm: {},
         showAssetModal: false, editingAssetId: null, assetForm: {},
         showEventsModal: false, eventsAsset: null, showEventForm: false, eventForm: {},
+        showHistoryModal: false, historyAsset: null, showSnapForm: false, editingSnapId: null, snapForm: {},
+        historyChartInstance: null,
 
         get tabs() {
             return [
-                { id: 'equity_comp', label: 'Equity Comp', count: () => this.rsus.length + this.espps.length },
                 { id: 'investments', label: 'Investments', count: () => this.investmentAssets.length },
                 { id: 'real_estate', label: 'Real Estate', count: () => this.propertyAssets.length },
                 { id: 'other',       label: 'Other',       count: () => this.otherAssets.length },
@@ -523,15 +449,19 @@ function assetsPage() {
 
         async init() {
             try {
-                const [rs, es, ass, accts, ls] = await Promise.all([
-                    API.get('/equity/rsu'),
-                    API.get('/equity/espp'),
+                const [ass, accts, ls] = await Promise.all([
                     API.get('/assets'),
                     API.get('/accounts'),
                     API.get('/loans'),
                 ]);
-                this.rsus = rs; this.espps = es; this.assets = ass;
-                this.accounts = accts; this.loans = ls;
+                this.assets = ass; this.accounts = accts; this.loans = ls;
+                const results = await Promise.all(
+                    ass.map(a => API.get(`/snapshots?entity_type=asset&entity_id=${a.id}`)
+                        .then(snaps => ({ id: a.id, snaps }))
+                        .catch(() => ({ id: a.id, snaps: [] }))
+                    )
+                );
+                this.assetSnapshots = Object.fromEntries(results.map(r => [r.id, r.snaps]));
             } catch (e) {
                 showAlert('Failed to load: ' + e.message, 'error');
             } finally {
@@ -539,25 +469,137 @@ function assetsPage() {
             }
         },
 
-        // ── RSU ─────────────────────────────────────────────────────────
-        openAddRsu() { this.editingRsuId = null; this.rsuForm = { label: '', ticker: '', grant_date: '', total_shares: '', price_at_grant_dollars: '', cliff_months: 12, cliff_pct: 25, subsequent_frequency: 'monthly', subsequent_pct: 6.25, withholding_pct: 22, account_id: this.accounts[0]?.id || '', note: '' }; this.showRsuModal = true; },
-        openEditRsu(g) { this.editingRsuId = g.id; this.rsuForm = { label: g.label, ticker: g.ticker, grant_date: g.grant_date, total_shares: g.total_shares, price_at_grant_dollars: g.price_at_grant ? (g.price_at_grant/100).toFixed(2) : '', cliff_months: 12, cliff_pct: 25, subsequent_frequency: 'monthly', subsequent_pct: 6.25, withholding_pct: (g.withholding_rate/100).toFixed(1), account_id: g.account_id, note: g.note || '' }; this.showRsuModal = true; },
-        async saveRsu() {
-            const p = { label: this.rsuForm.label, ticker: this.rsuForm.ticker.toUpperCase(), grant_date: this.rsuForm.grant_date, total_shares: parseInt(this.rsuForm.total_shares), price_at_grant: this.rsuForm.price_at_grant_dollars ? Math.round(parseFloat(this.rsuForm.price_at_grant_dollars)*100) : null, cliff_months: parseInt(this.rsuForm.cliff_months), cliff_percent: Math.round(parseFloat(this.rsuForm.cliff_pct)*100), subsequent_frequency: this.rsuForm.subsequent_frequency, subsequent_percent: Math.round(parseFloat(this.rsuForm.subsequent_pct)*100), withholding_rate: Math.round(parseFloat(this.rsuForm.withholding_pct)*100), account_id: this.rsuForm.account_id, note: this.rsuForm.note || null };
-            try { if (this.editingRsuId) await API.patch('/equity/rsu/'+this.editingRsuId, p); else await API.post('/equity/rsu', p); showAlert('Saved','success'); this.showRsuModal = false; await this.init(); } catch(e) { showAlert('Error: '+e.message,'error'); }
-        },
-        async deleteRsu(id) { if (!confirm('Delete this RSU grant?')) return; await API.delete('/equity/rsu/'+id); showAlert('Deleted','success'); await this.init(); },
+        // ── Asset Value History ──────────────────────────────────────────
 
-        // ── ESPP ─────────────────────────────────────────────────────────
-        openAddEspp() { this.editingEsppId = null; this.esppForm = { label: '', offering_start_date: '', offering_end_date: '', contribution_mode: 'percent', contribution_value_raw: 5, discount_pct: 15, has_lookback: true, account_id: this.accounts[0]?.id || '', note: '' }; this.showEsppModal = true; },
-        openEditEspp(p) { this.editingEsppId = p.id; this.esppForm = { label: p.label, offering_start_date: p.offering_start_date, offering_end_date: p.offering_end_date, contribution_mode: p.contribution_mode, contribution_value_raw: (p.contribution_value/100).toFixed(2), discount_pct: (p.discount_rate/100).toFixed(0), has_lookback: p.has_lookback, account_id: p.account_id, note: p.note || '' }; this.showEsppModal = true; },
-        async saveEspp() {
-            const p = { label: this.esppForm.label, offering_start_date: this.esppForm.offering_start_date, offering_end_date: this.esppForm.offering_end_date, contribution_mode: this.esppForm.contribution_mode, contribution_value: Math.round(parseFloat(this.esppForm.contribution_value_raw)*100), discount_rate: Math.round(parseFloat(this.esppForm.discount_pct)*100), has_lookback: this.esppForm.has_lookback, purchase_periods: [], account_id: this.esppForm.account_id, note: this.esppForm.note || null };
-            try { if (this.editingEsppId) await API.patch('/equity/espp/'+this.editingEsppId, p); else await API.post('/equity/espp', p); showAlert('Saved','success'); this.showEsppModal = false; await this.init(); } catch(e) { showAlert('Error: '+e.message,'error'); }
+        assetSnapDelta(assetId, snapId) {
+            const snaps = [...(this.assetSnapshots[assetId] || [])].sort((a, b) => a.date.localeCompare(b.date));
+            const idx = snaps.findIndex(s => s.id === snapId);
+            if (idx <= 0) return null;
+            return snaps[idx].value - snaps[idx - 1].value;
         },
-        async deleteEspp(id) { if (!confirm('Delete this ESPP plan?')) return; await API.delete('/equity/espp/'+id); showAlert('Deleted','success'); await this.init(); },
+
+        async openAssetHistory(a) {
+            this.historyAsset = a;
+            this.showSnapForm = false;
+            this.editingSnapId = null;
+            this.showHistoryModal = true;
+            try {
+                const snaps = await API.get(`/snapshots?entity_type=asset&entity_id=${a.id}`);
+                this.assetSnapshots = { ...this.assetSnapshots, [a.id]: snaps };
+            } catch (_) {}
+            await this.$nextTick();
+            this.renderHistoryChart();
+        },
+
+        closeHistory() {
+            if (this.historyChartInstance) { this.historyChartInstance.destroy(); this.historyChartInstance = null; }
+            this.showHistoryModal = false;
+            this.historyAsset = null;
+        },
+
+        renderHistoryChart() {
+            const canvas = document.getElementById('assetHistoryChart');
+            if (!canvas || !this.historyAsset) return;
+            if (this.historyChartInstance) this.historyChartInstance.destroy();
+            const snaps = [...(this.assetSnapshots[this.historyAsset.id] || [])].sort((a, b) => a.date.localeCompare(b.date));
+            if (snaps.length < 2) return;
+            this.historyChartInstance = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: snaps.map(s => s.date),
+                    datasets: [{
+                        data: snaps.map(s => s.value / 100),
+                        borderColor: '#059669',
+                        backgroundColor: 'rgba(5,150,105,0.08)',
+                        tension: 0.2, fill: true, borderWidth: 2, pointRadius: 3,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { ticks: { callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0)+'K' : v), font: { size: 10 } } },
+                        x: { ticks: { font: { size: 9 }, maxTicksLimit: 6 } },
+                    },
+                },
+            });
+        },
+
+        openSnapForm() {
+            this.editingSnapId = null;
+            this.snapForm = {
+                date: new Date().toISOString().split('T')[0],
+                value_dollars: this.historyAsset ? (this.historyAsset.current_value / 100).toFixed(2) : '',
+                note: '',
+                updateAsset: true,
+            };
+            this.showSnapForm = true;
+        },
+
+        openEditAssetSnap(s) {
+            this.editingSnapId = s.id;
+            this.snapForm = {
+                date: s.date,
+                value_dollars: (s.value / 100).toFixed(2),
+                note: s.note || '',
+                updateAsset: false,
+            };
+            this.showSnapForm = true;
+        },
+
+        async saveAssetSnapshot() {
+            const value = Math.round(parseFloat(this.snapForm.value_dollars || 0) * 100);
+            try {
+                if (this.editingSnapId) {
+                    await API.patch(`/snapshots/${this.editingSnapId}`, {
+                        date: this.snapForm.date, value, note: this.snapForm.note || null,
+                    });
+                } else {
+                    await API.post('/snapshots', {
+                        entity_type: 'asset',
+                        entity_id: this.historyAsset.id,
+                        date: this.snapForm.date,
+                        value,
+                        note: this.snapForm.note || null,
+                    });
+                    if (this.snapForm.updateAsset) {
+                        await API.patch(`/assets/${this.historyAsset.id}`, {
+                            current_value: value,
+                            last_updated_date: this.snapForm.date,
+                        });
+                        const asset = this.assets.find(a => a.id === this.historyAsset.id);
+                        if (asset) { asset.current_value = value; asset.last_updated_date = this.snapForm.date; }
+                        this.historyAsset = { ...this.historyAsset, current_value: value };
+                    }
+                }
+                showAlert('Snapshot saved', 'success');
+                this.showSnapForm = false;
+                this.editingSnapId = null;
+                const snaps = await API.get(`/snapshots?entity_type=asset&entity_id=${this.historyAsset.id}`);
+                this.assetSnapshots = { ...this.assetSnapshots, [this.historyAsset.id]: snaps };
+                await this.$nextTick();
+                this.renderHistoryChart();
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
+
+        async deleteAssetSnapshot(s) {
+            if (!confirm('Delete this snapshot?')) return;
+            try {
+                await API.delete(`/snapshots/${s.id}`);
+                showAlert('Snapshot deleted', 'success');
+                const snaps = await API.get(`/snapshots?entity_type=asset&entity_id=${this.historyAsset.id}`);
+                this.assetSnapshots = { ...this.assetSnapshots, [this.historyAsset.id]: snaps };
+                await this.$nextTick();
+                this.renderHistoryChart();
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
 
         // ── Generic Assets ───────────────────────────────────────────────
+
         openAddAsset(preferCats) {
             this.editingAssetId = null;
             const cat = preferCats ? preferCats[0] : 'stock';
@@ -584,6 +626,7 @@ function assetsPage() {
         },
 
         // ── Scheduled Events ─────────────────────────────────────────────
+
         openAssetEvents(a) {
             this.eventsAsset = a;
             this.showEventForm = false;
@@ -595,7 +638,6 @@ function assetsPage() {
             try {
                 const updated = await API.post('/assets/'+this.eventsAsset.id+'/events', p);
                 this.eventsAsset = updated;
-                // Update in list
                 const idx = this.assets.findIndex(a => a.id === this.eventsAsset.id);
                 if (idx >= 0) this.assets[idx] = updated;
                 this.showEventForm = false;
@@ -605,8 +647,7 @@ function assetsPage() {
         async deleteEvent(eventId) {
             if (!confirm('Delete this event?')) return;
             try {
-                const updated = await API.delete('/assets/'+this.eventsAsset.id+'/events/'+eventId);
-                // reload
+                await API.delete('/assets/'+this.eventsAsset.id+'/events/'+eventId);
                 const ass = await API.get('/assets');
                 this.assets = ass;
                 this.eventsAsset = this.assets.find(a => a.id === this.eventsAsset.id) || null;
