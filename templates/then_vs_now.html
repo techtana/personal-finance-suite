@@ -1,0 +1,630 @@
+{% extends "base.html" %}
+
+{% block title %}Then vs. Now - Personal Finance Suite{% endblock %}
+{% block page_title %}Then vs. Now{% endblock %}
+
+{% block content %}
+<style>
+  /* Chart marks use one hue in two shades: --then for the past moment, --now for today. */
+  .tvn { --then: #8ea2dc; --now: #3b5fc0; --idle: #a3a9b4; --conn: #cfd4dd; --grid: #e9ebef; --axis: #c3c7cf; --ref: #7b8494;
+         --ink: #111827; --muted: #6b7280; --line: #e5e7eb; --up: #166534; --down: #991b1b; max-width: 1180px; }
+  .tvn .panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.04); overflow: hidden; }
+  .tvn .panel-hdr { padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .tvn .panel-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .tvn .sub { font-size: 12px; color: var(--muted); }
+
+  .tvn .seg { display: inline-flex; border: 1px solid #d1d5db; border-radius: 8px; overflow: hidden; background: #fff; }
+  .tvn .seg button { border: 0; border-right: 1px solid #d1d5db; background: transparent; padding: 8px 14px; font-size: 13px; color: var(--ink); cursor: pointer; }
+  .tvn .seg button:last-child { border-right: 0; }
+  .tvn .seg button[aria-pressed="true"] { background: var(--now); color: #fff; font-weight: 600; }
+  .tvn .seg-sm button { padding: 5px 11px; font-size: 12px; }
+  .tvn .seg button:focus-visible, .tvn .bell-row:focus-visible, .tvn .hit:focus-visible { outline: 2px solid var(--now); outline-offset: 2px; }
+
+  .tvn .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .tvn .stat { background: #fff; padding: 16px 20px; }
+  .tvn .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  .tvn .stat-value { font-size: 22px; font-weight: 700; color: var(--ink); letter-spacing: -.3px; }
+  .tvn .stat-value .arrow, .tvn .bd-vals .arrow { color: var(--muted); font-weight: 500; padding: 0 3px; }
+  .tvn .stat-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .tvn .mover { font-size: 14px; font-weight: 600; display: flex; justify-content: space-between; gap: 10px; line-height: 1.7; }
+  .tvn .mover span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tvn .delta { font-weight: 700; white-space: nowrap; }
+  .tvn .delta.up { color: var(--up); }
+  .tvn .delta.down { color: var(--down); }
+
+  .tvn .split { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; align-items: start; }
+  @media (max-width: 1250px) { .tvn .split { grid-template-columns: 1fr; } }
+
+  .tvn .chart-host { position: relative; padding: 8px 12px 12px; }
+  .tvn svg { display: block; }
+  .tvn .ax { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .tvn .ax-strong { font-weight: 700; fill: var(--ink); }
+  .tvn .lbl-strong { font-size: 12px; font-weight: 700; fill: var(--ink); }
+  .tvn .ref-lbl, .tvn .mk-lbl { font-size: 11px; fill: var(--muted); paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
+  .tvn .mk-lbl.on { fill: var(--ink); font-weight: 700; }
+  .tvn .svg-up { fill: var(--up); font-size: 12px; font-weight: 700; }
+  .tvn .svg-down { fill: var(--down); font-size: 12px; font-weight: 700; }
+  .tvn .hit { cursor: pointer; }
+
+  .tvn .tip { position: absolute; pointer-events: none; background: #0f172a; color: #fff; font-size: 12px; line-height: 1.45; padding: 8px 10px; border-radius: 8px; width: max-content; max-width: 280px; box-shadow: 0 6px 20px rgba(15,23,42,.25); opacity: 0; transition: opacity .08s; z-index: 5; }
+  .tvn .tip.on { opacity: 1; }
+  .tvn .tip .t-date { color: #aab4c8; font-size: 11px; margin-bottom: 2px; }
+  .tvn .tip .t-row { display: flex; justify-content: space-between; gap: 14px; }
+  .tvn .tip .t-nw { color: #aab4c8; margin-top: 4px; }
+
+  .tvn .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); align-items: center; margin-top: 6px; }
+  .tvn .legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+  .tvn .badge { display: inline-flex; padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 600; background: #f3f4f6; color: #4b5563; }
+  .tvn .badge.rsu { background: #dbeafe; color: #1d4ed8; }
+  .tvn .badge.espp { background: #ede9fe; color: #6d28d9; }
+  .tvn .badge.est { background: #fef3c7; color: #92400e; }
+
+  .tvn .d-body { padding: 18px 20px 20px; }
+  .tvn .d-name { font-size: 16px; font-weight: 700; margin-top: 8px; color: var(--ink); }
+  .tvn .moments { list-style: none; margin: 16px 0 0; padding: 0; position: relative; }
+  .tvn .moments::before { content: ''; position: absolute; left: 8px; top: 10px; bottom: 28px; width: 2px; background: var(--conn); }
+  .tvn .mo { display: grid; grid-template-columns: 18px 1fr; gap: 12px; padding-bottom: 16px; position: relative; }
+  .tvn .mo-mark { background: #fff; height: 18px; margin-top: 1px; }
+  .tvn .mo-top { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; color: var(--muted); }
+  .tvn .mo-date { text-transform: none; letter-spacing: 0; font-weight: 500; text-align: right; }
+  .tvn .mo-val { font-size: 20px; font-weight: 700; letter-spacing: -.3px; margin-top: 1px; color: var(--ink); }
+  .tvn .mo-txt, .tvn .mo-nw { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .tvn .mo.is-lens .mo-top span:first-child { color: var(--now); }
+  .tvn .d-change { border-top: 1px solid var(--line); padding-top: 12px; font-size: 13px; }
+  .tvn .d-change div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; color: var(--muted); }
+  .tvn .d-change div.on { color: var(--ink); font-weight: 600; }
+  .tvn .d-note { margin-top: 12px; font-size: 12px; color: var(--muted); background: #f6f7f9; border-radius: 8px; padding: 10px 12px; }
+
+  .tvn .bells { position: relative; }
+  .tvn .bell-head, .tvn .bell-row { display: grid; grid-template-columns: 220px minmax(0, 1fr) 190px; gap: 16px; align-items: center; padding: 0 16px; }
+  .tvn .bell-head { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; padding-top: 10px; }
+  .tvn .bell-head .r { text-align: right; }
+  .tvn .bell-row { width: 100%; border: 0; border-top: 1px solid var(--line); background: transparent; color: inherit; text-align: left; cursor: pointer; }
+  .tvn .bell-row:hover { background: #f7f8fb; }
+  .tvn .bell-row[aria-pressed="true"] { background: #eef1fb; }
+  .tvn .bl-name { font-size: 14px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tvn .bl-sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tvn .bd { text-align: right; }
+  .tvn .bd-vals { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink); }
+  .tvn .bd-sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .tvn details.tbl-view { border-top: 1px solid var(--line); }
+  .tvn details summary { padding: 12px 20px; font-size: 13px; font-weight: 600; color: var(--now); cursor: pointer; }
+  .tvn table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .tvn th { text-align: left; padding: 9px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-bottom: 1px solid var(--line); background: #f9fafb; font-weight: 600; }
+  .tvn td { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .tvn .td-r { text-align: right; }
+  .tvn input.fi { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; background: #fff; }
+  .tvn .btn { padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; background: var(--now); color: #fff; border: 0; cursor: pointer; }
+  .tvn .btn-link { background: none; border: 0; color: #dc2626; font-size: 12px; cursor: pointer; }
+</style>
+
+<div class="tvn space-y-5" id="tvn">
+  <div id="tvnLoading" class="text-center py-12 text-gray-500">Loading...</div>
+
+  <!-- Nothing to compare yet -->
+  <div id="tvnEmpty" class="panel" hidden>
+    <div class="d-body">
+      <div class="d-name" style="margin-top:0">Nothing to compare yet</div>
+      <p class="sub" style="margin-top:6px;font-size:13px">This page shows what each decision was worth on the day you made it and what it is worth today. It fills in from:</p>
+      <ul class="sub" style="margin:8px 0 0 18px;list-style:disc;font-size:13px;line-height:1.8">
+        <li>RSU grants and ESPP plans, added as rules on the <a class="text-blue-600 hover:underline" href="/timeline">Cash Flow</a> page</li>
+        <li>Assets with a cost basis and an acquired date, on the <a class="text-blue-600 hover:underline" href="/equity">Assets</a> page</li>
+        <li>Share prices, entered at the bottom of this page</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="tvnMain" class="space-y-5" hidden>
+    <p class="sub" style="font-size:13px">What each decision was worth on the day, and what it is worth today · values as of <span id="asOf"></span></p>
+
+    <!-- One filter row above everything it scopes -->
+    <div class="flex items-center gap-3 flex-wrap">
+      <span class="sub" style="font-weight:600">Compare today with</span>
+      <div class="seg" id="lensSeg" role="group" aria-label="Compare today with">
+        <button type="button" data-lens="decided" aria-pressed="true">The day I decided</button>
+        <button type="button" data-lens="received" aria-pressed="false">The day I received it</button>
+      </div>
+      <span class="sub" id="lensHint"></span>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="split">
+      <div class="panel">
+        <div class="panel-hdr">
+          <div>
+            <div class="panel-title" id="nwTitle">Net worth, with the days you decided</div>
+            <div class="sub" style="margin-top:2px">Pick a marker or a row below. The dashed line holds your net worth at that moment up against today.</div>
+          </div>
+        </div>
+        <div class="chart-host" id="nwHost"><div class="tip" id="nwTip"></div></div>
+        <div class="d-body sub" id="nwNone" hidden>No net worth history yet. Record balances on the Cash, Assets and Liabilities pages and the line will appear here.</div>
+      </div>
+
+      <div class="panel" aria-live="polite">
+        <div class="panel-hdr"><div class="panel-title">Selected decision</div></div>
+        <div class="d-body" id="detail"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hdr">
+        <div>
+          <div class="panel-title">Each decision: then vs. now</div>
+          <div class="legend" id="bellLegend"></div>
+        </div>
+        <div class="seg seg-sm" id="unitSeg" role="group" aria-label="Show as">
+          <button type="button" data-unit="usd" aria-pressed="true">$ change</button>
+          <button type="button" data-unit="pct" aria-pressed="false">% change</button>
+        </div>
+      </div>
+      <div class="bells" id="bellsHost"><div class="tip" id="bellTip"></div></div>
+      <details class="tbl-view">
+        <summary>Show as a table</summary>
+        <div style="overflow-x:auto"><table id="tbl"></table></div>
+      </details>
+    </div>
+  </div>
+
+  <!-- Things left out, and why -->
+  <div class="panel" id="skippedPanel" hidden>
+    <div class="panel-hdr"><div class="panel-title">Not shown yet</div></div>
+    <div id="skippedList"></div>
+  </div>
+
+  <!-- Share prices: fill the gaps, see what is stored -->
+  <div class="panel" id="pricesPanel" hidden>
+    <div class="panel-hdr">
+      <div>
+        <div class="panel-title">Share prices</div>
+        <div class="sub" style="margin-top:2px">Entered by hand. Vest-day, purchase-day and today's values come from these.</div>
+      </div>
+    </div>
+    <div id="missingBox" hidden>
+      <div class="d-body" style="padding-bottom:8px">
+        <div class="sub" style="font-size:13px;color:#92400e"><b id="missingCount"></b> Until they are filled in, those values are estimated from the nearest prices on file.</div>
+      </div>
+      <table id="missingTbl"></table>
+      <div class="d-body" style="padding-top:12px"><button class="btn" id="saveMissing" type="button">Save prices</button></div>
+    </div>
+    <details class="tbl-view" id="allPrices">
+      <summary>All stored prices and add one</summary>
+      <div class="d-body" style="padding-top:4px;padding-bottom:12px">
+        <div class="flex items-center gap-2 flex-wrap">
+          <input class="fi uppercase" id="npTicker" placeholder="Ticker" aria-label="Ticker" style="width:100px">
+          <input class="fi" id="npDate" type="date" aria-label="Date">
+          <input class="fi" id="npPrice" type="number" step="0.01" min="0" placeholder="Price $" aria-label="Price in dollars" style="width:120px">
+          <button class="btn" id="npAdd" type="button">Add price</button>
+        </div>
+      </div>
+      <div style="max-height:320px;overflow-y:auto"><table id="priceTbl"></table></div>
+    </details>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var TODAY, INST = [], byId = {}, NW = [], NW_NOW = null, DATA = null, PRICES = [];
+  var state = { lens: 'decided', sel: null, unit: 'usd' };
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function $(id) { return document.getElementById(id); }
+  function T(s) { return Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)); }
+  function fmtDate(s) { return MON[+s.slice(5, 7) - 1] + ' ' + (+s.slice(8, 10)) + ', ' + s.slice(0, 4); }
+  function fmtMonth(s) { return MON[+s.slice(5, 7) - 1] + ' ' + s.slice(0, 4); }
+  function usd(v) { return (v < 0 ? '−' : '') + '$' + Math.abs(Math.round(v)).toLocaleString('en-US'); }
+  function usdK(v) { var a = Math.abs(v), s = v < 0 ? '−' : ''; return a >= 1e6 ? s + '$' + (a / 1e6).toFixed(2) + 'M' : a >= 1e3 ? s + '$' + (a / 1e3).toFixed(1) + 'K' : s + '$' + Math.round(a); }
+  function plus(v, f) { return (v >= 0 ? '+' : '') + f(v); }
+  function pct(p) { return isFinite(p) ? (p >= 0 ? '+' : '−') + Math.abs(p * 100).toFixed(1) + '%' : '–'; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function sum(a, f) { return a.reduce(function (s, x) { return s + f(x); }, 0); }
+  function shortName(s) { return s.length > 24 ? s.slice(0, 23) + '…' : s; }
+  function deltaHtml(v, text) { return '<span class="delta ' + (v >= 0 ? 'up' : 'down') + '">' + (v >= 0 ? '▲' : '▼') + ' ' + text + '</span>'; }
+  function niceStep(range, maxTicks) {
+    var raw = range / maxTicks, mag = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / mag;
+    return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag;
+  }
+  function axisMoney(v) { var a = Math.abs(v), s = v < 0 ? '−' : ''; return a === 0 ? '$0' : a >= 1e6 ? s + '$' + +(a / 1e6).toFixed(2) + 'M' : a >= 1e3 ? s + '$' + +(a / 1e3).toFixed(1) + 'K' : s + '$' + a; }
+
+  // Net worth on a date, read off the same line the chart draws. null = before any record.
+  function nwAt(d) {
+    if (!NW.length || d < NW[0][0]) return null;
+    var t = T(d);
+    for (var i = 1; i < NW.length; i++) {
+      var a = T(NW[i - 1][0]), b = T(NW[i][0]);
+      if (t <= b) return NW[i - 1][1] + (NW[i][1] - NW[i - 1][1]) * (t - a) / (b - a);
+    }
+    return NW[NW.length - 1][1];
+  }
+  function nwText(d) { var v = nwAt(d); return v === null ? 'not recorded yet' : usdK(v); }
+
+  function thenOf(it) { return state.lens === 'decided' ? it.decided.value : it.received.value; }
+  function anchorOf(it) { return state.lens === 'decided' ? it.decided.date : it.receipts[0].date; }
+  function lensWord() { return state.lens === 'decided' ? 'decided' : 'received'; }
+  function set(patch) { for (var k in patch) state[k] = patch[k]; renderAll(); }
+
+  function glyph(kind, color) {
+    var c = kind === 'ring' ? '<circle cx="9" cy="9" r="5" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+          : kind === 'dot' ? '<circle cx="9" cy="9" r="4.5" fill="' + color + '"/>'
+          : '<circle cx="9" cy="9" r="6.5" fill="' + color + '"/>';
+    return '<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">' + c + '</svg>';
+  }
+
+  // ── Lens toggle + KPI row ─────────────────────────────────────────────────
+  function renderLens() {
+    [].forEach.call(document.querySelectorAll('#lensSeg button'), function (b) { b.setAttribute('aria-pressed', String(b.dataset.lens === state.lens)); });
+    [].forEach.call(document.querySelectorAll('#unitSeg button'), function (b) { b.setAttribute('aria-pressed', String(b.dataset.unit === state.unit)); });
+    $('lensHint').textContent = state.lens === 'decided'
+      ? '"Then" is the day you said yes: grant accepted, ESPP offering started, purchase agreed.'
+      : '"Then" is the day it landed: shares vested or bought, asset acquired.';
+    $('nwTitle').textContent = state.lens === 'decided' ? 'Net worth, with the days you decided' : 'Net worth, with the days you received something';
+  }
+
+  function renderKpis() {
+    var then = sum(INST, thenOf), now = sum(INST, function (i) { return i.today.value; }), d = now - then;
+    var first = INST.map(anchorOf).sort()[0], nwFirst = nwAt(first);
+    var ranked = INST.map(function (i) { return { i: i, p: i.today.value / thenOf(i) - 1 }; }).sort(function (a, b) { return b.p - a.p; });
+    var best = ranked[0], worst = ranked[ranked.length - 1];
+    var nwTile = NW_NOW === null ? '<div class="stat-value">–</div><div class="stat-sub">No balances recorded yet</div>'
+      : '<div class="stat-value">' + (nwFirst === null ? '?' : usdK(nwFirst)) + '<span class="arrow">→</span>' + usdK(NW_NOW) + '</div><div class="stat-sub">Since ' +
+        (state.lens === 'decided' ? 'your first decision' : 'the first thing you received') + ', ' + fmtMonth(first) + (nwFirst === null ? ' (no record that early)' : '') + '</div>';
+    $('kpis').innerHTML =
+      '<div class="stat"><div class="stat-label">Worth when ' + lensWord() + '</div><div class="stat-value">' + usdK(then) + '</div><div class="stat-sub">' + INST.length + ' decision' + (INST.length === 1 ? '' : 's') + ' since ' + fmtMonth(INST[0].decided.date) + '</div></div>' +
+      '<div class="stat"><div class="stat-label">Worth today</div><div class="stat-value">' + usdK(now) + '</div><div class="stat-sub">' + deltaHtml(d, plus(d, usdK)) + ' &nbsp;' + pct(d / then) + '</div></div>' +
+      '<div class="stat"><div class="stat-label">Net worth, then to now</div>' + nwTile + '</div>' +
+      '<div class="stat"><div class="stat-label">' + (ranked.length > 1 ? 'Biggest gain and drop' : 'Change') + '</div>' +
+        '<div class="mover"><span>' + esc(best.i.name) + '</span>' + deltaHtml(best.p, pct(best.p)) + '</div>' +
+        (ranked.length > 1 ? '<div class="mover"><span>' + esc(worst.i.name) + '</span>' + deltaHtml(worst.p, pct(worst.p)) + '</div>' : '') + '</div>';
+  }
+
+  // ── Net worth line with decision markers ──────────────────────────────────
+  function renderNw() {
+    var host = $('nwHost'), tip = $('nwTip');
+    var old = host.querySelector('svg'); if (old) old.remove();
+    var none = NW.length < 2;
+    host.hidden = none; $('nwNone').hidden = !none;
+    if (none) return;
+
+    var W = Math.max(420, host.clientWidth - 24), H = 420;
+    var m = { t: 48, r: 104, b: 30, l: 56 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    var t0 = T(NW[0][0]), t1 = T(TODAY);
+    var vals = NW.map(function (p) { return p[1]; });
+    var lo = Math.min(0, Math.min.apply(null, vals)), hi = Math.max(0, Math.max.apply(null, vals));
+    var step = niceStep((hi - lo) || 1, 4);
+    lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step + 0.05) * step;
+    function X(d) { return m.l + Math.max(0, Math.min(1, (T(d) - t0) / ((t1 - t0) || 1))) * pw; }
+    function Y(v) { return m.t + ph - ((v - lo) / (hi - lo)) * ph; }
+    var s = '', v;
+
+    for (v = lo; v <= hi + step / 2; v += step) {
+      s += '<line x1="' + m.l + '" x2="' + (m.l + pw) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="' + (Math.abs(v) < step / 1e6 ? 'var(--axis)' : 'var(--grid)') + '"/>';
+      s += '<text x="' + (m.l - 8) + '" y="' + (Y(v) + 4) + '" text-anchor="end" class="ax">' + axisMoney(Math.round(v)) + '</text>';
+    }
+    var y0 = +NW[0][0].slice(0, 4) + 1, y1 = +TODAY.slice(0, 4), yStep = Math.max(1, Math.ceil((y1 - y0 + 1) / 6)), xT = X(TODAY);
+    for (var y = y0; y <= y1; y += yStep) {
+      var x = X(y + '-01-01');
+      if (xT - x < 44) continue;                       // leave room for the "Today" label
+      s += '<line x1="' + x + '" x2="' + x + '" y1="' + (m.t + ph) + '" y2="' + (m.t + ph + 4) + '" stroke="var(--axis)"/>';
+      s += '<text x="' + x + '" y="' + (m.t + ph + 18) + '" text-anchor="middle" class="ax">' + y + '</text>';
+    }
+    s += '<text x="' + xT + '" y="' + (m.t + ph + 18) + '" text-anchor="middle" class="ax ax-strong">Today</text>';
+
+    var pts = NW.map(function (p) { return [X(p[0]), Y(p[1])]; });
+    var line = 'M' + pts.map(function (p) { return p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join('L');
+    s += '<path d="' + line + 'L' + pts[pts.length - 1][0] + ' ' + Y(0) + 'L' + pts[0][0] + ' ' + Y(0) + 'Z" fill="var(--now)" opacity=".06"/>';
+    s += '<path d="' + line + '" fill="none" stroke="var(--now)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+
+    // Selected decision: hold "net worth then" up against today.
+    var sel = byId[state.sel], aDate = anchorOf(sel), nwThen = nwAt(aDate), yNow = Y(NW_NOW);
+    s += '<text x="' + (xT + 10) + '" y="' + (yNow - 10) + '" class="lbl-strong">' + usdK(NW_NOW) + '</text>';
+    if (nwThen !== null) {
+      var ax = X(aDate), yThen = Y(nwThen), bx = xT + 14, dNw = NW_NOW - nwThen, mid = (yThen + yNow) / 2;
+      s += '<line x1="' + ax + '" x2="' + bx + '" y1="' + yThen + '" y2="' + yThen + '" stroke="var(--ref)" stroke-dasharray="4 3"/>';
+      s += '<path d="M' + (bx - 5) + ' ' + yNow + 'H' + bx + 'V' + yThen + '" fill="none" stroke="var(--ref)"/>';
+      if (Math.abs(yThen - yNow) < 34) mid = yNow + (yThen >= yNow ? 20 : -34);    // keep clear of the "today" label
+      s += '<text x="' + (bx + 7) + '" y="' + (mid + 1) + '" class="' + (dNw >= 0 ? 'svg-up' : 'svg-down') + '">' + (dNw >= 0 ? '▲ ' : '▼ ') + plus(dNw, usdK) + '</text>';
+      if (nwThen > 0) s += '<text x="' + (bx + 7) + '" y="' + (mid + 15) + '" class="ax">' + pct(dNw / nwThen) + ' since</text>';
+      var refTxt = 'Net worth then: ' + usdK(nwThen);
+      if (xT - ax >= 160) s += '<text x="' + (ax + 8) + '" y="' + (yThen + 15) + '" class="ref-lbl">' + refTxt + '</text>';
+      else s += '<text x="' + (ax - 10) + '" y="' + (yThen - 8) + '" text-anchor="end" class="ref-lbl">' + refTxt + '</text>';
+    }
+
+    // Markers: hollow ring = a decision, small dot = something received.
+    var marks = [];
+    INST.forEach(function (it) {
+      (state.lens === 'decided' ? [it.decided] : it.receipts).forEach(function (ev) {
+        var nv = nwAt(ev.date);
+        marks.push({ it: it, ev: ev, x: X(ev.date), y: Y(nv === null ? NW[0][1] : nv), sel: it.id === state.sel });
+      });
+    });
+    marks.sort(function (a, b) { return (a.sel - b.sel) || (a.x - b.x); });
+    marks.forEach(function (k) {
+      var col = k.sel ? 'var(--now)' : 'var(--idle)';
+      if (state.lens === 'decided') {
+        s += '<circle cx="' + k.x + '" cy="' + k.y + '" r="' + (k.sel ? 8.5 : 7) + '" fill="#fff"/>';
+        s += '<circle cx="' + k.x + '" cy="' + k.y + '" r="' + (k.sel ? 6 : 5) + '" fill="#fff" stroke="' + col + '" stroke-width="' + (k.sel ? 2.5 : 2) + '"/>';
+      } else {
+        s += '<circle cx="' + k.x + '" cy="' + k.y + '" r="' + (k.sel ? 5 : 3.5) + '" fill="' + col + '" stroke="#fff" stroke-width="' + (k.sel ? 2 : 1.5) + '"/>';
+      }
+    });
+    if (state.lens === 'decided' && marks.length <= 12) {   // few enough to name directly; stack labels that would collide
+      var placed = [];
+      marks.slice().sort(function (a, b) { return a.x - b.x; }).forEach(function (k) {
+        var name = shortName(k.it.name), w = name.length * 6.4 + 8, lvl = 0, r, by;
+        var cx = Math.max(m.l + w / 2 - 30, Math.min(m.l + pw - w / 2 + 30, k.x));
+        for (; lvl < 6; lvl++) {
+          by = k.y - 16 - lvl * 15;
+          r = { x0: cx - w / 2, x1: cx + w / 2, y0: by - 11, y1: by + 4 };
+          if (by > 14 && !placed.some(function (p) { return r.x0 < p.x1 && r.x1 > p.x0 && r.y0 < p.y1 && r.y1 > p.y0; })) break;
+        }
+        placed.push(r);
+        if (lvl > 0) s += '<line x1="' + k.x + '" x2="' + k.x + '" y1="' + (k.y - 9) + '" y2="' + (by + 4) + '" stroke="var(--idle)"/>';
+        s += '<text x="' + cx + '" y="' + by + '" text-anchor="middle" class="mk-lbl' + (k.sel ? ' on' : '') + '">' + esc(name) + '</text>';
+      });
+    }
+    s += '<circle cx="' + xT + '" cy="' + yNow + '" r="5" fill="var(--now)" stroke="#fff" stroke-width="2"/>';
+
+    // Hover layer: crosshair for the line, bigger hit targets for the markers.
+    s += '<line id="nwCross" y1="' + m.t + '" y2="' + (m.t + ph) + '" stroke="var(--axis)" visibility="hidden"/>';
+    s += '<circle id="nwDot" r="4" fill="var(--now)" stroke="#fff" stroke-width="2" visibility="hidden"/>';
+    s += '<rect id="nwOver" x="' + m.l + '" y="' + m.t + '" width="' + pw + '" height="' + ph + '" fill="transparent"/>';
+    marks.forEach(function (k, idx) {
+      s += '<circle class="hit" data-i="' + idx + '" cx="' + k.x + '" cy="' + k.y + '" r="12" fill="transparent" tabindex="0" role="button" aria-label="' +
+        esc(k.it.name + ', ' + lensWord() + ' ' + fmtDate(k.ev.date) + ', net worth ' + nwText(k.ev.date)) + '"/>';
+    });
+
+    host.insertAdjacentHTML('afterbegin', '<svg width="' + W + '" height="' + H + '" role="img" aria-label="Net worth over time with a marker for each decision">' + s + '</svg>');
+    var svg = host.querySelector('svg'), cross = $('nwCross'), dot = $('nwDot');
+
+    function showTip(html, x, y) {
+      tip.innerHTML = html; tip.classList.add('on');
+      var left = x + 12 + 14, tw = tip.offsetWidth;
+      if (left + tw > host.clientWidth - 4) left = x + 12 - tw - 14;
+      tip.style.left = Math.max(4, left) + 'px'; tip.style.top = Math.max(4, y - 6) + 'px';
+    }
+    function hide() { tip.classList.remove('on'); cross.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); }
+
+    $('nwOver').addEventListener('mousemove', function (e) {
+      var mx = e.clientX - svg.getBoundingClientRect().left, best = 0, bd = 1e9;
+      pts.forEach(function (p, j) { var d = Math.abs(p[0] - mx); if (d < bd) { bd = d; best = j; } });
+      var p = pts[best];
+      cross.setAttribute('x1', p[0]); cross.setAttribute('x2', p[0]); cross.setAttribute('visibility', 'visible');
+      dot.setAttribute('cx', p[0]); dot.setAttribute('cy', p[1]); dot.setAttribute('visibility', 'visible');
+      showTip('<div class="t-date">' + (best === pts.length - 1 ? 'Today' : fmtDate(NW[best][0])) + '</div><div class="t-row"><span>Net worth</span><b>' + usd(NW[best][1]) + '</b></div>' +
+        (NW[best][2] ? '<div class="t-nw">Some accounts had no record yet</div>' : ''), p[0], p[1]);
+    });
+    $('nwOver').addEventListener('mouseleave', hide);
+
+    [].forEach.call(svg.querySelectorAll('.hit'), function (h) {
+      var k = marks[+h.dataset.i];
+      function over() {
+        var same = marks.filter(function (o) { return o.ev.date === k.ev.date; });
+        var rows = same.map(function (o) {
+          return '<div class="t-row"><span>' + esc(shortName(o.it.name)) + (state.lens === 'decided' ? '' : ' · ' + esc(o.ev.text)) + '</span><b>' + usd(o.ev.value) + '</b></div>';
+        }).join('');
+        cross.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden');
+        showTip('<div class="t-date">' + (state.lens === 'decided' ? 'Decided ' : 'Received ') + fmtDate(k.ev.date) + '</div>' + rows + '<div class="t-nw">Net worth then: ' + nwText(k.ev.date) + '</div>', k.x, k.y);
+      }
+      h.addEventListener('mouseenter', over); h.addEventListener('focus', over);
+      h.addEventListener('mouseleave', hide); h.addEventListener('blur', hide);
+      h.addEventListener('click', function () { set({ sel: k.it.id }); });
+      h.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); set({ sel: k.it.id }); } });
+    });
+  }
+
+  // ── Detail card: the three moments of the selected decision ───────────────
+  function renderDetail() {
+    var it = byId[state.sel], dv = it.decided.value, rv = it.received.value, tv = it.today.value;
+    var first = it.receipts[0].date, last = it.receipts[it.receipts.length - 1].date;
+    function share(v, d) { var nw = nwAt(d); return nw && nw > 0 ? ' · ' + (v / nw * 100).toFixed(v / nw >= 1 ? 0 : 1) + '% of it' : ''; }
+    function partial(ev) { return ev.net_worth_partial && nwAt(ev.date) !== null ? ' (some accounts had no record yet)' : ''; }
+    function moment(key, mark, label, when, value, text, nwLine) {
+      return '<li class="mo' + (key === state.lens ? ' is-lens' : '') + '"><span class="mo-mark">' + mark + '</span><div>' +
+        '<div class="mo-top"><span>' + label + '</span><span class="mo-date">' + when + '</span></div>' +
+        '<div class="mo-val">' + usd(value) + '</div><div class="mo-txt">' + esc(text) + '</div><div class="mo-nw">' + nwLine + '</div></div></li>';
+    }
+    var dCol = state.lens === 'decided' ? 'var(--then)' : 'var(--idle)', rCol = state.lens === 'received' ? 'var(--then)' : 'var(--idle)';
+    var kindCls = it.kind === 'RSU' ? ' rsu' : it.kind === 'ESPP' ? ' espp' : '';
+    $('detail').innerHTML =
+      '<span class="badge' + kindCls + '">' + esc(it.kind) + '</span>' + (it.estimated ? ' <span class="badge est" title="At least one date has no exact share price on file">Estimated prices</span>' : '') +
+      '<div class="d-name">' + esc(it.name) + '</div><div class="sub" style="margin-top:2px">' + esc(it.units) + '</div>' +
+      '<ol class="moments">' +
+        moment('decided', glyph('ring', dCol), 'Decided', fmtDate(it.decided.date), dv, it.decided.text,
+          'Net worth ' + nwText(it.decided.date) + share(dv, it.decided.date) + partial(it.decided)) +
+        moment('received', glyph('dot', rCol), 'Received', it.receivedWhen, rv, it.received_text,
+          first === last ? 'Net worth ' + nwText(first) + partial(it.receipts[0]) : 'Net worth ' + nwText(first) + ' → ' + nwText(last) + ' over those dates') +
+        moment('today', glyph('today', 'var(--now)'), 'Today', fmtDate(TODAY), tv, it.today.text,
+          NW_NOW === null ? 'Net worth not recorded yet' : 'Net worth ' + usdK(NW_NOW) + share(tv, TODAY)) +
+      '</ol>' +
+      '<div class="d-change">' +
+        '<div class="' + (state.lens === 'decided' ? 'on' : '') + '"><span>Since you decided</span><span>' + deltaHtml(tv - dv, plus(tv - dv, usd)) + ' &nbsp;' + pct(tv / dv - 1) + '</span></div>' +
+        '<div class="' + (state.lens === 'received' ? 'on' : '') + '"><span>Since you received it</span><span>' + deltaHtml(tv - rv, plus(tv - rv, usd)) + ' &nbsp;' + pct(tv / rv - 1) + '</span></div>' +
+      '</div>' +
+      (it.note ? '<div class="d-note">' + esc(it.note) + '</div>' : '');
+  }
+
+  // ── Dumbbell rows ─────────────────────────────────────────────────────────
+  function renderBells() {
+    var host = $('bellsHost'), tip = $('bellTip');
+    var tw = Math.max(220, host.clientWidth - 220 - 190 - 16 * 2 - 16 * 2), pad = 26, RH = 48;
+    var isUsd = state.unit === 'usd', lk = state.lens === 'decided' ? 'd' : 'r', ok = lk === 'd' ? 'r' : 'd';
+    // Both views measure from "then", which sits at zero. A plain dollar axis would let
+    // the biggest asset squash every other row into one corner.
+    var rows = INST.map(function (it) {
+      var th = thenOf(it), raw = { d: it.decided.value, r: it.received.value, t: it.today.value };
+      var val = isUsd ? { d: raw.d - th, r: raw.r - th, t: raw.t - th } : { d: raw.d / th - 1, r: raw.r / th - 1, t: raw.t / th - 1 };
+      return { it: it, then: th, raw: raw, val: val };
+    });
+    var lo = 0, hi = 0;
+    rows.forEach(function (r) { ['d', 'r', 't'].forEach(function (k) { if (isFinite(r.val[k])) { lo = Math.min(lo, r.val[k]); hi = Math.max(hi, r.val[k]); } }); });
+    if (hi === lo) hi = isUsd ? 1000 : 0.1;
+    var step = niceStep(hi - lo, 5);
+    lo = Math.floor(lo / step + 1e-9) * step; hi = Math.ceil(hi / step - 1e-9) * step;
+    var n = Math.round((hi - lo) / step), ticks = [];
+    for (var i = 0; i <= n; i++) ticks.push(lo + i * step);
+    function X(v) { return pad + (v - lo) / (hi - lo) * (tw - pad * 2); }
+    function zero(v) { return Math.abs(v) < step / 1e6; }
+    function tickLbl(v) {
+      if (zero(v)) return isUsd ? '$0' : '0%';
+      return isUsd ? (v > 0 ? '+' : '') + axisMoney(Math.round(v)) : (v > 0 ? '+' : '−') + +(Math.abs(v) * 100).toFixed(1) + '%';
+    }
+
+    var head = '<svg width="' + tw + '" height="22">' + ticks.map(function (v) { return '<text x="' + X(v) + '" y="15" text-anchor="middle" class="ax' + (zero(v) ? ' ax-strong' : '') + '">' + tickLbl(v) + '</text>'; }).join('') + '</svg>';
+    var html = '<div class="bell-head"><div>Decision</div><div>' + head + '</div><div class="r">Then → now</div></div>';
+
+    rows.forEach(function (r) {
+      var cy = RH / 2, xd = X(r.val.d), xr = X(r.val.r), xt = X(r.val.t), xThen = lk === 'd' ? xd : xr, xOther = lk === 'd' ? xr : xd;
+      var minX = Math.min(xd, xr, xt), maxX = Math.max(xd, xr, xt), g = '';
+      ticks.forEach(function (v) { g += '<line x1="' + X(v) + '" x2="' + X(v) + '" y1="0" y2="' + RH + '" stroke="' + (zero(v) ? 'var(--axis)' : 'var(--grid)') + '"/>'; });
+      g += '<line x1="' + minX + '" x2="' + maxX + '" y1="' + cy + '" y2="' + cy + '" stroke="var(--conn)" stroke-width="2"/>';
+      g += '<line x1="' + xThen + '" x2="' + xt + '" y1="' + cy + '" y2="' + cy + '" stroke="var(--then)" stroke-width="3" stroke-linecap="round"/>';
+      function ring(x, c) { return '<circle cx="' + x + '" cy="' + cy + '" r="7" fill="#fff"/><circle cx="' + x + '" cy="' + cy + '" r="5" fill="#fff" stroke="' + c + '" stroke-width="2"/>'; }
+      function dotm(x, c) { return '<circle cx="' + x + '" cy="' + cy + '" r="4.5" fill="' + c + '" stroke="#fff" stroke-width="2"/>'; }
+      g += ok === 'd' ? ring(xOther, 'var(--idle)') : dotm(xOther, 'var(--idle)');
+      g += lk === 'd' ? ring(xThen, 'var(--then)') : dotm(xThen, 'var(--then)');
+      g += '<circle cx="' + xt + '" cy="' + cy + '" r="6.5" fill="var(--now)" stroke="#fff" stroke-width="2"/>';
+
+      var d = r.raw.t - r.then;
+      html += '<button type="button" class="bell-row" data-id="' + esc(r.it.id) + '" aria-pressed="' + (r.it.id === state.sel) + '">' +
+        '<div style="min-width:0"><div class="bl-name">' + esc(r.it.name) + '</div><div class="bl-sub">' + esc(r.it.kind) + ' · ' + esc(r.it.units) + (r.it.estimated ? ' · est.' : '') + '</div></div>' +
+        '<div><svg width="' + tw + '" height="' + RH + '" aria-hidden="true">' + g + '</svg></div>' +
+        '<div class="bd"><div class="bd-vals">' + usdK(r.then) + '<span class="arrow">→</span>' + usdK(r.raw.t) + '</div>' +
+        '<div class="bd-sub">' + deltaHtml(d, plus(d, usdK)) + ' &nbsp;' + pct(d / r.then) + '</div></div></button>';
+    });
+
+    [].forEach.call(host.querySelectorAll('.bell-head, .bell-row'), function (e) { e.remove(); });
+    host.insertAdjacentHTML('beforeend', html);
+
+    [].forEach.call(host.querySelectorAll('.bell-row'), function (b) {
+      var it = byId[b.dataset.id];
+      b.addEventListener('click', function () { set({ sel: it.id }); });
+      b.addEventListener('mousemove', function (e) {
+        var hr = host.getBoundingClientRect();
+        tip.innerHTML = '<div class="t-date">' + esc(it.name) + '</div>' +
+          '<div class="t-row"><span>Decided · ' + fmtDate(it.decided.date) + '</span><b>' + usd(it.decided.value) + '</b></div>' +
+          '<div class="t-row"><span>Received · ' + esc(it.receivedWhen) + '</span><b>' + usd(it.received.value) + '</b></div>' +
+          '<div class="t-row"><span>Today</span><b>' + usd(it.today.value) + '</b></div>';
+        tip.classList.add('on');
+        var left = e.clientX - hr.left + 16; if (left + tip.offsetWidth > hr.width - 4) left = e.clientX - hr.left - tip.offsetWidth - 16;
+        tip.style.left = Math.max(4, left) + 'px'; tip.style.top = (e.clientY - hr.top + 14) + 'px';
+      });
+      b.addEventListener('mouseleave', function () { tip.classList.remove('on'); });
+    });
+
+    $('bellLegend').innerHTML =
+      '<span>' + glyph('ring', lk === 'd' ? 'var(--then)' : 'var(--idle)') + 'Decided</span>' +
+      '<span>' + glyph('dot', lk === 'r' ? 'var(--then)' : 'var(--idle)') + 'Received</span>' +
+      '<span>' + glyph('today', 'var(--now)') + 'Today</span>' +
+      '<span>' + (isUsd ? 'Dollars gained or lost' : 'Percent gained or lost') + ' since the day ' + lensWord() + ', which sits at ' + (isUsd ? '$0' : '0%') + '</span>';
+  }
+
+  function renderTable() {
+    $('tbl').innerHTML = '<thead><tr><th>Decision</th><th>Decided</th><th class="td-r">Worth then</th><th>Received</th><th class="td-r">Worth then</th><th class="td-r">Worth today</th><th class="td-r">Change since ' + lensWord() + '</th></tr></thead><tbody>' +
+      INST.map(function (it) {
+        var d = it.today.value - thenOf(it);
+        return '<tr><td><b>' + esc(it.name) + '</b><div class="sub">' + esc(it.units) + '</div></td><td>' + fmtDate(it.decided.date) + '</td><td class="td-r">' + usd(it.decided.value) + '</td><td>' + esc(it.receivedWhen) + '</td><td class="td-r">' + usd(it.received.value) + '</td><td class="td-r">' + usd(it.today.value) + '</td><td class="td-r">' + deltaHtml(d, plus(d, usd)) + ' &nbsp;' + pct(d / thenOf(it)) + '</td></tr>';
+      }).join('') + '</tbody>';
+  }
+
+  // ── Skipped items and share prices ────────────────────────────────────────
+  function renderSkipped() {
+    var list = DATA.skipped || [];
+    $('skippedPanel').hidden = !list.length;
+    $('skippedList').innerHTML = '<table><tbody>' + list.map(function (s) { return '<tr><td style="width:40%"><b>' + esc(s.name) + '</b></td><td class="sub" style="font-size:13px">' + esc(s.reason) + '</td></tr>'; }).join('') + '</tbody></table>';
+  }
+
+  function renderPrices() {
+    var miss = DATA.missing_prices || [];
+    $('pricesPanel').hidden = !(miss.length || PRICES.length || INST.length || (DATA.skipped || []).length);
+    $('missingBox').hidden = !miss.length;
+    $('missingCount').textContent = miss.length + ' share price' + (miss.length === 1 ? ' is' : 's are') + ' missing.';
+    $('missingTbl').innerHTML = '<thead><tr><th>Ticker</th><th>Date</th><th>Needed for</th><th>Price ($ per share)</th></tr></thead><tbody>' +
+      miss.map(function (m, i) {
+        return '<tr><td><b>' + esc(m.ticker) + '</b></td><td>' + fmtDate(m.date) + '</td><td class="sub" style="font-size:13px">' + esc(m.reason) + '</td>' +
+          '<td><input class="fi miss-in" type="number" step="0.01" min="0" data-i="' + i + '" placeholder="0.00" aria-label="Price for ' + esc(m.ticker) + ' on ' + fmtDate(m.date) + '" style="width:130px"></td></tr>';
+      }).join('') + '</tbody>';
+    $('priceTbl').innerHTML = PRICES.length
+      ? '<thead><tr><th>Ticker</th><th>Date</th><th class="td-r">Price</th><th></th></tr></thead><tbody>' + PRICES.map(function (p) {
+          return '<tr><td><b>' + esc(p.ticker) + '</b></td><td>' + fmtDate(p.date) + '</td><td class="td-r">$' + (p.price / 100).toFixed(2) + '</td><td class="td-r"><button class="btn-link" type="button" data-del="' + esc(p.id) + '">Delete</button></td></tr>';
+        }).join('') + '</tbody>'
+      : '<tbody><tr><td class="sub" style="font-size:13px">No prices stored yet.</td></tr></tbody>';
+    if (miss.length || !PRICES.length) $('allPrices').open = !miss.length;
+  }
+
+  async function savePrices(rows) {
+    if (!rows.length) { showAlert('Enter at least one price first', 'warning'); return; }
+    try {
+      await API.post('/prices', { prices: rows });
+      showAlert('Prices saved', 'success');
+      await load();
+    } catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
+  }
+
+  $('saveMissing').addEventListener('click', function () {
+    var rows = [];
+    [].forEach.call(document.querySelectorAll('.miss-in'), function (inp) {
+      var v = parseFloat(inp.value), m = DATA.missing_prices[+inp.dataset.i];
+      if (v > 0) rows.push({ ticker: m.ticker, date: m.date, price: Math.round(v * 100) });
+    });
+    savePrices(rows);
+  });
+  $('npAdd').addEventListener('click', function () {
+    var t = $('npTicker').value.trim().toUpperCase(), d = $('npDate').value, v = parseFloat($('npPrice').value);
+    if (!t || !d || !(v > 0)) { showAlert('A ticker, a date and a price are all needed', 'warning'); return; }
+    savePrices([{ ticker: t, date: d, price: Math.round(v * 100) }]).then(function () { $('npPrice').value = ''; });
+  });
+  $('priceTbl').addEventListener('click', async function (e) {
+    var id = e.target.dataset && e.target.dataset.del;
+    if (!id || !confirm('Delete this price?')) return;
+    try { await API.delete('/prices/' + id); await load(); } catch (err) { showAlert('Could not delete: ' + err.message, 'error'); }
+  });
+
+  // ── Load + render ─────────────────────────────────────────────────────────
+  function renderAll() {
+    var has = INST.length > 0;
+    $('tvnLoading').hidden = true;
+    $('tvnMain').hidden = !has;
+    $('tvnEmpty').hidden = has || (DATA.skipped || []).length > 0;
+    renderSkipped(); renderPrices();
+    if (!has) return;
+    $('asOf').textContent = fmtDate(TODAY);
+    renderLens(); renderKpis(); renderNw(); renderDetail(); renderBells(); renderTable();
+  }
+
+  async function load() {
+    try {
+      var qs = new URLSearchParams(location.search).get('today');      // optional: view the page as of another day
+      var res = await Promise.all([API.get('/then-vs-now' + (qs ? '?today=' + encodeURIComponent(qs) : '')), API.get('/prices')]);
+      DATA = res[0]; PRICES = res[1]; TODAY = DATA.today;
+      INST = DATA.instruments.map(function (i) {            // cents → dollars once, here
+        var o = Object.assign({}, i);
+        o.decided = Object.assign({}, i.decided, { value: i.decided.value / 100 });
+        o.receipts = i.receipts.map(function (r) { return Object.assign({}, r, { value: r.value / 100 }); });
+        o.received = { value: i.received.value / 100 };
+        o.today = Object.assign({}, i.today, { value: i.today.value / 100 });
+        var n = o.receipts.length, lbl = i.received_label;
+        o.receivedWhen = n === 1 ? fmtDate(o.receipts[0].date)
+          : n + ' ' + (lbl ? lbl + 's' : 'dates') + ' · ' + fmtMonth(o.receipts[0].date) + ' – ' + fmtMonth(o.receipts[n - 1].date);
+        return o;
+      }).filter(function (i) { return i.decided.value > 0 && i.received.value > 0; });
+      byId = {}; INST.forEach(function (i) { byId[i.id] = i; });
+      NW = DATA.net_worth.series.map(function (p) { return [p.date, p.value / 100, p.partial]; });
+      NW_NOW = DATA.net_worth.now === null || !NW.length ? null : DATA.net_worth.now / 100;
+      if (!byId[state.sel]) state.sel = INST.length ? INST[0].id : null;
+      renderAll();
+    } catch (e) {
+      $('tvnLoading').textContent = 'Could not load this page: ' + e.message;
+    }
+  }
+
+  $('lensSeg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) set({ lens: b.dataset.lens }); });
+  $('unitSeg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) set({ unit: b.dataset.unit }); });
+  var rz; window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(function () { if (INST.length) { renderNw(); renderBells(); } }, 120); });
+  document.addEventListener('DOMContentLoaded', load);
+})();
+</script>
+{% endblock %}

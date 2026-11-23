@@ -37,6 +37,11 @@ def timeline():
     return render_template("timeline.html", title="Cash Flow")
 
 
+@pages_bp.route("/then-vs-now")
+def then_vs_now():
+    return render_template("then_vs_now.html", title="Then vs. Now")
+
+
 @pages_bp.route("/settings")
 def settings():
     return render_template("settings.html", title="Settings")

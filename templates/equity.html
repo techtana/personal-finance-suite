@@ -243,6 +243,11 @@
                     <div><label class="block text-xs font-medium text-gray-700 mb-1">Cost Basis ($ opt.)</label><input x-model="assetForm.cost_basis_dollars" type="number" step="0.01" placeholder="0.00" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
                     <div><label class="block text-xs font-medium text-gray-700 mb-1">Acquired Date (opt.)</label><input x-model="assetForm.acquired_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
                 </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Decided Date (opt.)</label>
+                    <input x-model="assetForm.decided_date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    <p class="text-xs text-gray-400 mt-1">The day you agreed to buy, if earlier than the acquired date. Used on the Then vs. Now page.</p>
+                </div>
                 <div x-show="assetForm.category === 'property'">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Property Address (opt.)</label>
                     <input x-model="assetForm.address" type="text" placeholder="123 Main St, City, State" class="w-full px-3 py-2 border rounded-lg text-sm">
@@ -603,17 +608,17 @@ function assetsPage() {
         openAddAsset(preferCats) {
             this.editingAssetId = null;
             const cat = preferCats ? preferCats[0] : 'stock';
-            this.assetForm = { name: '', category: cat, ticker: '', quantity: '', current_value_dollars: '', cost_basis_dollars: '', acquired_date: '', address: '', linked_loan_id: '', note: '' };
+            this.assetForm = { name: '', category: cat, ticker: '', quantity: '', current_value_dollars: '', cost_basis_dollars: '', acquired_date: '', decided_date: '', address: '', linked_loan_id: '', note: '' };
             this.showAssetModal = true;
         },
         openEditAsset(a) {
             this.editingAssetId = a.id;
-            this.assetForm = { name: a.name, category: a.category, ticker: a.ticker || '', quantity: a.quantity || '', current_value_dollars: (a.current_value/100).toFixed(2), cost_basis_dollars: a.cost_basis ? (a.cost_basis/100).toFixed(2) : '', acquired_date: a.acquired_date || '', address: a.address || '', linked_loan_id: a.linked_loan_id || '', note: a.note || '' };
+            this.assetForm = { name: a.name, category: a.category, ticker: a.ticker || '', quantity: a.quantity || '', current_value_dollars: (a.current_value/100).toFixed(2), cost_basis_dollars: a.cost_basis ? (a.cost_basis/100).toFixed(2) : '', acquired_date: a.acquired_date || '', decided_date: a.decided_date || '', address: a.address || '', linked_loan_id: a.linked_loan_id || '', note: a.note || '' };
             this.showAssetModal = true;
         },
         async saveAsset() {
             const today = new Date().toISOString().split('T')[0];
-            const p = { name: this.assetForm.name, category: this.assetForm.category, ticker: this.assetForm.ticker || null, quantity: this.assetForm.quantity ? parseFloat(this.assetForm.quantity) : null, current_value: Math.round(parseFloat(this.assetForm.current_value_dollars || 0)*100), cost_basis: this.assetForm.cost_basis_dollars ? Math.round(parseFloat(this.assetForm.cost_basis_dollars)*100) : null, acquired_date: this.assetForm.acquired_date || null, address: this.assetForm.address || null, linked_loan_id: this.assetForm.linked_loan_id || null, last_updated_date: today, note: this.assetForm.note || null };
+            const p = { name: this.assetForm.name, category: this.assetForm.category, ticker: this.assetForm.ticker || null, quantity: this.assetForm.quantity ? parseFloat(this.assetForm.quantity) : null, current_value: Math.round(parseFloat(this.assetForm.current_value_dollars || 0)*100), cost_basis: this.assetForm.cost_basis_dollars ? Math.round(parseFloat(this.assetForm.cost_basis_dollars)*100) : null, acquired_date: this.assetForm.acquired_date || null, decided_date: this.assetForm.decided_date || null, address: this.assetForm.address || null, linked_loan_id: this.assetForm.linked_loan_id || null, last_updated_date: today, note: this.assetForm.note || null };
             try {
                 if (this.editingAssetId) await API.patch('/assets/'+this.editingAssetId, p);
                 else await API.post('/assets', p);

@@ -27,6 +27,9 @@
                 <a href="/timeline" class="{% if request.path in ['/timeline', '/transactions'] %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
                     📅 Cash Flow
                 </a>
+                <a href="/then-vs-now" class="{% if request.path == '/then-vs-now' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
+                    ⇄ Then vs. Now
+                </a>
                 <a href="/equity" class="{% if request.path == '/equity' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
                     📈 Assets
                 </a>

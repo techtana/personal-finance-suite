@@ -306,6 +306,7 @@ def create_asset():
         current_value=int(data.get("current_value", 0)),
         cost_basis=int(data["cost_basis"]) if data.get("cost_basis") is not None else None,
         acquired_date=data.get("acquired_date") or None,
+        decided_date=data.get("decided_date") or None,
         address=data.get("address") or None,
         linked_loan_id=data.get("linked_loan_id") or None,
         last_updated_date=data.get("last_updated_date") or today,

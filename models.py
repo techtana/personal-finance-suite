@@ -229,6 +229,7 @@ class Asset(db.Model):
     current_value = db.Column(Integer, nullable=False)   # cents (total portfolio value)
     cost_basis = db.Column(Integer, nullable=True)       # cents (total acquisition cost)
     acquired_date = db.Column(String(10), nullable=True)
+    decided_date = db.Column(String(10), nullable=True)  # day the purchase was agreed; defaults to acquired_date
     address = db.Column(Text, nullable=True)             # for property
     linked_loan_id = db.Column(String(21), ForeignKey("loans.id"), nullable=True)
     last_updated_date = db.Column(String(10), nullable=False, default=get_iso_date)
@@ -364,3 +365,19 @@ class ChangeEvent(db.Model):
     note = db.Column(Text, nullable=True)
     created_at = db.Column(String(10), nullable=False, default=get_iso_date)
     updated_at = db.Column(String(10), nullable=False, default=get_iso_date, onupdate=get_iso_date)
+
+
+class PricePoint(db.Model):
+    """Share price for a ticker on one date, entered by hand.
+
+    Feeds the Then vs. Now page: vest-date and purchase-date values, and today's value.
+    """
+
+    __tablename__ = "price_points"
+    __table_args__ = (db.UniqueConstraint("ticker", "date", name="uq_price_ticker_date"),)
+
+    id = db.Column(String(21), primary_key=True, default=generate_id)
+    ticker = db.Column(String(20), nullable=False)
+    date = db.Column(String(10), nullable=False)
+    price = db.Column(Integer, nullable=False)           # cents per share
+    created_at = db.Column(String(10), nullable=False, default=get_iso_date)

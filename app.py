@@ -2,7 +2,26 @@ import os
 from flask import Flask
 from flask_migrate import Migrate
 from config import get_config
+from sqlalchemy import inspect, text
 from models import db
+
+# Columns added to existing tables after their first release. db.create_all() only
+# creates missing tables, so these are added by hand on startup.
+_ADDED_COLUMNS = {
+    "assets": {"decided_date": "VARCHAR(10)"},
+}
+
+
+def _ensure_columns():
+    inspector = inspect(db.engine)
+    for table, columns in _ADDED_COLUMNS.items():
+        if not inspector.has_table(table):
+            continue
+        existing = {c["name"] for c in inspector.get_columns(table)}
+        for name, ddl in columns.items():
+            if name not in existing:
+                db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+    db.session.commit()
 
 
 migrate = Migrate()
@@ -30,6 +49,7 @@ def create_app(config=None):
     # Create any new tables not yet covered by migrations
     with app.app_context():
         db.create_all()
+        _ensure_columns()
 
     # Register blueprints
     from api import api_bp
