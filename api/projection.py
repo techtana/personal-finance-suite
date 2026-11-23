@@ -84,6 +84,7 @@ def get_projection():
             "category": r.category,
             "schedule": r.schedule,
             "config": r.config,
+            "tax_treatment": r.tax_treatment,
             "is_active": r.is_active,
         }
         for r in Rule.query.filter_by(is_active=True).all()
@@ -98,6 +99,7 @@ def get_projection():
             "amount": c.amount,
             "category": c.category,
             "change_type": c.change_type,
+            "tax_treatment": c.tax_treatment,
         }
         for c in ChangeEvent.query.all()
     ]

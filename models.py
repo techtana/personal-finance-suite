@@ -33,6 +33,9 @@ class Settings(db.Model):
     fiscal_year_start_month = db.Column(Integer, nullable=False, default=1)
     default_withholding_rate = db.Column(Integer, nullable=False, default=2200)
     divergence_thresholds = db.Column(JSON, nullable=False, default=lambda: {})
+    # Tax profile: {filing_status, state_rate, age, hsa_coverage, loss_carryover,
+    #               other_gain_short, other_gain_long}. Empty = engine defaults.
+    tax_profile = db.Column(JSON, nullable=True, default=lambda: {})
     schema_version = db.Column(Integer, nullable=False, default=1)
 
 
@@ -335,6 +338,9 @@ class Rule(db.Model):
     #        contribution_value, base_salary, discount_rate, has_lookback}
     config = db.Column(JSON, nullable=True)
 
+    # How this income/expense is taxed (key from engine.tax_tables); NULL = default
+    tax_treatment = db.Column(String(30), nullable=True)
+
     is_active = db.Column(Boolean, nullable=False, default=True)
     note = db.Column(Text, nullable=True)
     created_at = db.Column(String(10), nullable=False, default=get_iso_date)
@@ -359,6 +365,8 @@ class ChangeEvent(db.Model):
     account_id = db.Column(String(21), ForeignKey("accounts.id"), nullable=True)
     category = db.Column(String(50), nullable=True)
     change_type = db.Column(String(20), nullable=False, default="manual")
+    # How this gain/expense is taxed (key from engine.tax_tables); NULL = default
+    tax_treatment = db.Column(String(30), nullable=True)
     # For adjustments: optional link to the snapshot that revealed the discrepancy
     snapshot_id = db.Column(String(21), ForeignKey("snapshots.id"), nullable=True)
     note = db.Column(Text, nullable=True)

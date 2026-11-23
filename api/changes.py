@@ -30,6 +30,7 @@ def create_change():
         account_id=data.get("account_id") or None,
         category=data.get("category") or None,
         change_type=data.get("change_type", "manual"),
+        tax_treatment=data.get("tax_treatment") or None,
         snapshot_id=data.get("snapshot_id") or None,
         note=data.get("note") or None,
     )
