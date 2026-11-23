@@ -129,8 +129,7 @@
             <template x-if="accounts.length === 0 && loans.length === 0">
                 <div class="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
                     <p class="text-amber-800 font-medium mb-1">No data yet</p>
-                    <p class="text-amber-700 text-sm mb-4">Load sample data to explore the app, or start adding your own accounts.</p>
-                    <button @click="loadSample()" class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium">Load Sample Data</button>
+                    <p class="text-amber-700 text-sm">Start by adding your accounts, or restore a backup under Settings → Backups.</p>
                 </div>
             </template>
 
@@ -280,16 +279,6 @@ function dashboard() {
                     },
                 },
             });
-        },
-
-        async loadSample() {
-            try {
-                await API.post('/seed', {});
-                showAlert('Sample data loaded!', 'success');
-                await this.init();
-            } catch (e) {
-                showAlert('Failed to load sample data: ' + e.message, 'error');
-            }
         },
     };
 }
