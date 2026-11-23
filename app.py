@@ -38,6 +38,9 @@ def create_app(config=None):
     from pages import pages_bp
     app.register_blueprint(pages_bp)
 
+    from importer.cli import imports_cli
+    app.cli.add_command(imports_cli)
+
     # Shell context for flask shell
     @app.shell_context_processor
     def make_shell_context():

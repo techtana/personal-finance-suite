@@ -27,6 +27,9 @@
                 <a href="/timeline" class="{% if request.path in ['/timeline', '/transactions'] %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
                     📅 Cash Flow
                 </a>
+                <a href="/import" class="{% if request.path == '/import' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
+                    📥 Import
+                </a>
                 <a href="/equity" class="{% if request.path == '/equity' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
                     📈 Assets
                 </a>

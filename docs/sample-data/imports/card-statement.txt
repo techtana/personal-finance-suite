@@ -1,0 +1,24 @@
+EXAMPLE BANK VISA SIGNATURE
+Account ending in 4821
+Statement Period: 10/04/2026 - 11/03/2026
+
+ACCOUNT SUMMARY
+Previous Balance                        $1,204.18
+Payments and Credits                     -$650.00
+Purchases                                 $702.37
+New Balance                             $1,256.55
+Payment Due Date: 11/28/2026
+
+PAYMENTS AND OTHER CREDITS
+10/12   PAYMENT THANK YOU                          650.00
+
+PURCHASES
+10/05   SAFEWAY #1555 SEATTLE WA                    94.12
+10/09   CHEVRON 0091234 SEATTLE WA                  48.30
+10/14   NETFLIX.COM                                 15.49
+10/21   DOORDASH*THAI GINGER                        38.75
+10/28   IKEA SEATTLE                               412.21
+11/01   STARBUCKS STORE 08812                        6.45
+11/02   PCC COMMUNITY MARKETS                       87.05
+
+Total purchases this period                       $702.37

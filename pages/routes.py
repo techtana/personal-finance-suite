@@ -37,6 +37,11 @@ def timeline():
     return render_template("timeline.html", title="Cash Flow")
 
 
+@pages_bp.route("/import")
+def import_files():
+    return render_template("import.html", title="Import")
+
+
 @pages_bp.route("/settings")
 def settings():
     return render_template("settings.html", title="Settings")

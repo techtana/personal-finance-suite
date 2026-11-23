@@ -328,10 +328,12 @@ def project_v2(
                         category="equity",
                     ))
 
-    # Manual change events
+    # Manual change events. Only those inside the horizon: starting_net_worth comes
+    # from today's balances, which already include every past change (imported
+    # bank history would otherwise be counted twice).
     for change in changes:
         amt = change.get("amount", 0)
-        if amt == 0:
+        if amt == 0 or not (from_date <= change.get("date", "") <= to_date):
             continue
         all_events.append(CashFlowEvent(
             date=change["date"],

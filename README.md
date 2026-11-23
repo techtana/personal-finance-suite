@@ -10,6 +10,8 @@ A self-hosted Flask web application for personal financial planning. Track incom
 - **Accounts & Loans**: Track all financial accounts and liabilities
 - **Timeline & Projections**: Month-by-month cash flow and net worth forecasts
 - **Settings**: Configure categories, divergence thresholds, and more
+- **Import**: Drop bank/card exports, PDF statements, receipts or pay stubs (text, PDF or a photo); a local AI
+  helps read them, you review, then they land in the right place (see [File import](#file-import))
 - **Data Management**: Export/import all data as JSON
 
 ## Requirements
@@ -82,6 +84,69 @@ SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_hex())
 FINANCE_DB_PATH=instance/finance.db
 ```
 
+## File import
+
+Open **Import** in the sidebar and drop files: CSV/TSV, Excel (.xlsx), OFX/QFX/QBO, JSON, PDF (text or scanned),
+plain text, or a photo (JPG/PNG). Each file is read on this computer, staged for review, and only written to your
+data when you click **Import**. Every import can be undone.
+
+What goes where:
+
+| Document | Becomes |
+|---|---|
+| Statement or export | one Cash Flow entry (`ChangeEvent`, type `imported`) per transaction; the closing balance as an account balance snapshot; regular payments (same merchant, steady amount and gap) as *suggested* recurring rules, off until you tick them |
+| Receipt | one expense entry with the receipt total; items, tax and tip in the note |
+| Pay stub | net pay as income to the account it was paid into; 401(k)/403(b) contributions plus employer match as income to your retirement account; a suggested salary rule |
+
+Transfers between your own accounts and credit card payments are recognised and left unticked, so they aren't
+counted as spending or income. Duplicates are caught across files and sources: the same file twice, overlapping
+statements, a receipt and the card statement line for the same purchase, a pay stub and the payroll deposit.
+
+### How the local AI is used
+
+The model is small and runs locally, so it only gets narrow questions, and nothing it says is trusted on its own.
+
+1. **Rules first.** OFX files, standard CSV headers, dates, amounts, sign conventions, known merchants and
+   transfers are handled by code (`importer/parsing.py`, `importer/statements.py`, `importer/taxonomy.py`).
+2. **Memory next.** A column layout you imported before is reused, keyed by the header row
+   (`import_profiles`); a category you picked for a merchant is reused (`import_merchant_rules`).
+3. **The AI fills gaps** through seven single-purpose tools in `importer/ai_tools.py`: read a photo into text,
+   tell what kind of document it is, map a table's columns, find transactions in statement text, read a receipt,
+   read a pay stub, categorize unfamiliar merchants (once per merchant, not per row). Each answer's shape is fixed by
+   a JSON schema (Ollama constrains decoding to it, so categories can only come from your list).
+4. **Every answer is checked.** Amounts must appear in the document, dates must be printed on it, column choices
+   must parse across all rows, income categories can't go on spending, receipts must add up
+   (subtotal + tax + tip = total) and pay stubs must reconcile (gross − deductions = net). A receipt or pay stub
+   is also read by plain rules, and disagreements are flagged. Rejected answers go back to the model once with the
+   reason; anything still wrong is dropped and flagged.
+5. **You review.** Rows show where each value came from (rules, your earlier choice, the document, the AI) and
+   flags such as *Possible duplicate*, *Readers disagree* or *Doesn't add up*. Filters isolate rows that need a
+   look or that the AI decided.
+
+If the AI is offline, everything except photos and scanned PDFs still works with rules only.
+
+### Configuration
+
+By default the importer reuses the Ollama server of the personal agent stack (`http://127.0.0.1:11434`, model
+`qwen3.5:9b`, `num_ctx` 32768 to match the stack so the loaded model is shared, not reloaded). See
+`.env.example` for the `LLM_*` settings (the older `IMPORT_LLM_*` names still work), including routing through the stack's LiteLLM gateway. A base URL
+that isn't this computer is refused unless `LLM_ALLOW_REMOTE=1`. Copies of dropped files are kept in
+`instance/imports/` for review and re-reading; deleting an import deletes its copy.
+
+From a terminal:
+
+```bash
+flask imports status
+flask imports read path/to/statement.csv --account <account-id>
+```
+
+Sample files (fictional data) are in `docs/sample-data/imports/`. To check the model end to end after changing a
+prompt or the model:
+
+```bash
+RUN_LOCAL_LLM_TESTS=1 pytest tests/test_import_live.py -v
+```
+
 ## Database Backup
 
 The SQLite database file is located at `instance/finance.db`. Back it up by:
@@ -114,9 +179,19 @@ The SQLite database file is located at `instance/finance.db`. Back it up by:
 - `GET /api/equity/espp` — List ESPP plans
 - `POST /api/equity/espp` — Create ESPP plan
 
+### Import
+
+- `POST /api/imports` — Upload files (multipart `files`, optional `account_id`, `doc_type`)
+- `GET /api/imports`, `GET /api/imports/<id>` — List; one import with its rows
+- `PATCH /api/imports/<id>` — Change account; or re-read with `doc_type`, `mapping`, `flip_signs`
+- `PATCH /api/imports/<id>/rows/<row_id>` — Edit a row (action, date, amount, description, category)
+- `POST /api/imports/<id>/commit`, `POST /api/imports/<id>/undo`, `DELETE /api/imports/<id>`
+- `GET /api/imports/ai-status` — Is the local AI reachable
+
 ### Projection
 
-- `GET /api/projection?from=2026-05-10&to=2027-05-10` — Run projection
+- `GET /api/projection?from=2026-05-10&to=2027-05-10` — Run projection (one-time changes count only inside the
+  range; balances already include past ones)
 - `GET /api/projection/month/2026-05` — Drill-down for a month
 
 ### Settings & Data
@@ -143,6 +218,7 @@ personal-finance-suite/
 │   └── settings.py
 ├── pages/                  ← Page routes (Jinja2)
 │   └── routes.py
+├── importer/               ← File import: readers, rules, AI tools, review pipeline
 ├── engine/                 ← Business logic
 │   ├── projection.py       ← Core projection engine
 │   ├── recurrence.py       ← Recurring date expansion
@@ -236,7 +312,9 @@ flask db upgrade
 ## Limitations (v1)
 
 - Single-user, no multi-user support
-- No automatic bank/brokerage data pulls (manual entry only)
+- No automatic bank/brokerage data pulls (manual entry, or drop exported files on the Import page)
+- Import doesn't convert currencies; amounts are taken in the app's currency
+- HEIC photos and old .xls files aren't read; export as JPEG or .xlsx/.csv
 - No password protection for local web server
 - SQLite limits concurrent writes (works for personal use)
 - No tax optimization or filing features
@@ -245,7 +323,6 @@ flask db upgrade
 
 - Optional password protection
 - Stock price API feeds
-- CSV bulk import
 - Multi-workspace support
 - Optional cloud sync (Dropbox, iCloud)
 - PWA "install as app" support
