@@ -1,0 +1,531 @@
+{% extends "base.html" %}
+{% block title %}Taxes - Personal Finance Suite{% endblock %}
+{% block page_title %}Taxes{% endblock %}
+
+{% block content %}
+<style>
+    /* Chart colors by role (dataviz reference palette, light surface) */
+    .viz-root {
+        --series-federal: #2a78d6;
+        --series-payroll: #eb6834;
+        --series-state: #1baf7a;
+        --series-sheltered: #eda100;
+        --series-rest: #c3c2b7;
+        --meter-fill: #2a78d6;
+        --meter-track: #cde2fb;
+        --status-good: #0ca30c;
+        --status-warning: #fab219;
+        --status-critical: #d03b3b;
+        --ink-muted: #898781;
+        --grid: #e1e0d9;
+    }
+    .viz-root .num { font-variant-numeric: tabular-nums; }
+    .viz-tip { position: fixed; z-index: 60; pointer-events: none; transform: translate(12px, 12px); }
+</style>
+
+<div x-data="taxesPage()" x-init="init()" class="viz-root space-y-6">
+
+    <!-- ── Controls (one row above everything) ─────────────────────────────── -->
+    <div class="flex flex-wrap justify-between items-center gap-3">
+        <div>
+            <h3 class="text-base font-semibold text-gray-900">Estimated taxes</h3>
+            <p class="text-xs text-gray-500">
+                Built from your Cash Flow rules, logged changes, asset sales and loans.
+                <span x-show="data" x-text="data ? data.filing_status_label + ' · ' + data.table_year + ' federal tables' : ''"></span>
+            </p>
+        </div>
+        <div class="flex items-center gap-3">
+            <label class="text-sm text-gray-600" for="taxYear">Tax year</label>
+            <select id="taxYear" x-model.number="year" @change="load()" class="px-3 py-2 border rounded-lg text-sm bg-white">
+                <template x-for="y in yearOptions" :key="y"><option :value="y" :selected="y===year" x-text="y"></option></template>
+            </select>
+            <button @click="showProfile=!showProfile" class="px-4 py-2 border border-gray-300 bg-white rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
+                    x-text="showProfile ? 'Hide tax profile' : 'Tax profile'"></button>
+        </div>
+    </div>
+
+    <!-- ── Tax profile ─────────────────────────────────────────────────────── -->
+    <div x-show="showProfile" x-cloak class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h4 class="text-sm font-semibold text-gray-900">Tax profile</h4>
+        <p class="text-xs text-gray-500 mb-4">Every field is optional. Anything left blank uses the default shown, and the estimate says so.</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Filing status</label>
+                <select x-model="profileForm.filing_status" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                    <option value="">Not set (Single)</option>
+                    <template x-for="s in filingStatuses" :key="s.key"><option :value="s.key" :selected="s.key===profileForm.filing_status" x-text="s.label"></option></template>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">State income tax rate (%)</label>
+                <input x-model="profileForm.state_rate_pct" type="number" min="0" max="15" step="0.1" placeholder="Not set (0%)" class="w-full px-3 py-2 border rounded-lg text-sm">
+                <p class="text-xs text-gray-400 mt-1">Your effective rate; applied flat.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Age at year end</label>
+                <input x-model="profileForm.age" type="number" min="0" max="120" step="1" placeholder="Not set (under 50)" class="w-full px-3 py-2 border rounded-lg text-sm">
+                <p class="text-xs text-gray-400 mt-1">Adds catch-up room at 50+.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">HSA-eligible health plan</label>
+                <select x-model="profileForm.hsa_coverage" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                    <option value="">Not set (self-only)</option>
+                    <option value="self">Self-only coverage</option>
+                    <option value="family">Family coverage</option>
+                    <option value="none">None — not HSA eligible</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Capital loss carried over ($)</label>
+                <input x-model="profileForm.loss_carryover_dollars" type="number" min="0" step="0.01" placeholder="0" class="w-full px-3 py-2 border rounded-lg text-sm">
+                <p class="text-xs text-gray-400 mt-1">Unused losses from earlier years.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Other short-term gain / loss ($)</label>
+                <input x-model="profileForm.other_gain_short_dollars" type="number" step="0.01" placeholder="0" class="w-full px-3 py-2 border rounded-lg text-sm">
+                <p class="text-xs text-gray-400 mt-1">Sales not tracked here. Negative for a loss.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Other long-term gain / loss ($)</label>
+                <input x-model="profileForm.other_gain_long_dollars" type="number" step="0.01" placeholder="0" class="w-full px-3 py-2 border rounded-lg text-sm">
+                <p class="text-xs text-gray-400 mt-1">Negative for a loss.</p>
+            </div>
+            <div class="flex items-end">
+                <button @click="saveProfile()" :disabled="savingProfile" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
+                        x-text="savingProfile ? 'Saving…' : 'Save profile'"></button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="loading" class="text-center py-12 text-gray-500 text-sm">Estimating taxes…</div>
+    <div x-show="error" x-cloak class="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
+        <span x-text="error"></span>
+        <button @click="load()" class="ml-2 underline">Try again</button>
+    </div>
+
+    <template x-if="!loading && data">
+        <div class="space-y-6">
+
+            <!-- ── Nothing entered yet ─────────────────────────────────────── -->
+            <template x-if="!data.has_income">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+                    <p class="text-base font-semibold text-gray-900" x-text="data.has_inputs ? 'No taxable income in ' + data.year : 'Nothing to estimate yet for ' + data.year"></p>
+                    <p class="text-sm text-gray-600 mt-2 max-w-xl mx-auto"
+                       x-text="data.has_inputs
+                           ? 'Your inputs for this year contain expenses but no taxable income, so the estimated tax is $0. Add income on the Cash Flow page, or pick another year.'
+                           : 'Add an income rule on the Cash Flow page and this page fills in on its own. You do not need to tag anything: untagged income is treated as W-2 wages and untagged expenses as personal spending.'"></p>
+                    <a href="/timeline" class="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Go to Cash Flow</a>
+                    <p class="text-xs text-gray-400 mt-4">The contribution limits below still apply, so you can see how much room each account has.</p>
+                </div>
+            </template>
+
+            <template x-if="data.has_income">
+                <div class="space-y-6">
+
+                    <!-- ── Headline numbers ────────────────────────────────── -->
+                    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                            <p class="text-xs font-medium text-gray-500">Gross income</p>
+                            <p class="text-xl font-semibold text-gray-900 mt-1" x-text="usd(S.gross_income)"></p>
+                            <p class="text-xs text-gray-500 mt-1" x-text="S.tax_exempt_income > 0 ? '+ ' + usd(S.tax_exempt_income) + ' not taxable' : 'before any tax'"></p>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                            <p class="text-xs font-medium text-gray-500">Estimated total tax</p>
+                            <p class="text-xl font-semibold text-gray-900 mt-1" x-text="usd(S.total_tax)"></p>
+                            <p class="text-xs text-gray-500 mt-1">federal, payroll and state</p>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                            <p class="text-xs font-medium text-gray-500">Effective rate</p>
+                            <p class="text-xl font-semibold text-gray-900 mt-1" x-text="pct(S.effective_rate)"></p>
+                            <p class="text-xs text-gray-500 mt-1">total tax ÷ gross income</p>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                            <p class="text-xs font-medium text-gray-500">Marginal federal bracket</p>
+                            <p class="text-xl font-semibold text-gray-900 mt-1" x-text="pct(S.marginal_rate, 0)"></p>
+                            <p class="text-xs text-gray-500 mt-1">tax on your next dollar</p>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 col-span-2 lg:col-span-1">
+                            <p class="text-xs font-medium text-gray-500" x-text="S.federal_balance_due >= 0 ? 'Federal tax still owed' : 'Federal refund expected'"></p>
+                            <p class="text-xl font-semibold text-gray-900 mt-1" x-text="usd(Math.abs(S.federal_balance_due))"></p>
+                            <p class="text-xs text-gray-500 mt-1" x-text="S.tax_paid > 0 ? usd(S.tax_paid) + ' already paid' : 'no payments entered'"></p>
+                        </div>
+                    </div>
+
+                    <!-- ── Where each dollar goes ──────────────────────────── -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <h4 class="text-sm font-semibold text-gray-900">Where your gross income goes</h4>
+                        <p class="text-xs text-gray-500 mb-4" x-text="'Share of ' + usd(S.gross_income) + ' gross income in ' + data.year"></p>
+                        <div class="flex w-full h-8" style="gap:2px" role="img" :aria-label="allocationSummary">
+                            <template x-for="(seg, i) in allocation" :key="seg.key">
+                                <div class="h-full flex items-center justify-center text-xs font-medium num"
+                                     :style="`flex: ${seg.amount} 0 0; min-width: 3px; background: var(--series-${segVar(seg.key)}); color: ${segInk(seg.key)}; border-radius: ${i===0?'4px':'0'} ${i===allocation.length-1?'4px':'0'} ${i===allocation.length-1?'4px':'0'} ${i===0?'4px':'0'};`"
+                                     @mousemove="tipAt($event, seg.label, usd(seg.amount) + ' · ' + pct(seg.amount / S.gross_income))"
+                                     @mouseleave="tip.show=false">
+                                    <span x-show="seg.amount / S.gross_income >= 0.07" x-text="pct(seg.amount / S.gross_income, 0)"></span>
+                                </div>
+                            </template>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-x-6 gap-y-2 mt-4">
+                            <template x-for="seg in data.allocation" :key="seg.key">
+                                <div class="flex items-start gap-2">
+                                    <span class="inline-block w-2.5 h-2.5 rounded-sm mt-1 flex-shrink-0" :style="`background: var(--series-${segVar(seg.key)})`"></span>
+                                    <div>
+                                        <p class="text-xs text-gray-600" x-text="seg.label"></p>
+                                        <p class="text-sm font-medium text-gray-900 num" x-text="usd(seg.amount) + ' · ' + pct(seg.amount / S.gross_income)"></p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- ── Gross → taxable income ──────────────────────── -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                            <h4 class="text-sm font-semibold text-gray-900">From gross income to taxable income</h4>
+                            <p class="text-xs text-gray-500 mb-4">What comes off before the brackets apply</p>
+                            <div class="space-y-2">
+                                <template x-for="row in waterfall" :key="row.label">
+                                    <div class="grid items-center gap-3" style="grid-template-columns: 11rem 1fr 5.5rem">
+                                        <span class="text-xs" :class="row.kind==='total' ? 'font-semibold text-gray-900' : 'text-gray-600'" x-text="row.label"></span>
+                                        <div class="relative h-4" style="border-left: 1px solid #c3c2b7"
+                                             @mousemove="tipAt($event, row.label, (row.kind==='minus' ? '−' : '') + usd(Math.abs(row.amount)))" @mouseleave="tip.show=false">
+                                            <div class="absolute top-0 h-4"
+                                                 :style="`left: ${row.left}%; width: ${row.width}%; min-width: 2px; background: ${row.kind==='total' ? 'var(--series-federal)' : 'var(--series-rest)'}; border-radius: 0 4px 4px 0;`"></div>
+                                        </div>
+                                        <span class="text-xs text-right num" :class="row.kind==='total' ? 'font-semibold text-gray-900' : 'text-gray-600'"
+                                              x-text="(row.kind==='minus' ? '−' : '') + usd(Math.abs(row.amount))"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="flex gap-4 mt-4 text-xs text-gray-600">
+                                <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background: var(--series-federal)"></span>Income remaining</span>
+                                <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background: var(--series-rest)"></span>Taken off</span>
+                            </div>
+                        </div>
+
+                        <!-- ── Brackets ────────────────────────────────────── -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                            <h4 class="text-sm font-semibold text-gray-900">Federal brackets you fill</h4>
+                            <p class="text-xs text-gray-500 mb-4" x-text="'Ordinary taxable income of ' + usd(ordinaryTaxable) + ', bracket by bracket'"></p>
+                            <template x-if="S.taxable_income === 0">
+                                <p class="text-sm text-gray-600">Deductions cover all of your income, so no federal income tax is due.</p>
+                            </template>
+                            <div class="space-y-3">
+                                <template x-for="b in shownBrackets" :key="b.rate">
+                                    <div @mousemove="tipAt($event, pct(b.rate, 0) + ' bracket', usd(b.amount) + ' taxed → ' + usd(b.tax) + ' tax')" @mouseleave="tip.show=false">
+                                        <div class="flex justify-between text-xs mb-1">
+                                            <span class="text-gray-700"><span class="font-semibold text-gray-900" x-text="pct(b.rate, 0)"></span>
+                                                <span x-text="' · ' + usd(b.from) + (b.to === null ? ' and up' : ' – ' + usd(b.to))"></span></span>
+                                            <span class="text-gray-600 num" x-text="b.amount > 0 ? usd(b.amount) + ' → ' + usd(b.tax) + ' tax' : 'not reached'"></span>
+                                        </div>
+                                        <div class="h-2 rounded-full overflow-hidden" style="background: var(--meter-track)">
+                                            <div class="h-full" :style="`width: ${bracketFill(b)}%; background: var(--meter-fill); border-radius: 9999px;`"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            <template x-if="prefBands.length > 0">
+                                <p class="text-xs text-gray-600 mt-4 pt-3 border-t border-gray-100">
+                                    Long-term gains and qualified dividends:
+                                    <template x-for="(b, i) in prefBands" :key="b.rate">
+                                        <span x-text="(i > 0 ? ', ' : ' ') + usd(b.amount) + ' at ' + pct(b.rate, 0)"></span>
+                                    </template>
+                                    <span x-text="' → ' + usd(S.preferential_tax) + ' tax'"></span>
+                                </p>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ── Contribution limits (always shown) ──────────────────────── -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h4 class="text-sm font-semibold text-gray-900">Tax-advantaged account room</h4>
+                <p class="text-xs text-gray-500 mb-4" x-text="'Contributions planned for ' + data.year + ' against each annual limit'"></p>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-4">
+                    <template x-for="l in data.limits" :key="l.key">
+                        <div @mousemove="tipAt($event, l.label, usd(l.used) + ' of ' + usd(l.limit) + ' limit')" @mouseleave="tip.show=false">
+                            <div class="flex justify-between items-baseline text-xs mb-1">
+                                <span class="font-medium text-gray-900" x-text="l.label"></span>
+                                <span class="text-gray-600 num">
+                                    <template x-if="l.limit === 0"><span>Not eligible</span></template>
+                                    <template x-if="l.limit > 0 && l.over === 0"><span x-text="usd(l.used) + ' of ' + usd(l.limit) + ' · ' + usd(l.remaining) + ' room left'"></span></template>
+                                    <template x-if="l.over > 0"><span class="font-semibold text-gray-900" x-text="'⚠ Over the ' + usd(l.limit) + ' limit by ' + usd(l.over)"></span></template>
+                                </span>
+                            </div>
+                            <div class="h-2 rounded-full overflow-hidden" :style="`background: ${l.over > 0 ? '#f6d5d5' : 'var(--meter-track)'}`">
+                                <div class="h-full" :style="`width: ${l.limit > 0 ? Math.min(100, l.used / l.limit * 100) : 0}%; background: ${l.over > 0 ? 'var(--status-critical)' : 'var(--meter-fill)'}; border-radius: 9999px;`"></div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1" x-text="l.used === 0 && l.limit > 0 ? 'Nothing entered · ' + l.note : l.note"></p>
+                        </div>
+                    </template>
+                </div>
+                <p class="text-xs text-gray-500 mt-4">To record a contribution, add an expense rule on <a href="/timeline" class="text-blue-600 hover:underline">Cash Flow</a> and pick its tax treatment.</p>
+            </div>
+
+            <template x-if="data.has_income">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- ── Deductions ──────────────────────────────────────── -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <h4 class="text-sm font-semibold text-gray-900">Standard vs. itemized deduction</h4>
+                        <p class="text-xs text-gray-500 mb-4" x-text="'The estimate uses the larger one: ' + (D.method === 'itemized' ? 'itemized' : 'standard')"></p>
+                        <div class="space-y-3">
+                            <template x-for="row in [{k:'standard', label:'Standard', v:D.standard}, {k:'itemized', label:'Itemized', v:D.itemized}]" :key="row.k">
+                                <div class="grid items-center gap-3" style="grid-template-columns: 5rem 1fr 7.5rem"
+                                     @mousemove="tipAt($event, row.label + ' deduction', usd(row.v))" @mouseleave="tip.show=false">
+                                    <span class="text-xs" :class="D.method===row.k ? 'font-semibold text-gray-900' : 'text-gray-600'" x-text="row.label"></span>
+                                    <div class="h-4" style="border-left: 1px solid #c3c2b7">
+                                        <div class="h-4" :style="`width: ${Math.max(D.standard, D.itemized) > 0 ? row.v / Math.max(D.standard, D.itemized) * 100 : 0}%; min-width: 2px; background: ${D.method===row.k ? 'var(--series-federal)' : 'var(--series-rest)'}; border-radius: 0 4px 4px 0;`"></div>
+                                    </div>
+                                    <span class="text-xs text-right num" :class="D.method===row.k ? 'font-semibold text-gray-900' : 'text-gray-600'"
+                                          x-text="usd(row.v) + (D.method===row.k ? ' ✓ used' : '')"></span>
+                                </div>
+                            </template>
+                        </div>
+                        <table class="w-full mt-4 text-xs">
+                            <tbody class="divide-y divide-gray-100">
+                                <template x-for="p in D.parts" :key="p.label">
+                                    <tr><td class="py-1.5 text-gray-600" x-text="p.label"></td><td class="py-1.5 text-right text-gray-900 num" x-text="usd(p.amount)"></td></tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ── Capital gains & losses ──────────────────────────── -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <h4 class="text-sm font-semibold text-gray-900">Investment sales and loss deduction</h4>
+                        <p class="text-xs text-gray-500 mb-4">Realized gains and losses, netted the way the tax return does</p>
+                        <template x-if="!C.has_activity">
+                            <div class="text-sm text-gray-600 space-y-2">
+                                <p>No investment sales or loss carryovers entered for this year, so nothing is taxed or deducted here.</p>
+                                <p class="text-xs text-gray-500">Gains come in three ways: a scheduled sale on an asset with a cost basis (<a href="/equity" class="text-blue-600 hover:underline">Assets</a>), an income entry tagged as an investment sale (<a href="/timeline" class="text-blue-600 hover:underline">Cash Flow</a>), or the “other gain / loss” fields in the tax profile above.</p>
+                            </div>
+                        </template>
+                        <template x-if="C.has_activity">
+                            <table class="w-full text-xs">
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr><td class="py-1.5 text-gray-600">Short-term gain / loss</td><td class="py-1.5 text-right text-gray-900 num" x-text="signed(C.short_term)"></td></tr>
+                                    <tr><td class="py-1.5 text-gray-600">Long-term gain / loss</td><td class="py-1.5 text-right text-gray-900 num" x-text="signed(C.long_term)"></td></tr>
+                                    <tr><td class="py-1.5 text-gray-600">Loss carried in from earlier years</td><td class="py-1.5 text-right text-gray-900 num" x-text="signed(-C.carryover_in)"></td></tr>
+                                    <tr><td class="py-1.5 font-semibold text-gray-900">Net result</td><td class="py-1.5 text-right font-semibold text-gray-900 num" x-text="signed(C.net)"></td></tr>
+                                    <tr x-show="C.taxable_short > 0"><td class="py-1.5 text-gray-600">Taxed at ordinary rates</td><td class="py-1.5 text-right text-gray-900 num" x-text="usd(C.taxable_short)"></td></tr>
+                                    <tr x-show="C.taxable_long > 0"><td class="py-1.5 text-gray-600">Taxed at long-term rates</td><td class="py-1.5 text-right text-gray-900 num" x-text="usd(C.taxable_long)"></td></tr>
+                                    <tr x-show="C.loss_deduction > 0"><td class="py-1.5 text-gray-600">Deducted from other income (max $3,000)</td><td class="py-1.5 text-right text-gray-900 num" x-text="usd(C.loss_deduction)"></td></tr>
+                                    <tr x-show="C.carryover_out > 0"><td class="py-1.5 text-gray-600">Carried forward to next year</td><td class="py-1.5 text-right text-gray-900 num" x-text="usd(C.carryover_out)"></td></tr>
+                                </tbody>
+                            </table>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ── Analysis ────────────────────────────────────────────────── -->
+            <template x-if="data.insights.length > 0">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h4 class="text-sm font-semibold text-gray-900">What stands out</h4>
+                    <p class="text-xs text-gray-500 mb-4">Findings from the numbers above, largest savings first</p>
+                    <div class="divide-y divide-gray-100">
+                        <template x-for="ins in data.insights" :key="ins.title">
+                            <div class="flex gap-3 py-3">
+                                <span class="flex-shrink-0 inline-flex items-center gap-1 h-6 px-2 rounded-full text-xs font-medium text-gray-800 bg-gray-100 whitespace-nowrap">
+                                    <span class="inline-block w-2 h-2 rounded-full" :style="`background: ${kindColor(ins.kind)}`"></span>
+                                    <span x-text="kindLabel(ins.kind)"></span>
+                                </span>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900" x-text="ins.title"></p>
+                                    <p class="text-sm text-gray-600 mt-0.5" x-text="ins.detail"></p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ── Assumptions ─────────────────────────────────────────────── -->
+            <template x-if="data.assumptions.length > 0">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h4 class="text-sm font-semibold text-gray-900">Filled in for you</h4>
+                    <p class="text-xs text-gray-500 mb-3">Where an input was missing, the estimate used these defaults. Set them in the tax profile or on the entry itself to replace them.</p>
+                    <ul class="list-disc pl-5 space-y-1 text-sm text-gray-700">
+                        <template x-for="a in data.assumptions" :key="a"><li x-text="a"></li></template>
+                    </ul>
+                </div>
+            </template>
+
+            <!-- ── Underlying entries (table view) ─────────────────────────── -->
+            <template x-if="data.has_inputs">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <button @click="showItems=!showItems" class="w-full px-6 py-4 flex justify-between items-center hover:bg-gray-50 text-left">
+                        <span class="text-sm font-semibold text-gray-900" x-text="'Entries behind this estimate (' + grouped.length + ')'"></span>
+                        <span class="text-xs text-gray-500" x-text="showItems ? 'Hide ▲' : 'Show ▼'"></span>
+                    </button>
+                    <div x-show="showItems" class="overflow-x-auto border-t border-gray-100">
+                        <table class="min-w-full">
+                            <thead class="bg-gray-50"><tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entry</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tax treatment</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Times</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Year total</th>
+                            </tr></thead>
+                            <tbody class="divide-y divide-gray-50">
+                                <template x-for="g in grouped" :key="g.key">
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-3 text-sm text-gray-900">
+                                            <span x-text="g.label"></span>
+                                            <span x-show="g.note" class="block text-xs text-gray-400" x-text="g.note"></span>
+                                        </td>
+                                        <td class="px-6 py-3 text-sm text-gray-700">
+                                            <span x-text="g.treatment_label"></span>
+                                            <span x-show="g.assumed" class="ml-1 text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">assumed</span>
+                                        </td>
+                                        <td class="px-6 py-3 text-sm text-right text-gray-600 num" x-text="g.count"></td>
+                                        <td class="px-6 py-3 text-sm text-right font-medium text-gray-900 num" x-text="signedIfNeg(g.total)"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </template>
+
+            <p class="text-xs text-gray-400">
+                A planning estimate, not tax advice or a filing calculation. It covers federal income tax, Social Security, Medicare and a flat state rate;
+                it leaves out credits, AMT, income phase-outs and state-specific rules.
+            </p>
+        </div>
+    </template>
+
+    <!-- Hover tooltip -->
+    <div x-show="tip.show" x-cloak class="viz-tip bg-gray-900 text-white text-xs rounded-md px-2.5 py-1.5 shadow-lg" :style="`left: ${tip.x}px; top: ${tip.y}px`">
+        <p class="font-medium" x-text="tip.title"></p>
+        <p class="num" x-text="tip.value"></p>
+    </div>
+</div>
+
+<script>
+function taxesPage() {
+    return {
+        year: new Date().getFullYear(),
+        data: null, loading: true, error: '',
+        showProfile: false, savingProfile: false, showItems: false,
+        filingStatuses: [], profileForm: {},
+        tip: { show: false, x: 0, y: 0, title: '', value: '' },
+
+        get S() { return this.data.summary; },
+        get D() { return this.data.deductions; },
+        get C() { return this.data.capital; },
+        get yearOptions() { const y = new Date().getFullYear(); return [y - 1, y, y + 1]; },
+
+        // ── formatting ────────────────────────────────────────────────────
+        usd(cents) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(cents / 100);
+        },
+        signed(cents) { return (cents > 0 ? '+' : cents < 0 ? '−' : '') + this.usd(Math.abs(cents)); },
+        signedIfNeg(cents) { return (cents < 0 ? '−' : '') + this.usd(Math.abs(cents)); },
+        pct(x, digits = 1) { return (x * 100).toFixed(digits) + '%'; },
+
+        // ── chart helpers ─────────────────────────────────────────────────
+        segVar(key) { return { federal: 'federal', payroll: 'payroll', state: 'state', sheltered: 'sheltered', take_home: 'rest' }[key]; },
+        segInk(key) { return (key === 'sheltered' || key === 'take_home') ? '#0b0b0b' : '#ffffff'; },
+        kindColor(kind) { return { opportunity: 'var(--status-good)', warning: 'var(--status-critical)', info: 'var(--ink-muted)' }[kind]; },
+        kindLabel(kind) { return { opportunity: 'Opportunity', warning: 'Watch out', info: 'Note' }[kind]; },
+        tipAt(e, title, value) { this.tip = { show: true, x: e.clientX, y: e.clientY, title, value }; },
+
+        get allocation() { return this.data.allocation.filter(s => s.amount > 0); },
+        get allocationSummary() {
+            return this.allocation.map(s => `${s.label} ${this.pct(s.amount / this.S.gross_income)}`).join(', ');
+        },
+        get waterfall() {
+            const gross = this.S.gross_income || 1;
+            let level = 0;
+            const rows = [];
+            for (const r of this.data.waterfall) {
+                if (r.kind === 'total') {
+                    level = r.amount;
+                    rows.push({ ...r, left: 0, width: r.amount / gross * 100 });
+                } else if (r.amount !== 0) {
+                    const after = level + r.amount;
+                    rows.push({ ...r, left: Math.max(0, after) / gross * 100, width: -r.amount / gross * 100 });
+                    level = after;
+                }
+            }
+            return rows;
+        },
+        get ordinaryTaxable() { return this.data.brackets.reduce((t, b) => t + b.amount, 0); },
+        get shownBrackets() {
+            const b = this.data.brackets;
+            let last = -1;
+            b.forEach((x, i) => { if (x.amount > 0) last = i; });
+            return b.slice(0, Math.min(b.length, last + 2));
+        },
+        bracketFill(b) {
+            if (b.amount <= 0) return 0;
+            if (b.to === null) return 100;
+            return Math.min(100, b.amount / (b.to - b.from) * 100);
+        },
+        get prefBands() { return this.data.preferential_bands.filter(b => b.amount > 0); },
+        get grouped() {
+            const groups = new Map();
+            for (const it of this.data.items) {
+                const key = it.source_type + ':' + it.source_id + ':' + it.treatment + ':' + it.label;
+                if (!groups.has(key)) groups.set(key, { key, label: it.label, treatment_label: it.treatment_label, assumed: it.assumed, note: it.note, count: 0, total: 0 });
+                const g = groups.get(key); g.count += 1; g.total += it.amount;
+            }
+            return [...groups.values()].sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+        },
+
+        // ── data ──────────────────────────────────────────────────────────
+        async init() {
+            try {
+                const t = await API.get('/taxes/treatments');
+                this.filingStatuses = t.filing_statuses;
+            } catch {}
+            await Promise.all([this.loadProfile(), this.load()]);
+        },
+
+        async load() {
+            this.loading = true; this.error = '';
+            try { this.data = await API.get('/taxes/summary?year=' + this.year); }
+            catch (e) { this.error = 'Could not estimate taxes: ' + e.message; }
+            finally { this.loading = false; }
+        },
+
+        async loadProfile() {
+            try { this.fillProfileForm((await API.get('/taxes/profile')).saved); } catch {}
+        },
+        fillProfileForm(saved) {
+            const dollars = (v) => (v === undefined || v === null) ? '' : (v / 100).toString();
+            this.profileForm = {
+                filing_status: saved.filing_status || '',
+                state_rate_pct: saved.state_rate === undefined ? '' : (saved.state_rate / 100).toString(),
+                age: saved.age || '',
+                hsa_coverage: saved.hsa_coverage || '',
+                loss_carryover_dollars: dollars(saved.loss_carryover),
+                other_gain_short_dollars: dollars(saved.other_gain_short),
+                other_gain_long_dollars: dollars(saved.other_gain_long),
+            };
+        },
+        async saveProfile() {
+            const f = this.profileForm;
+            const cents = (v) => (v === '' || v === null || isNaN(parseFloat(v))) ? null : Math.round(parseFloat(v) * 100);
+            this.savingProfile = true;
+            try {
+                const res = await API.patch('/taxes/profile', {
+                    filing_status: f.filing_status || null,
+                    state_rate: cents(f.state_rate_pct),
+                    age: f.age === '' ? null : parseInt(f.age),
+                    hsa_coverage: f.hsa_coverage || null,
+                    loss_carryover: cents(f.loss_carryover_dollars),
+                    other_gain_short: cents(f.other_gain_short_dollars),
+                    other_gain_long: cents(f.other_gain_long_dollars),
+                });
+                this.fillProfileForm(res.saved);
+                showAlert('Tax profile saved', 'success');
+                await this.load();
+            } catch (e) { showAlert('Could not save the tax profile: ' + e.message, 'error'); }
+            finally { this.savingProfile = false; }
+        },
+    };
+}
+</script>
+{% endblock %}

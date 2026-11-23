@@ -8,6 +8,27 @@ from models import db
 migrate = Migrate()
 
 
+# Columns added after the first release. db.create_all() never alters an existing
+# table, so they are added here for databases created before the column existed.
+_ADDED_COLUMNS = [
+    ("settings", "tax_profile", "JSON"),
+    ("rules", "tax_treatment", "VARCHAR(30)"),
+    ("change_events", "tax_treatment", "VARCHAR(30)"),
+]
+
+
+def _add_missing_columns():
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    for table, column, ddl in _ADDED_COLUMNS:
+        if not inspector.has_table(table):
+            continue
+        if column not in {c["name"] for c in inspector.get_columns(table)}:
+            db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+    db.session.commit()
+
+
 def create_app(config=None):
     """Flask application factory."""
     app = Flask(__name__)
@@ -30,6 +51,7 @@ def create_app(config=None):
     # Create any new tables not yet covered by migrations
     with app.app_context():
         db.create_all()
+        _add_missing_columns()
 
     # Register blueprints
     from api import api_bp

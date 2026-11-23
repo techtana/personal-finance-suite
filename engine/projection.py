@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 from engine.recurrence import expand_recurring_dates
+from engine.tax_tables import TRANSFER_KEYS
 
 
 @dataclass
@@ -274,6 +275,10 @@ def project_v2(
             freq = rule.get("frequency")
             if not freq:
                 continue
+            # 401(k) / HSA / IRA contributions move money between the user's own
+            # accounts — not a net-worth loss, so they are not projected as spending.
+            if rt == "expense" and rule.get("tax_treatment") in TRANSFER_KEYS:
+                continue
             dates = expand_recurring_dates(
                 rule["start_date"], rule.get("end_date"), freq, from_date, to_date
             )
@@ -332,6 +337,8 @@ def project_v2(
     for change in changes:
         amt = change.get("amount", 0)
         if amt == 0:
+            continue
+        if amt < 0 and change.get("tax_treatment") in TRANSFER_KEYS:
             continue
         all_events.append(CashFlowEvent(
             date=change["date"],

@@ -9,6 +9,7 @@ A self-hosted Flask web application for personal financial planning. Track incom
 - **Equity Compensation**: RSU grants and ESPP plans with automatic calculations
 - **Accounts & Loans**: Track all financial accounts and liabilities
 - **Timeline & Projections**: Month-by-month cash flow and net worth forecasts
+- **Taxes**: Estimated US federal tax for a year, with charts and plain-language findings; every input is optional
 - **Settings**: Configure categories, divergence thresholds, and more
 - **Data Management**: Export/import all data as JSON
 
@@ -118,6 +119,17 @@ The SQLite database file is located at `instance/finance.db`. Back it up by:
 
 - `GET /api/projection?from=2026-05-10&to=2027-05-10` — Run projection
 - `GET /api/projection/month/2026-05` — Drill-down for a month
+
+### Taxes
+
+- `GET /api/taxes/summary?year=2026` — Tax estimate for a year (summary, charts data, findings, assumptions)
+- `GET /api/taxes/treatments` — Tax treatments that income and expense entries can use
+- `GET /api/taxes/profile`, `PATCH /api/taxes/profile` — Filing status, state rate, age, HSA coverage, loss carryover
+
+Income and expense rules and logged changes take an optional `tax_treatment` (wages, 401(k), HSA, FSA,
+limited FSA, investment sale, charity, and so on). Untagged income counts as W-2 wages and untagged
+expenses as personal spending; the Taxes page lists every default it used. Yearly brackets and limits
+live in `engine/tax_tables.py`.
 
 ### Settings & Data
 
@@ -239,7 +251,7 @@ flask db upgrade
 - No automatic bank/brokerage data pulls (manual entry only)
 - No password protection for local web server
 - SQLite limits concurrent writes (works for personal use)
-- No tax optimization or filing features
+- Tax figures are planning estimates: no credits, AMT, income phase-outs or state-specific rules, and no filing
 
 ## Future Roadmap
 

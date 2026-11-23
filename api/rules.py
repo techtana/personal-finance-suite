@@ -46,6 +46,7 @@ def create_rule():
         category=data.get("category") or None,
         schedule=schedule,
         config=config or None,
+        tax_treatment=data.get("tax_treatment") or None,
         note=data.get("note") or None,
     )
     db.session.add(rule)

@@ -200,6 +200,7 @@ class SettingsSchema(BaseModel):
     fiscal_year_start_month: int = 1
     default_withholding_rate: int = 2200
     divergence_thresholds: Dict[str, int] = Field(default_factory=dict)
+    tax_profile: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
@@ -315,6 +316,7 @@ class RuleSchema(BaseModel):
     category: Optional[str] = None
     schedule: Optional[List[Dict[str, Any]]] = None
     config: Optional[Dict[str, Any]] = None
+    tax_treatment: Optional[str] = None
     is_active: bool = True
     note: Optional[str] = None
 
@@ -330,6 +332,7 @@ class ChangeEventSchema(BaseModel):
     account_id: Optional[str] = None
     category: Optional[str] = None
     change_type: str = "manual"   # 'manual' | 'adjustment'
+    tax_treatment: Optional[str] = None
     snapshot_id: Optional[str] = None
     note: Optional[str] = None
 

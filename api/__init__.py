@@ -11,6 +11,7 @@ from api.settings import bp as settings_bp
 from api.snapshots import bp as snapshots_bp
 from api.rules import bp as rules_bp
 from api.changes import bp as changes_bp
+from api.taxes import bp as taxes_bp
 
 api_bp.register_blueprint(accounts_bp)
 api_bp.register_blueprint(transactions_bp)
@@ -20,4 +21,5 @@ api_bp.register_blueprint(settings_bp)
 api_bp.register_blueprint(snapshots_bp)
 api_bp.register_blueprint(rules_bp)
 api_bp.register_blueprint(changes_bp)
+api_bp.register_blueprint(taxes_bp)
 
