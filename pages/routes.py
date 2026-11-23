@@ -42,6 +42,11 @@ def taxes():
     return render_template("taxes.html", title="Taxes")
 
 
+@pages_bp.route("/then-vs-now")
+def then_vs_now():
+    return render_template("then_vs_now.html", title="Then vs. Now")
+
+
 @pages_bp.route("/settings")
 def settings():
     return render_template("settings.html", title="Settings")

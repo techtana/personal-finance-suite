@@ -2,8 +2,8 @@ import os
 from flask import Flask
 from flask_migrate import Migrate
 from config import get_config
+from sqlalchemy import inspect, text
 from models import db
-
 
 migrate = Migrate()
 
@@ -14,6 +14,7 @@ _ADDED_COLUMNS = [
     ("settings", "tax_profile", "JSON"),
     ("rules", "tax_treatment", "VARCHAR(30)"),
     ("change_events", "tax_treatment", "VARCHAR(30)"),
+    ("assets", "decided_date", "VARCHAR(10)"),
 ]
 
 

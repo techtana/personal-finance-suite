@@ -250,6 +250,7 @@ class AssetSchema(BaseModel):
     current_value: int
     cost_basis: Optional[int] = None
     acquired_date: Optional[str] = None
+    decided_date: Optional[str] = None
     address: Optional[str] = None
     linked_loan_id: Optional[str] = None
     last_updated_date: str

@@ -527,6 +527,11 @@
                         </div>
                         <div></div>
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Ticker (opt.)</label>
+                        <input x-model="ruleForm.cfg.espp_ticker" type="text" placeholder="AAPL" class="w-full px-3 py-2 border rounded-lg text-sm uppercase">
+                        <p class="text-xs text-gray-400 mt-1">Lets the Then vs. Now page value these shares today.</p>
+                    </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Discount %</label>
@@ -792,7 +797,7 @@ function cashFlowPage() {
         },
 
         // ── rule CRUD ─────────────────────────────────────────────────────
-        _defaultCfg() { return { ticker:'',shares:'',grant_date:'',price:'',withholding:'22',cliff_months:12,cliff_pct:'25',sub_freq:'monthly',sub_pct:'2.0833',offer_start:'',offer_end:'',contrib_mode:'percent',contrib_value:'10',base_salary:'',discount:'15',lookback:true }; },
+        _defaultCfg() { return { ticker:'',shares:'',grant_date:'',price:'',withholding:'22',cliff_months:12,cliff_pct:'25',sub_freq:'monthly',sub_pct:'2.0833',espp_ticker:'',offer_start:'',offer_end:'',contrib_mode:'percent',contrib_value:'10',base_salary:'',discount:'15',lookback:true }; },
 
         openAddRule() {
             this.ruleEditId = null; this.rsuSchedulePreview = [];
@@ -814,6 +819,7 @@ function cashFlowPage() {
                     cfg.sub_freq = r.config.subsequent_frequency||'monthly';
                     cfg.sub_pct = r.config.subsequent_percent ? (r.config.subsequent_percent/100).toFixed(4) : '2.0833';
                 } else if (r.rule_type==='espp') {
+                    cfg.espp_ticker = r.config.ticker||'';
                     cfg.offer_start = r.config.offering_start_date||'';
                     cfg.offer_end = r.config.offering_end_date||'';
                     cfg.contrib_mode = r.config.contribution_mode||'percent';
@@ -850,7 +856,7 @@ function cashFlowPage() {
                 const c = f.cfg;
                 payload.start_date = c.offer_start || f.start_date;
                 payload.end_date = c.offer_end || null;
-                payload.config = { offering_start_date:c.offer_start, offering_end_date:c.offer_end, contribution_mode:c.contrib_mode, contribution_value:Math.round(parseFloat(c.contrib_value||0)*100), base_salary:Math.round(parseFloat(c.base_salary||0)*100), discount_rate:Math.round(parseFloat(c.discount||0)*100), has_lookback:c.lookback };
+                payload.config = { ticker:(c.espp_ticker||'').trim().toUpperCase()||null, offering_start_date:c.offer_start, offering_end_date:c.offer_end, contribution_mode:c.contrib_mode, contribution_value:Math.round(parseFloat(c.contrib_value||0)*100), base_salary:Math.round(parseFloat(c.base_salary||0)*100), discount_rate:Math.round(parseFloat(c.discount||0)*100), has_lookback:c.lookback };
                 payload.schedule = f.espp_periods.map(p=>({ start_date:p.start_date, end_date:p.end_date, estimated_purchase_amount:Math.round(parseFloat(p.amount_dollars||0)*100) }));
             }
 

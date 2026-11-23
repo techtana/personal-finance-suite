@@ -6,6 +6,18 @@
       "runtimeExecutable": ".venv/Scripts/python",
       "runtimeArgs": ["-m", "flask", "--app", "app:create_app", "run", "--port", "5057"],
       "port": 5057
+    },
+    {
+      "name": "wireframes",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5500", "--bind", "127.0.0.1", "--directory", "docs/wireframes-v3"],
+      "port": 5500
+    },
+    {
+      "name": "then-vs-now-demo",
+      "runtimeExecutable": ".venv/Scripts/python",
+      "runtimeArgs": ["-m", "tests.lookback_demo", "instance/then-vs-now-demo.db", "--port", "5601"],
+      "port": 5601
     }
   ]
 }
