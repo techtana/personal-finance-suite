@@ -47,6 +47,11 @@ def then_vs_now():
     return render_template("then_vs_now.html", title="Then vs. Now")
 
 
+@pages_bp.route("/import")
+def import_files():
+    return render_template("import.html", title="Import")
+
+
 @pages_bp.route("/settings")
 def settings():
     return render_template("settings.html", title="Settings")

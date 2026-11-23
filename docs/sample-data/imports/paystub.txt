@@ -1,0 +1,27 @@
+ACME CORP
+Earnings Statement
+
+Employee: Alex Example            Employee ID: 000123
+Pay Period: 10/26/2026 - 11/08/2026
+Pay Date: 11/14/2026
+
+EARNINGS                 RATE     HOURS      CURRENT          YTD
+Regular Pay            62.50     80.00     5,000.00    105,000.00
+Gross Pay                                  5,000.00    105,000.00
+
+DEDUCTIONS                                 CURRENT          YTD
+Federal Income Tax                           640.00     13,440.00
+Social Security                              310.00      6,510.00
+Medicare                                      72.50      1,522.50
+WA PFML                                       14.50        304.50
+401(k)                                       400.00      8,400.00
+Medical Insurance                            163.00      3,423.00
+ESPP                                         150.00      3,150.00
+Total Deductions                           1,750.00     36,750.00
+
+NET PAY                                    3,250.00     68,250.00
+
+EMPLOYER CONTRIBUTIONS                     CURRENT          YTD
+401(k) Match                                 200.00      4,200.00
+
+Direct Deposit: Everyday Checking ****1234   3,250.00

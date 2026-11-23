@@ -1,0 +1,621 @@
+{% extends "base.html" %}
+{% block title %}Import - Personal Finance Suite{% endblock %}
+{% block page_title %}Import{% endblock %}
+
+{% block content %}
+<div x-data="importPage()" x-init="init()" class="space-y-6" x-cloak>
+
+    <!-- Intro + local AI status -->
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <p class="text-sm text-gray-600 max-w-3xl">
+            Drop bank or card exports (CSV, Excel, OFX/QFX), PDF statements, receipts or pay stubs (text, PDF or a photo).
+            Nothing is added to your data until you've reviewed it and clicked <strong>Import</strong>, and every import can be undone.
+        </p>
+        <div class="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border"
+             :class="ai.ok ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800'"
+             :title="ai.ok ? ('Model ' + ai.model + ' at ' + ai.base_url) : ai.error">
+            <span class="w-2 h-2 rounded-full" :class="ai.ok ? 'bg-green-500' : 'bg-amber-500'"></span>
+            <span x-text="ai.ok ? ('Local AI ready · ' + ai.model) : (ai.loaded ? 'Local AI offline: rules only, photos can\'t be read' : 'Checking local AI…')"></span>
+        </div>
+    </div>
+
+    <!-- Drop zone -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2 border-2 border-dashed rounded-xl p-8 text-center transition"
+             :class="dragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'"
+             @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="onDrop($event)">
+            <input x-ref="picker" id="import-picker" type="file" multiple class="sr-only" @change="onPick($event)"
+                   accept=".csv,.tsv,.xlsx,.xlsm,.ofx,.qfx,.qbo,.json,.pdf,.txt,.text,.md,.eml,.htm,.html,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.heic">
+            <p class="text-3xl mb-2" aria-hidden="true">📥</p>
+            <p class="text-base font-medium text-gray-800">Drop files here</p>
+            <p class="text-sm text-gray-500 mb-3">or</p>
+            <button type="button" @click="$refs.picker.click()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Choose files</button>
+            <p class="text-xs text-gray-400 mt-3">CSV · Excel · OFX/QFX · PDF · text · JPG/PNG photos · up to 20 MB each</p>
+            <p x-show="uploading" class="text-sm text-blue-700 mt-3">Uploading…</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-3">
+            <div>
+                <label for="up-account" class="block text-sm font-medium text-gray-700 mb-1">Account</label>
+                <select id="up-account" x-model="upload.account_id" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                    <option value="">Work it out (you can change it later)</option>
+                    <template x-for="a in accounts" :key="a.id"><option :value="a.id" x-text="a.name"></option></template>
+                </select>
+            </div>
+            <div>
+                <label for="up-type" class="block text-sm font-medium text-gray-700 mb-1">What is it?</label>
+                <select id="up-type" x-model="upload.doc_type" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                    <option value="">Work it out</option>
+                    <option value="statement">Statement or export</option>
+                    <option value="receipt">Receipt</option>
+                    <option value="payslip">Pay stub</option>
+                </select>
+            </div>
+            <p class="text-xs text-gray-500">Files are read on this computer. Photos and unusual layouts use the local AI; everything it reads is checked against the document before you see it.</p>
+        </div>
+    </div>
+
+    <!-- Recent imports -->
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-sm font-semibold text-gray-900">Recent imports</h3>
+            <button type="button" @click="showLearned = !showLearned; if (showLearned) loadLearned()" class="text-xs text-blue-600 hover:underline"
+                    x-text="showLearned ? 'Hide learned categories' : 'Learned categories'"></button>
+        </div>
+        <div x-show="showLearned" class="px-5 py-3 border-b border-gray-100 bg-gray-50 text-sm">
+            <p class="text-xs text-gray-500 mb-2">When you change a category during review, the importer remembers it for that merchant and uses it before asking the AI.</p>
+            <template x-if="learned.length === 0"><p class="text-xs text-gray-400">Nothing learned yet.</p></template>
+            <div class="flex flex-wrap gap-2">
+                <template x-for="r in learned" :key="r.id">
+                    <span class="inline-flex items-center gap-1 text-xs bg-white border rounded-full px-2 py-1">
+                        <span x-text="r.merchant_key"></span> → <strong x-text="catLabel(r.category)"></strong>
+                        <button type="button" @click="forget(r)" class="text-gray-400 hover:text-red-600" :aria-label="'Forget ' + r.merchant_key">×</button>
+                    </span>
+                </template>
+            </div>
+        </div>
+        <template x-if="batches.length === 0">
+            <div class="p-8 text-center text-gray-400 text-sm">No imports yet.</div>
+        </template>
+        <div class="divide-y divide-gray-50">
+            <template x-for="b in batches" :key="b.id">
+                <button type="button" @click="open(b.id)" class="w-full flex items-center gap-4 px-5 py-3 text-left hover:bg-gray-50"
+                        :class="batch && batch.id === b.id ? 'bg-blue-50' : ''">
+                    <span class="flex-1 min-w-0">
+                        <span class="block text-sm font-medium text-gray-800 truncate" x-text="b.filename"></span>
+                        <span class="block text-xs text-gray-400" x-text="when(b.created_at) + (b.status === 'processing' && b.stage ? ' · ' + b.stage : '')"></span>
+                    </span>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600" x-text="docLabel(b.doc_type)"></span>
+                    <span class="text-xs text-gray-500 w-40 text-right" x-text="countText(b)"></span>
+                    <span class="text-xs px-2 py-0.5 rounded-full w-24 text-center" :class="statusClass(b.status)" x-text="statusLabel(b.status)"></span>
+                </button>
+            </template>
+        </div>
+    </div>
+
+    <!-- Review -->
+    <template x-if="batch">
+        <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-5" aria-label="Review import">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <h3 class="text-lg font-semibold text-gray-900 truncate" x-text="batch.filename"></h3>
+                    <p class="text-xs text-gray-500" x-text="aiText()"></p>
+                </div>
+                <div class="flex flex-wrap items-end gap-3">
+                    <div>
+                        <label for="rv-type" class="block text-xs text-gray-500 mb-1">Type</label>
+                        <select id="rv-type" :value="batch.doc_type || ''" @change="changeType($event.target.value)" :disabled="locked()"
+                                class="px-3 py-1.5 border rounded-lg text-sm bg-white">
+                            <option value="" disabled>Unknown</option>
+                            <option value="statement">Statement or export</option>
+                            <option value="receipt">Receipt</option>
+                            <option value="payslip">Pay stub</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="rv-account" class="block text-xs text-gray-500 mb-1" x-text="batch.doc_type === 'payslip' ? 'Paid into' : (batch.doc_type === 'receipt' ? 'Paid with' : 'Account')"></label>
+                        <select id="rv-account" :value="batch.account_id || ''" @change="changeAccount($event.target.value)" :disabled="locked()"
+                                class="px-3 py-1.5 border rounded-lg text-sm bg-white" :class="needsAccount() ? 'border-amber-400' : ''">
+                            <option value="">Choose…</option>
+                            <template x-for="a in accounts" :key="a.id"><option :value="a.id" x-text="a.name" :selected="a.id === batch.account_id"></option></template>
+                        </select>
+                    </div>
+                    <button type="button" x-show="batch.status !== 'committed' && batch.status !== 'processing'" @click="reread()" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Re-read</button>
+                    <button type="button" x-show="batch.status !== 'committed' && batch.status !== 'processing'" @click="discard()" class="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50">Delete</button>
+                </div>
+            </div>
+
+            <!-- Processing / failed / committed states -->
+            <div x-show="batch.status === 'processing'" class="flex items-center gap-3 text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg p-4" role="status">
+                <span class="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
+                <span x-text="batch.stage || 'Working…'"></span>
+            </div>
+            <div x-show="batch.status === 'failed'" class="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg p-4" role="alert">
+                <p class="font-medium mb-1">Couldn't read this file</p>
+                <p x-text="batch.error"></p>
+            </div>
+            <div x-show="batch.status === 'committed'" class="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg p-4 flex flex-wrap items-center justify-between gap-3" role="status">
+                <span x-text="committedText()"></span>
+                <span class="flex gap-3">
+                    <a href="/timeline" class="text-green-800 underline">See it on Cash Flow</a>
+                    <button type="button" @click="undo()" class="px-3 py-1 text-sm border border-green-300 rounded-lg hover:bg-green-100">Undo this import</button>
+                </span>
+            </div>
+
+            <!-- Notes -->
+            <template x-if="(batch.warnings || []).length">
+                <ul class="space-y-1">
+                    <template x-for="w in batch.warnings" :key="w.text">
+                        <li class="text-sm rounded-lg px-3 py-2" :class="w.level === 'warn' ? 'bg-amber-50 text-amber-900 border border-amber-200' : 'bg-gray-50 text-gray-700 border border-gray-200'" x-text="w.text"></li>
+                    </template>
+                </ul>
+            </template>
+
+            <!-- Receipt / pay stub: what was read, and the arithmetic checks -->
+            <template x-if="batch.extracted && (batch.extracted.kind === 'receipt' || batch.extracted.kind === 'payslip')">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="border rounded-lg p-4 text-sm space-y-2">
+                        <h4 class="font-semibold text-gray-900" x-text="batch.extracted.kind === 'receipt' ? 'Read from the receipt' : 'Read from the pay stub'"></h4>
+                        <template x-if="batch.extracted.kind === 'receipt'">
+                            <dl class="grid grid-cols-2 gap-x-4 gap-y-1">
+                                <dt class="text-gray-500">Merchant</dt><dd x-text="batch.extracted.merchant || '—'"></dd>
+                                <dt class="text-gray-500">Date</dt><dd x-text="batch.extracted.date || 'not found'"></dd>
+                                <dt class="text-gray-500">Subtotal</dt><dd x-text="money(batch.extracted.subtotal)"></dd>
+                                <dt class="text-gray-500">Tax</dt><dd x-text="money(batch.extracted.tax)"></dd>
+                                <dt class="text-gray-500" x-show="batch.extracted.tip">Tip</dt><dd x-show="batch.extracted.tip" x-text="money(batch.extracted.tip)"></dd>
+                                <dt class="text-gray-500">Total</dt><dd class="font-semibold" x-text="money(batch.extracted.total)"></dd>
+                                <dt class="text-gray-500" x-show="batch.extracted.card_last4">Card</dt><dd x-show="batch.extracted.card_last4" x-text="'…' + batch.extracted.card_last4"></dd>
+                            </dl>
+                        </template>
+                        <template x-if="batch.extracted.kind === 'payslip'">
+                            <dl class="grid grid-cols-2 gap-x-4 gap-y-1">
+                                <dt class="text-gray-500">Employer</dt><dd x-text="batch.extracted.employer || '—'"></dd>
+                                <dt class="text-gray-500">Pay date</dt><dd x-text="batch.extracted.pay_date || 'not found'"></dd>
+                                <dt class="text-gray-500">Period</dt><dd x-text="(batch.extracted.period_start || '?') + ' → ' + (batch.extracted.period_end || '?') + (batch.extracted.frequency ? ' (' + batch.extracted.frequency + ')' : '')"></dd>
+                                <dt class="text-gray-500">Gross</dt><dd x-text="money(batch.extracted.gross_pay)"></dd>
+                                <template x-for="d in batch.extracted.deductions || []" :key="d.name">
+                                    <div class="contents"><dt class="text-gray-500 pl-3" x-text="d.name"></dt><dd x-text="'−' + money(d.amount)"></dd></div>
+                                </template>
+                                <dt class="text-gray-500">Net pay</dt><dd class="font-semibold" x-text="money(batch.extracted.net_pay)"></dd>
+                                <template x-for="c in batch.extracted.employer_contributions || []" :key="c.name">
+                                    <div class="contents"><dt class="text-gray-500" x-text="c.name + ' (employer)'"></dt><dd x-text="money(c.amount)"></dd></div>
+                                </template>
+                            </dl>
+                        </template>
+                        <ul class="pt-2 space-y-1">
+                            <template x-for="c in batch.extracted.checks || []" :key="c">
+                                <li class="text-xs" :class="c.includes('✓') ? 'text-green-700' : 'text-amber-700'" x-text="c"></li>
+                            </template>
+                        </ul>
+                    </div>
+                    <div class="border rounded-lg p-2 text-sm">
+                        <template x-if="batch.is_image && batch.has_file">
+                            <img :src="'/api/imports/' + batch.id + '/file'" alt="The uploaded photo" class="max-h-96 mx-auto">
+                        </template>
+                        <template x-if="!batch.is_image">
+                            <pre class="text-xs whitespace-pre-wrap max-h-96 overflow-auto p-2 text-gray-700" x-text="batch.extracted.transcript || batch.extracted.text_preview || ''"></pre>
+                        </template>
+                        <details x-show="batch.is_image && batch.extracted.transcript" class="mt-2">
+                            <summary class="text-xs text-gray-500 cursor-pointer">Text the local AI read from the photo</summary>
+                            <pre class="text-xs whitespace-pre-wrap max-h-64 overflow-auto p-2 text-gray-700" x-text="batch.extracted.transcript"></pre>
+                        </details>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Statement: how the columns were read (editable) -->
+            <template x-if="batch.mapping && batch.mapping.headers">
+                <details class="border rounded-lg" :open="batch.status === 'failed' || batch.mapping.source === 'ai'">
+                    <summary class="px-4 py-3 text-sm font-medium text-gray-800 cursor-pointer">
+                        How this file was read
+                        <span class="ml-2 text-xs font-normal text-gray-500" x-text="mappingSourceText()"></span>
+                    </summary>
+                    <div class="px-4 pb-4 space-y-3">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <template x-for="f in mapFields" :key="f.key">
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1" :for="'map-' + f.key" x-text="f.label"></label>
+                                    <select :id="'map-' + f.key" x-model="mapForm[f.key]" class="w-full px-2 py-1.5 border rounded text-sm bg-white">
+                                        <option value="">—</option>
+                                        <template x-for="(h, i) in batch.mapping.headers" :key="i"><option :value="String(i)" x-text="h" :selected="String(i) === mapForm[f.key]"></option></template>
+                                    </select>
+                                </div>
+                            </template>
+                            <div>
+                                <label for="map-datefmt" class="block text-xs text-gray-500 mb-1">Date format</label>
+                                <select id="map-datefmt" x-model="mapForm.date_format" class="w-full px-2 py-1.5 border rounded text-sm bg-white">
+                                    <template x-for="d in dateFormats" :key="d.v"><option :value="d.v" x-text="d.l" :selected="d.v === mapForm.date_format"></option></template>
+                                </select>
+                            </div>
+                            <div x-show="mapForm.amount_col !== ''">
+                                <label for="map-sign" class="block text-xs text-gray-500 mb-1">In the amount column</label>
+                                <select id="map-sign" x-model="mapForm.sign_convention" class="w-full px-2 py-1.5 border rounded text-sm bg-white">
+                                    <option value="negative_is_money_out">negative = money out</option>
+                                    <option value="positive_is_money_out">positive = money out (cards)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-xs border">
+                                <thead class="bg-gray-50"><tr>
+                                    <template x-for="(h, i) in batch.mapping.headers" :key="i"><th class="px-2 py-1 text-left font-medium text-gray-600 border-b" x-text="h + roleOf(i)"></th></template>
+                                </tr></thead>
+                                <tbody>
+                                    <template x-for="(r, j) in batch.mapping.sample || []" :key="j">
+                                        <tr><template x-for="(c, i) in r" :key="i"><td class="px-2 py-1 border-b text-gray-700 whitespace-nowrap" x-text="c"></td></template></tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="flex gap-3" x-show="!locked()">
+                            <button type="button" @click="applyMapping()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Re-read with these columns</button>
+                            <button type="button" @click="flipSigns()" class="px-3 py-1.5 border rounded-lg text-sm hover:bg-gray-50">Flip signs (money in ↔ out)</button>
+                        </div>
+                        <p class="text-xs text-gray-500">Re-reading replaces the rows below, including any edits. When you import, this layout is remembered for the next file with the same columns.</p>
+                    </div>
+                </details>
+            </template>
+            <template x-if="batch.mapping && !batch.mapping.headers && batch.doc_type === 'statement' && batch.status === 'review'">
+                <div class="flex gap-3 items-center text-xs text-gray-500">
+                    <span x-text="mappingSourceText()"></span>
+                    <button type="button" @click="flipSigns()" x-show="!locked()" class="px-2 py-1 border rounded hover:bg-gray-50">Flip signs</button>
+                </div>
+            </template>
+
+            <!-- Rows -->
+            <template x-if="batch.rows && batch.rows.length">
+                <div class="space-y-3">
+                    <div class="flex flex-wrap gap-2" role="group" aria-label="Filter rows">
+                        <template x-for="f in filters" :key="f.k">
+                            <button type="button" @click="filter = f.k" :aria-pressed="filter === f.k"
+                                    :class="filter === f.k ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-medium" x-text="f.l + ' (' + countFilter(f.k) + ')'"></button>
+                        </template>
+                        <span class="flex-1"></span>
+                        <button type="button" x-show="!locked()" @click="bulk('import')" class="text-xs text-blue-600 hover:underline">Tick all shown</button>
+                        <button type="button" x-show="!locked()" @click="bulk('skip')" class="text-xs text-gray-500 hover:underline">Untick all shown</button>
+                    </div>
+
+                    <template x-for="sec in sections()" :key="sec.target">
+                        <div class="border rounded-lg overflow-hidden">
+                            <div class="px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-600 uppercase tracking-wide" x-text="sec.title"></div>
+                            <table class="w-full table-fixed text-sm">
+                                <colgroup>
+                                    <col class="w-10"><col class="w-36"><col><col class="w-32"><col class="w-48"><col class="w-52">
+                                </colgroup>
+                                <thead class="sr-only"><tr><th>Import</th><th>Date</th><th>Description</th><th>Amount</th><th>Category</th><th>Notes</th></tr></thead>
+                                <tbody class="divide-y divide-gray-50">
+                                    <template x-for="r in sec.rows" :key="r.id">
+                                        <tr :class="r.action === 'skip' ? 'bg-gray-50 text-gray-400' : ''">
+                                            <td class="pl-4 py-2 align-top">
+                                                <input type="checkbox" :checked="r.action === 'import'" :disabled="locked()" @change="patchRow(r, { action: $event.target.checked ? 'import' : 'skip' })"
+                                                       class="mt-1.5 rounded" :aria-label="'Import ' + r.description">
+                                            </td>
+                                            <td class="px-2 py-2 align-top">
+                                                <input type="date" :value="r.date || ''" :disabled="locked()" @change="patchRow(r, { date: $event.target.value })"
+                                                       class="w-full px-1.5 py-1 border border-transparent hover:border-gray-200 rounded text-xs bg-transparent" :class="!r.date ? 'border-amber-400' : ''" aria-label="Date">
+                                                <span x-show="r.target === 'rule'" class="block text-[10px] text-gray-400 pl-1.5">first date</span>
+                                            </td>
+                                            <td class="px-2 py-2 align-top">
+                                                <input type="text" :value="r.description" :disabled="locked()" @change="patchRow(r, { description: $event.target.value })"
+                                                       class="w-full px-1.5 py-1 border border-transparent hover:border-gray-200 rounded text-sm bg-transparent" aria-label="Description">
+                                                <span class="block text-[11px] text-gray-400 pl-1.5 truncate" x-show="r.note || r.source" x-text="r.note || (Array.isArray(r.source) ? r.source.filter(Boolean).join(' | ') : r.source)"></span>
+                                                <template x-if="hasExplicitAccount(r)">
+                                                    <select :value="r.account_id || ''" :disabled="locked()" @change="patchRow(r, { account_id: $event.target.value || null })"
+                                                            class="mt-1 px-1.5 py-0.5 border rounded text-xs bg-white" aria-label="Account for this row">
+                                                        <option value="">Choose account…</option>
+                                                        <template x-for="a in accounts" :key="a.id"><option :value="a.id" x-text="a.name" :selected="a.id === r.account_id"></option></template>
+                                                    </select>
+                                                </template>
+                                            </td>
+                                            <td class="px-2 py-2 align-top text-right">
+                                                <input type="text" inputmode="decimal" :value="dollars(r.amount)" :disabled="locked()" @change="patchAmount(r, $event.target.value)"
+                                                       class="w-full px-1.5 py-1 border border-transparent hover:border-gray-200 rounded text-sm text-right bg-transparent font-medium"
+                                                       :class="r.amount === null ? 'border-amber-400' : (r.target === 'snapshot' ? 'text-gray-800' : (r.amount >= 0 ? 'text-green-700' : 'text-red-600'))" aria-label="Amount">
+                                                <span x-show="r.target === 'rule'" class="block text-[10px] text-gray-400" x-text="'per ' + (r.frequency || '?').replace('ly','').replace('biweek','2 weeks').replace('annual','year')"></span>
+                                            </td>
+                                            <td class="px-2 py-2 align-top">
+                                                <template x-if="r.target !== 'snapshot'">
+                                                    <div>
+                                                        <select :value="r.category || ''" :disabled="locked()" @change="patchCategory(r, $event.target.value)"
+                                                                class="w-full px-1.5 py-1 border rounded text-xs"
+                                                                :class="!r.category ? 'border-amber-400 bg-white' : (isSuggestion(r) ? 'border-dashed border-violet-400 bg-violet-50 italic' : 'border-gray-200 bg-white')"
+                                                                :aria-label="isSuggestion(r) ? 'Category (AI suggestion)' : 'Category'">
+                                                            <option value="">Choose category…</option>
+                                                            <template x-for="c in categoriesFor(r)" :key="c.slug"><option :value="c.slug" x-text="c.label" :selected="c.slug === r.category"></option></template>
+                                                        </select>
+                                                        <span class="flex items-center gap-1 text-[10px] pl-1" x-show="r.category">
+                                                            <span :class="isSuggestion(r) ? 'text-violet-700 font-medium' : 'text-gray-400'" x-text="sourceText(r)"></span>
+                                                            <button type="button" x-show="isSuggestion(r) && !locked()" @click="patchRow(r, { category: r.category })"
+                                                                    class="text-violet-700 underline hover:text-violet-900" :aria-label="'Keep the suggested category for ' + r.description">Keep</button>
+                                                        </span>
+                                                    </div>
+                                                </template>
+                                            </td>
+                                            <td class="px-2 py-2 pr-4 align-top">
+                                                <div class="flex flex-wrap gap-1">
+                                                    <template x-for="fl in r.flags" :key="fl">
+                                                        <span class="text-[11px] px-1.5 py-0.5 rounded" :class="flagInfo(fl).cls" :title="flagTitle(fl, r)" x-text="flagInfo(fl).label"></span>
+                                                    </template>
+                                                </div>
+                                                <span x-show="r.match" class="block text-[11px] text-gray-400 mt-0.5" x-text="matchText(r)"></span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+
+                    <div class="flex flex-wrap items-center justify-end gap-4 pt-2" x-show="batch.status === 'review'">
+                        <span class="text-sm text-gray-600" x-text="willAddText()"></span>
+                        <button type="button" @click="commit()" :disabled="busy || toImport() === 0"
+                                class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
+                                x-text="busy ? 'Importing…' : 'Import ' + toImport() + ' item' + (toImport() === 1 ? '' : 's')"></button>
+                    </div>
+                </div>
+            </template>
+        </section>
+    </template>
+</div>
+
+<script>
+const FLAGS = {
+    duplicate:          { label: 'Already imported', cls: 'bg-gray-200 text-gray-700', title: 'The same transaction is already in your data.' },
+    possible_duplicate: { label: 'Possible duplicate', cls: 'bg-amber-100 text-amber-800', title: 'Same amount within 3 days of an entry you already have.' },
+    transfer:           { label: 'Transfer', cls: 'bg-slate-200 text-slate-700', title: 'Money moving between your own accounts, or paying a card. Skipped so it isn\'t counted as spending or income.' },
+    low_confidence:     { label: 'AI unsure', cls: 'bg-amber-100 text-amber-800', title: 'The local AI wasn\'t confident about this category.' },
+    uncategorized:      { label: 'No category', cls: 'bg-amber-100 text-amber-800', title: 'Pick a category.' },
+    unparsed_date:      { label: 'Date unreadable', cls: 'bg-red-100 text-red-700', title: 'Set the date to import this row.' },
+    missing_date:       { label: 'No date', cls: 'bg-red-100 text-red-700', title: 'No date was found. Set it to import this row.' },
+    unparsed_amount:    { label: 'Amount unreadable', cls: 'bg-red-100 text-red-700', title: 'Set the amount to import this row.' },
+    zero_amount:        { label: 'Zero', cls: 'bg-gray-100 text-gray-600', title: 'A zero amount changes nothing.' },
+    ai_extracted:       { label: 'Found by AI', cls: 'bg-purple-100 text-purple-800', title: 'The local AI found this line in unstructured text. Its amount and date were checked against that line.' },
+    doesnt_add_up:      { label: 'Doesn\'t add up', cls: 'bg-red-100 text-red-700', title: 'The totals on the document don\'t reconcile. Compare with the original.' },
+    ai_disagrees:       { label: 'Readers disagree', cls: 'bg-amber-100 text-amber-800', title: 'The AI and the rule-based reader got different values. Compare with the original.' },
+    direction_unknown:  { label: 'In or out?', cls: 'bg-amber-100 text-amber-800', title: 'Couldn\'t tell if this was money in or out; assumed out. Fix the sign if needed.' },
+    ambiguous_date:     { label: 'Day/month?', cls: 'bg-amber-100 text-amber-800', title: 'Dates in this file could be month/day or day/month.' },
+    sign_guessed:       { label: 'Sign guessed', cls: 'bg-amber-100 text-amber-800', title: 'Which amounts are money out was guessed. Use Flip signs if incomes show as spending.' },
+    pick_account:       { label: 'Choose account', cls: 'bg-amber-100 text-amber-800', title: 'Choose the account this belongs to.' },
+    suggestion:         { label: 'Suggested', cls: 'bg-blue-100 text-blue-800', title: 'Tick to add this as a recurring rule that drives your projection.' },
+    rule_exists:        { label: 'Rule exists', cls: 'bg-gray-200 text-gray-700', title: 'You already have a similar rule.' },
+    older_snapshot:     { label: 'Older balance', cls: 'bg-gray-200 text-gray-700', title: 'You already have a newer balance for this account.' },
+    negative_balance:   { label: 'Negative', cls: 'bg-gray-200 text-gray-700', title: 'A negative cash balance can\'t be recorded as a snapshot.' },
+    card_balance:       { label: 'Card balance', cls: 'bg-gray-200 text-gray-700', title: 'A credit card balance is money owed, not cash, so it isn\'t recorded as an account balance.' },
+    from_photo:         { label: 'From photo', cls: 'bg-purple-100 text-purple-800', title: 'Read from a photo by the local AI. Compare with the picture.' },
+};
+const SOURCES = { learned: 'your earlier choice', keyword: 'matched a rule', bank: 'bank\'s category', ai: 'AI suggestion ·', document: 'read from the document', user: 'your choice' };
+
+function importPage() {
+    return {
+        ai: { ok: false, loaded: false }, accounts: [], batches: [], batch: null, learned: [], showLearned: false,
+        upload: { account_id: '', doc_type: '' }, dragging: false, uploading: false, busy: false,
+        filter: 'all', mapForm: {}, timer: null,
+        mapFields: [
+            { key: 'date_col', label: 'Date' }, { key: 'description_col', label: 'Description' },
+            { key: 'amount_col', label: 'Amount (one column)' }, { key: 'debit_col', label: 'Money out column' },
+            { key: 'credit_col', label: 'Money in column' }, { key: 'balance_col', label: 'Balance' },
+        ],
+        dateFormats: [
+            { v: '%m/%d/%Y', l: 'month/day/year (11/30/2026)' }, { v: '%d/%m/%Y', l: 'day/month/year (30/11/2026)' },
+            { v: '%Y-%m-%d', l: 'year-month-day (2026-11-30)' }, { v: '%m/%d/%y', l: 'month/day/yy (11/30/26)' },
+            { v: '%d/%m/%y', l: 'day/month/yy (30/11/26)' }, { v: '%d.%m.%Y', l: 'day.month.year (30.11.2026)' },
+            { v: '%d %b %Y', l: 'day Mon year (30 Nov 2026)' }, { v: '%b %d, %Y', l: 'Mon day, year (Nov 30, 2026)' },
+            { v: '%Y/%m/%d', l: 'year/month/day (2026/11/30)' }, { v: '%m/%d', l: 'month/day, no year (11/30)' },
+        ],
+        filters: [
+            { k: 'all', l: 'All' }, { k: 'import', l: 'To import' }, { k: 'review', l: 'Needs review' },
+            { k: 'ai', l: 'Chosen by AI' }, { k: 'dup', l: 'Duplicates' }, { k: 'transfer', l: 'Transfers' }, { k: 'skip', l: 'Skipped' },
+        ],
+
+        async init() {
+            await Promise.all([this.loadAccounts(), this.loadBatches(), this.loadAi()]);
+            const id = new URLSearchParams(location.search).get('batch');
+            if (id) this.open(id);
+            this.timer = setInterval(() => this.poll(), 1500);
+        },
+        async loadAi() { try { this.ai = { ...(await API.get('/imports/ai-status')), loaded: true }; } catch { this.ai = { ok: false, loaded: true, error: 'status unavailable' }; } },
+        async loadAccounts() { try { this.accounts = await API.get('/accounts'); } catch {} },
+        async loadBatches() { try { this.batches = await API.get('/imports'); } catch (e) { showAlert('Couldn\'t load imports: ' + e.message, 'error'); } },
+        async loadLearned() { try { this.learned = await API.get('/imports/merchant-rules'); } catch {} },
+        async forget(r) { await API.delete('/imports/merchant-rules/' + r.id); this.loadLearned(); },
+
+        async poll() {
+            const busy = this.batches.some(b => b.status === 'processing') || (this.batch && this.batch.status === 'processing');
+            if (!busy) return;
+            await this.loadBatches();
+            if (this.batch) {
+                const s = this.batches.find(b => b.id === this.batch.id);
+                if (s && (s.status !== this.batch.status || s.stage !== this.batch.stage)) {
+                    if (s.status === 'processing') { this.batch.stage = s.stage; this.batch.status = s.status; }
+                    else await this.open(this.batch.id);
+                }
+            }
+        },
+
+        onDrop(e) { this.dragging = false; this.send(e.dataTransfer.files); },
+        onPick(e) { this.send(e.target.files); e.target.value = ''; },
+        async send(files) {
+            if (!files || !files.length) return;
+            const fd = new FormData();
+            for (const f of files) fd.append('files', f);
+            if (this.upload.account_id) fd.append('account_id', this.upload.account_id);
+            if (this.upload.doc_type) fd.append('doc_type', this.upload.doc_type);
+            this.uploading = true;
+            try {
+                const res = await fetch('/api/imports', { method: 'POST', body: fd });
+                const data = await res.json();
+                for (const r of data.rejected || []) showAlert(r.filename + ': ' + r.error, 'error');
+                await this.loadBatches();
+                if (data.imports && data.imports.length) this.open(data.imports[0].id);
+            } catch (e) { showAlert('Upload failed: ' + e.message, 'error'); }
+            finally { this.uploading = false; }
+        },
+
+        async open(id) {
+            try {
+                this.batch = await API.get('/imports/' + id);
+                this.syncMapForm();
+                history.replaceState(null, '', '/import?batch=' + id);
+            } catch (e) { showAlert('Couldn\'t open import: ' + e.message, 'error'); }
+        },
+        setBatch(b) { this.batch = b; this.syncMapForm(); const i = this.batches.findIndex(x => x.id === b.id); if (i >= 0) this.batches[i] = { ...this.batches[i], status: b.status, counts: b.counts, doc_type: b.doc_type, stage: b.stage }; },
+        syncMapForm() {
+            const m = (this.batch && this.batch.mapping) || {};
+            const s = v => (v === null || v === undefined) ? '' : String(v);
+            this.mapForm = { date_col: s(m.date_col), description_col: s(m.description_col), amount_col: s(m.amount_col), debit_col: s(m.debit_col),
+                             credit_col: s(m.credit_col), balance_col: s(m.balance_col), date_format: m.date_format || '%m/%d/%Y',
+                             sign_convention: m.sign_convention || 'negative_is_money_out' };
+        },
+        locked() { return !this.batch || this.batch.status !== 'review' && this.batch.status !== 'failed'; },
+        needsAccount() { return this.batch && this.batch.status === 'review' && !this.batch.account_id && this.batch.doc_type === 'statement'; },
+
+        async req(method, path, body) {
+            const res = await fetch('/api' + path, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+            const data = res.status === 204 ? {} : await res.json();
+            if (!res.ok) { const err = new Error(data.error || ('HTTP ' + res.status)); err.status = res.status; throw err; }
+            return data;
+        },
+        async patchRow(r, body) {
+            try { this.setBatch(await this.req('PATCH', `/imports/${this.batch.id}/rows/${r.id}`, body)); }
+            catch (e) { showAlert(e.message, 'error'); this.open(this.batch.id); }
+        },
+        patchAmount(r, text) {
+            const v = text.replace(/[$,\s]/g, '').replace('−', '-');
+            if (v === '' || isNaN(Number(v))) { showAlert('Enter an amount like -12.34', 'error'); return this.open(this.batch.id); }
+            this.patchRow(r, { amount: Math.round(Number(v) * 100) });
+        },
+        patchCategory(r, slug) {
+            const same = this.batch.rows.filter(x => x.id !== r.id && x.merchant_key && x.merchant_key === r.merchant_key && x.category_source !== 'user').length;
+            this.patchRow(r, { category: slug || null, apply_to_merchant: same > 0 });
+            if (same > 0) showAlert('Also applied to ' + same + ' other row(s) from the same merchant', 'info');
+        },
+        async bulk(action) {
+            const ids = this.filteredRows().map(r => r.id);
+            try { this.setBatch(await this.req('POST', `/imports/${this.batch.id}/rows/bulk`, { ids, action })); } catch (e) { showAlert(e.message, 'error'); }
+        },
+        async changeAccount(id) {
+            try { this.setBatch(await this.req('PATCH', '/imports/' + this.batch.id, { account_id: id || null })); } catch (e) { showAlert(e.message, 'error'); }
+        },
+        async changeType(t) { await this.rereadWith({ doc_type: t }); },
+        async applyMapping() {
+            const n = v => v === '' ? null : Number(v);
+            const f = this.mapForm, m = this.batch.mapping || {};
+            // keep the fields this form doesn't show (DEBIT/CREDIT column, bank category, id, memo)
+            const kept = { direction_col: m.direction_col ?? null, category_col: m.category_col ?? null, id_col: m.id_col ?? null, memo_col: m.memo_col ?? null };
+            await this.rereadWith({ mapping: { ...kept, date_col: n(f.date_col), description_col: n(f.description_col), amount_col: n(f.amount_col),
+                debit_col: n(f.debit_col), credit_col: n(f.credit_col), balance_col: n(f.balance_col), date_format: f.date_format,
+                sign_convention: f.amount_col === '' ? null : f.sign_convention } });
+        },
+        async flipSigns() { await this.rereadWith({ flip_signs: true }); },
+        async rereadWith(body) {
+            try { this.setBatch(await this.req('PATCH', '/imports/' + this.batch.id, body)); await this.loadBatches(); } catch (e) { showAlert(e.message, 'error'); }
+        },
+        async reread() {
+            try { await this.req('POST', `/imports/${this.batch.id}/reprocess`, {}); await this.loadBatches(); await this.open(this.batch.id); } catch (e) { showAlert(e.message, 'error'); }
+        },
+        async discard() {
+            if (!confirm('Delete this import and the uploaded file? Nothing was added to your data yet.')) return;
+            try { await this.req('DELETE', '/imports/' + this.batch.id); this.batch = null; history.replaceState(null, '', '/import'); await this.loadBatches(); }
+            catch (e) { showAlert(e.message, 'error'); }
+        },
+        async commit(force) {
+            this.busy = true;
+            try {
+                const res = await this.req('POST', `/imports/${this.batch.id}/commit`, { force: !!force });
+                this.setBatch(res.import); await this.loadBatches();
+                showAlert('Imported', 'success');
+            } catch (e) {
+                showAlert(e.message, e.status === 409 ? 'warning' : 'error');
+                await this.open(this.batch.id);
+            } finally { this.busy = false; }
+        },
+        async undo() {
+            try { const res = await this.req('POST', `/imports/${this.batch.id}/undo`); this.setBatch(res.import); await this.loadBatches(); showAlert('Undone: removed ' + res.removed + ' item(s). The rows are back in review.', 'success'); }
+            catch (e) { showAlert(e.message, 'error'); }
+        },
+
+        // ── view helpers ──────────────────────────────────────────────
+        rowsOf(k) {
+            const rows = (this.batch && this.batch.rows) || [];
+            const has = (r, f) => (r.flags || []).includes(f);
+            switch (k) {
+                case 'import': return rows.filter(r => r.action === 'import');
+                case 'review': return rows.filter(r => r.needs_review);
+                case 'ai': return rows.filter(r => r.category_source === 'ai' || has(r, 'ai_extracted') || has(r, 'from_photo'));
+                case 'dup': return rows.filter(r => has(r, 'duplicate') || has(r, 'possible_duplicate'));
+                case 'transfer': return rows.filter(r => has(r, 'transfer'));
+                case 'skip': return rows.filter(r => r.action === 'skip');
+                default: return rows;
+            }
+        },
+        filteredRows() { return this.rowsOf(this.filter); },
+        countFilter(k) { return this.rowsOf(k).length; },
+        sections() {
+            const rows = this.filteredRows();
+            const titles = { change_event: 'Transactions', snapshot: 'Account balance', rule: 'Suggested recurring rules' };
+            return ['change_event', 'snapshot', 'rule'].map(t => ({ target: t, title: titles[t], rows: rows.filter(r => r.target === t) })).filter(s => s.rows.length);
+        },
+        hasExplicitAccount(r) { return r.target === 'change_event' && ((r.flags || []).includes('pick_account') || (r.account_id && r.account_id !== this.batch.account_id)); },
+        categoriesFor(r) { return (this.batch.categories || []).filter(c => !(r.amount < 0 && c.type === 'income')); },
+        catLabel(slug) { const c = ((this.batch && this.batch.categories) || []).find(x => x.slug === slug); return c ? c.label : slug; },
+        sourceText(r) { return this.isSuggestion(r) && this.locked() ? 'AI suggestion' : (SOURCES[r.category_source] || ''); },
+        isSuggestion(r) { return r.category_source === 'ai' && !!r.category; },
+        flagInfo(f) { return FLAGS[f] || { label: f, cls: 'bg-gray-100 text-gray-600', title: '' }; },
+        flagTitle(f, r) { return this.flagInfo(f).title; },
+        matchText(r) {
+            const m = r.match; if (!m) return '';
+            if (m.kind === 'rule') return 'Existing rule: ' + m.description;
+            if (m.kind === 'snapshot') return m.description + ' (' + m.date + ')';
+            if (m.kind === 'transfer') return 'Other side: ' + m.description + ' on ' + m.date;
+            return 'Matches: ' + (m.description || '') + ' on ' + m.date + (m.file ? ' (from ' + m.file + ')' : '');
+        },
+        toImport() { return ((this.batch && this.batch.rows) || []).filter(r => r.action === 'import').length; },
+        willAddText() {
+            const rows = this.batch.rows.filter(r => r.action === 'import');
+            const n = t => rows.filter(r => r.target === t).length;
+            const parts = [];
+            if (n('change_event')) parts.push(n('change_event') + ' transaction' + (n('change_event') === 1 ? '' : 's'));
+            if (n('snapshot')) parts.push('1 account balance');
+            if (n('rule')) parts.push(n('rule') + ' recurring rule' + (n('rule') === 1 ? '' : 's'));
+            return parts.length ? 'Will add ' + parts.join(', ') : 'Nothing ticked';
+        },
+        committedText() {
+            const c = this.batch.created || {};
+            const bits = [];
+            if ((c.change_events || []).length) bits.push(c.change_events.length + ' transaction(s)');
+            if ((c.snapshots || []).length) bits.push(c.snapshots.length + ' balance');
+            if ((c.rules || []).length) bits.push(c.rules.length + ' rule(s)');
+            return 'Imported ' + (bits.join(', ') || 'nothing') + (c.learned ? '. Learned ' + c.learned + ' merchant categor' + (c.learned === 1 ? 'y' : 'ies') + '.' : '.');
+        },
+        mappingSourceText() {
+            const m = this.batch.mapping || {};
+            const src = { rules: 'worked out from the column names', ai: 'worked out by the local AI: check it', saved: 'remembered from your last import of this layout', user: 'set by you', ofx: 'OFX file: amounts and dates are standard', text: 'read line by line from the statement text' }[m.source] || '';
+            const sign = m.amount_col !== null && m.amount_col !== undefined && m.sign_convention ? (m.sign_convention === 'positive_is_money_out' ? ' · positive amounts are money out' : ' · negative amounts are money out') : '';
+            return src + sign;
+        },
+        roleOf(i) {
+            const m = this.batch.mapping || {};
+            const roles = { date_col: 'date', description_col: 'description', amount_col: 'amount', debit_col: 'money out', credit_col: 'money in', balance_col: 'balance' };
+            for (const [k, v] of Object.entries(roles)) if (m[k] === i) return ' → ' + v;
+            return '';
+        },
+        aiText() {
+            const u = this.batch.ai_usage || {};
+            if (!u.calls) return this.batch.status === 'processing' ? '' : 'Read with rules only: no AI needed';
+            const tasks = Object.keys(u.tasks || {}).map(t => t.replace('_', ' ')).join(', ');
+            return 'Local AI (' + u.model + '): ' + u.calls + ' call' + (u.calls === 1 ? '' : 's') + ', ' + u.seconds + ' s, for ' + tasks;
+        },
+        docLabel(t) { return { statement: 'Statement', receipt: 'Receipt', payslip: 'Pay stub', unknown: 'Unknown' }[t] || '…'; },
+        statusLabel(s) { return { processing: 'Reading…', review: 'To review', committed: 'Imported', failed: 'Failed' }[s] || s; },
+        statusClass(s) { return { processing: 'bg-blue-100 text-blue-700', review: 'bg-amber-100 text-amber-800', committed: 'bg-green-100 text-green-700', failed: 'bg-red-100 text-red-700' }[s] || 'bg-gray-100'; },
+        countText(b) {
+            if (b.status === 'processing' || b.status === 'failed') return '';
+            return b.counts.rows + ' row' + (b.counts.rows === 1 ? '' : 's') + (b.counts.needs_review ? ' · ' + b.counts.needs_review + ' to check' : '');
+        },
+        when(iso) { if (!iso) return ''; const d = new Date(iso + 'Z'); return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); },
+        money(c) { return (c === null || c === undefined) ? '—' : formatCurrency(c); },
+        dollars(c) { return (c === null || c === undefined) ? '' : (c / 100).toFixed(2); },
+    };
+}
+</script>
+{% endblock %}

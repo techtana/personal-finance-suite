@@ -13,6 +13,7 @@ from api.rules import bp as rules_bp
 from api.changes import bp as changes_bp
 from api.taxes import bp as taxes_bp
 from api.lookback import bp as lookback_bp
+from api.imports import bp as imports_bp
 
 api_bp.register_blueprint(accounts_bp)
 api_bp.register_blueprint(transactions_bp)
@@ -24,4 +25,5 @@ api_bp.register_blueprint(rules_bp)
 api_bp.register_blueprint(changes_bp)
 api_bp.register_blueprint(taxes_bp)
 api_bp.register_blueprint(lookback_bp)
+api_bp.register_blueprint(imports_bp)
 
