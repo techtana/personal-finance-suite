@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% block title %}Taxes - Personal Finance Suite{% endblock %}
 {% block page_title %}Taxes{% endblock %}
 
 {% block content %}
@@ -30,7 +29,7 @@
         <div>
             <h3 class="text-base font-semibold text-gray-900">Estimated taxes</h3>
             <p class="text-xs text-gray-500">
-                Built from your Cash Flow rules, logged changes, asset sales and loans.
+                Built from your Plan rules, logged changes, asset sales and loans.
                 <span x-show="data" x-text="data ? data.filing_status_label + ' · ' + data.table_year + ' federal tables' : ''"></span>
             </p>
         </div>
@@ -45,8 +44,8 @@
     </div>
 
     <!-- ── Tax profile ─────────────────────────────────────────────────────── -->
-    <div x-show="showProfile" x-cloak class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h4 class="text-sm font-semibold text-gray-900">Tax profile</h4>
+    <div x-show="showProfile" x-cloak class="card manage p-6">
+        <h4 class="text-sm font-semibold text-gray-900 flex items-center gap-2">Tax profile <span class="role-chip manage">You manage</span></h4>
         <p class="text-xs text-gray-500 mb-4">Every field is optional. Anything left blank uses the default shown, and the estimate says so.</p>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
@@ -112,9 +111,9 @@
                     <p class="text-base font-semibold text-gray-900" x-text="data.has_inputs ? 'No taxable income in ' + data.year : 'Nothing to estimate yet for ' + data.year"></p>
                     <p class="text-sm text-gray-600 mt-2 max-w-xl mx-auto"
                        x-text="data.has_inputs
-                           ? 'Your inputs for this year contain expenses but no taxable income, so the estimated tax is $0. Add income on the Cash Flow page, or pick another year.'
-                           : 'Add an income rule on the Cash Flow page and this page fills in on its own. You do not need to tag anything: untagged income is treated as W-2 wages and untagged expenses as personal spending.'"></p>
-                    <a href="/timeline" class="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Go to Cash Flow</a>
+                           ? 'Your inputs for this year contain expenses but no taxable income, so the estimated tax is $0. Add income on the Plan page, or pick another year.'
+                           : 'Add an income rule on the Plan page and this page fills in on its own. You do not need to tag anything: untagged income is treated as W-2 wages and untagged expenses as personal spending.'"></p>
+                    <a href="/plan" class="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Go to Plan</a>
                     <p class="text-xs text-gray-400 mt-4">The contribution limits below still apply, so you can see how much room each account has.</p>
                 </div>
             </template>
@@ -153,7 +152,7 @@
 
                     <!-- ── Where each dollar goes ──────────────────────────── -->
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h4 class="text-sm font-semibold text-gray-900">Where your gross income goes</h4>
+                        <h4 class="text-sm font-semibold text-gray-900 flex items-center gap-2">Where your gross income goes <span class="role-chip view">View only</span></h4>
                         <p class="text-xs text-gray-500 mb-4" x-text="'Share of ' + usd(S.gross_income) + ' gross income in ' + data.year"></p>
                         <div class="flex w-full h-8" style="gap:2px" role="img" :aria-label="allocationSummary">
                             <template x-for="(seg, i) in allocation" :key="seg.key">
@@ -260,7 +259,7 @@
                         </div>
                     </template>
                 </div>
-                <p class="text-xs text-gray-500 mt-4">To record a contribution, add an expense rule on <a href="/timeline" class="text-blue-600 hover:underline">Cash Flow</a> and pick its tax treatment.</p>
+                <p class="text-xs text-gray-500 mt-4">To record a contribution, add an expense rule on <a href="/plan" class="text-blue-600 hover:underline">Plan</a> and pick its tax treatment.</p>
             </div>
 
             <template x-if="data.has_income">
@@ -298,7 +297,7 @@
                         <template x-if="!C.has_activity">
                             <div class="text-sm text-gray-600 space-y-2">
                                 <p>No investment sales or loss carryovers entered for this year, so nothing is taxed or deducted here.</p>
-                                <p class="text-xs text-gray-500">Gains come in three ways: a scheduled sale on an asset with a cost basis (<a href="/equity" class="text-blue-600 hover:underline">Assets</a>), an income entry tagged as an investment sale (<a href="/timeline" class="text-blue-600 hover:underline">Cash Flow</a>), or the “other gain / loss” fields in the tax profile above.</p>
+                                <p class="text-xs text-gray-500">Gains come in three ways: a scheduled sale on an asset with a cost basis (<a href="/balances?type=asset" class="text-blue-600 hover:underline">Balances</a>), an income entry tagged as an investment sale (<a href="/plan" class="text-blue-600 hover:underline">Plan</a>), or the “other gain / loss” fields in the tax profile above.</p>
                             </div>
                         </template>
                         <template x-if="C.has_activity">
@@ -321,8 +320,8 @@
 
             <!-- ── Analysis ────────────────────────────────────────────────── -->
             <template x-if="data.insights.length > 0">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h4 class="text-sm font-semibold text-gray-900">What stands out</h4>
+                <div class="card guidance p-6">
+                    <h4 class="text-sm font-semibold text-gray-900 flex items-center gap-2">What stands out <span class="role-chip guidance">Guidance</span></h4>
                     <p class="text-xs text-gray-500 mb-4">Findings from the numbers above, largest savings first</p>
                     <div class="divide-y divide-gray-100">
                         <template x-for="ins in data.insights" :key="ins.title">
@@ -344,7 +343,7 @@
             <!-- ── Assumptions ─────────────────────────────────────────────── -->
             <template x-if="data.assumptions.length > 0">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h4 class="text-sm font-semibold text-gray-900">Filled in for you</h4>
+                    <h4 class="text-sm font-semibold text-gray-900 flex items-center gap-2">Filled in for you <span class="role-chip view">Assumed</span></h4>
                     <p class="text-xs text-gray-500 mb-3">Where an input was missing, the estimate used these defaults. Set them in the tax profile or on the entry itself to replace them.</p>
                     <ul class="list-disc pl-5 space-y-1 text-sm text-gray-700">
                         <template x-for="a in data.assumptions" :key="a"><li x-text="a"></li></template>

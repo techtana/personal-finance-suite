@@ -79,6 +79,11 @@ def tax_summary():
     except Exception:
         stock_prices = {}
 
+    return jsonify(compute_tax_summary(year, stock_prices))
+
+
+def compute_tax_summary(year: int, stock_prices: dict | None = None) -> dict:
+    """The tax estimate for a year from everything in the database (also used by Insights)."""
     rules = [
         {"id": r.id, "name": r.name, "rule_type": r.rule_type, "amount": r.amount,
          "frequency": r.frequency, "start_date": r.start_date, "end_date": r.end_date,
@@ -104,5 +109,4 @@ def tax_summary():
         for l in Loan.query.all()
     ]
 
-    result = estimate_taxes(rules, changes, assets, loans, _settings().tax_profile, year, stock_prices)
-    return jsonify(result)
+    return estimate_taxes(rules, changes, assets, loans, _settings().tax_profile, year, stock_prices or {})

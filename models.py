@@ -234,6 +234,7 @@ class Asset(db.Model):
     current_value = db.Column(Integer, nullable=False)   # cents (total portfolio value)
     cost_basis = db.Column(Integer, nullable=True)       # cents (total acquisition cost)
     acquired_date = db.Column(String(10), nullable=True)
+    decided_date = db.Column(String(10), nullable=True)  # day the purchase was agreed; defaults to acquired_date
     address = db.Column(Text, nullable=True)             # for property
     linked_loan_id = db.Column(String(21), ForeignKey("loans.id"), nullable=True)
     last_updated_date = db.Column(String(10), nullable=False, default=get_iso_date)
@@ -374,3 +375,116 @@ class ChangeEvent(db.Model):
     note = db.Column(Text, nullable=True)
     created_at = db.Column(String(10), nullable=False, default=get_iso_date)
     updated_at = db.Column(String(10), nullable=False, default=get_iso_date, onupdate=get_iso_date)
+
+
+class PricePoint(db.Model):
+    """Share price for a ticker on one date, entered by hand.
+
+    Feeds the Then vs. Now page: vest-date and purchase-date values, and today's value.
+    """
+
+    __tablename__ = "price_points"
+    __table_args__ = (db.UniqueConstraint("ticker", "date", name="uq_price_ticker_date"),)
+
+    id = db.Column(String(21), primary_key=True, default=generate_id)
+    ticker = db.Column(String(20), nullable=False)
+    date = db.Column(String(10), nullable=False)
+    price = db.Column(Integer, nullable=False)           # cents per share
+    created_at = db.Column(String(10), nullable=False, default=get_iso_date)
+# ── File import (staging area for dropped statements, receipts, pay stubs) ─────
+#
+# Nothing an import reads goes straight into the ledger. Every file becomes an
+# ImportBatch with one ImportRow per proposed record; the user reviews them and a
+# commit writes ChangeEvents / Snapshots / Rules. Undo deletes what a commit made.
+
+class ImportBatch(db.Model):
+    """One dropped file and what the importer made of it."""
+
+    __tablename__ = "import_batches"
+
+    id = db.Column(String(21), primary_key=True, default=generate_id)
+    filename = db.Column(String(255), nullable=False)
+    file_kind = db.Column(String(20), nullable=False)       # csv | xlsx | ofx | pdf | text | image | json
+    file_sha256 = db.Column(String(64), nullable=False)
+    file_size = db.Column(Integer, nullable=False, default=0)
+    stored_path = db.Column(Text, nullable=True)            # copy of the file under instance/imports/
+    doc_type = db.Column(String(20), nullable=True)         # statement | receipt | payslip | unknown
+    doc_type_forced = db.Column(Boolean, nullable=False, default=False)
+    account_id = db.Column(String(21), ForeignKey("accounts.id"), nullable=True)
+    # processing | review | committed | failed
+    status = db.Column(String(20), nullable=False, default="processing")
+    stage = db.Column(String(200), nullable=True)           # progress text while processing
+    mapping = db.Column(JSON, nullable=True)                # how a table's columns were read
+    extracted = db.Column(JSON, nullable=True)              # receipt / pay stub fields and their checks
+    warnings = db.Column(JSON, nullable=False, default=list)  # [{level: info|warn, text}]
+    ai_usage = db.Column(JSON, nullable=False, default=dict)
+    error = db.Column(Text, nullable=True)
+    created = db.Column(JSON, nullable=True)                # ids written by the last commit
+    created_at = db.Column(String(32), nullable=False, default=get_iso_datetime)
+    updated_at = db.Column(String(32), nullable=False, default=get_iso_datetime, onupdate=get_iso_datetime)
+    committed_at = db.Column(String(32), nullable=True)
+
+    rows = relationship(
+        "ImportRow", backref="batch", cascade="all, delete-orphan", order_by="ImportRow.position"
+    )
+
+
+class ImportRow(db.Model):
+    """One proposed record from an import, waiting for review.
+
+    target: change_event (amount signed, + = money in) | snapshot (amount = balance)
+            | rule (amount signed per period, frequency set)
+    """
+
+    __tablename__ = "import_rows"
+
+    id = db.Column(String(21), primary_key=True, default=generate_id)
+    batch_id = db.Column(String(21), ForeignKey("import_batches.id"), nullable=False, index=True)
+    position = db.Column(Integer, nullable=False, default=0)
+    target = db.Column(String(20), nullable=False, default="change_event")
+    action = db.Column(String(10), nullable=False, default="import")   # import | skip
+    date = db.Column(String(10), nullable=True)
+    description = db.Column(String(200), nullable=False, default="")
+    amount = db.Column(Integer, nullable=True)
+    category = db.Column(String(50), nullable=True)
+    category_source = db.Column(String(20), nullable=True)  # learned | keyword | bank | ai | document | user
+    account_id = db.Column(String(21), nullable=True)       # overrides the batch account (pay stub 401k rows)
+    frequency = db.Column(String(20), nullable=True)
+    confidence = db.Column(Float, nullable=False, default=1.0)
+    flags = db.Column(JSON, nullable=False, default=list)
+    match = db.Column(JSON, nullable=True)                  # the existing entry a duplicate flag points at
+    merchant_key = db.Column(String(100), nullable=True)
+    fingerprint = db.Column(String(64), nullable=True, index=True)
+    external_id = db.Column(String(100), nullable=True)     # OFX FITID
+    note = db.Column(Text, nullable=True)
+    raw = db.Column(JSON, nullable=True)                    # source cells or line, for audit
+    user_edited = db.Column(Boolean, nullable=False, default=False)
+    created_id = db.Column(String(21), nullable=True)       # id of the record a commit wrote
+
+
+class ImportMerchantRule(db.Model):
+    """Category the user chose for a merchant; applied before any AI guess."""
+
+    __tablename__ = "import_merchant_rules"
+
+    id = db.Column(String(21), primary_key=True, default=generate_id)
+    merchant_key = db.Column(String(100), nullable=False, unique=True)
+    category = db.Column(String(50), nullable=False)
+    hits = db.Column(Integer, nullable=False, default=0)
+    created_at = db.Column(String(32), nullable=False, default=get_iso_datetime)
+    updated_at = db.Column(String(32), nullable=False, default=get_iso_datetime, onupdate=get_iso_datetime)
+
+
+class ImportProfile(db.Model):
+    """Column layout of a bank export seen before, keyed by its header row."""
+
+    __tablename__ = "import_profiles"
+
+    id = db.Column(String(21), primary_key=True, default=generate_id)
+    signature = db.Column(String(64), nullable=False, unique=True)
+    headers = db.Column(JSON, nullable=False)
+    mapping = db.Column(JSON, nullable=False)
+    account_id = db.Column(String(21), nullable=True)
+    uses = db.Column(Integer, nullable=False, default=0)
+    created_at = db.Column(String(32), nullable=False, default=get_iso_datetime)
+    updated_at = db.Column(String(32), nullable=False, default=get_iso_datetime, onupdate=get_iso_datetime)

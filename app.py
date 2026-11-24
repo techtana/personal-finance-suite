@@ -2,8 +2,8 @@ import os
 from flask import Flask
 from flask_migrate import Migrate
 from config import get_config
+from sqlalchemy import inspect, text
 from models import db
-
 
 migrate = Migrate()
 
@@ -15,6 +15,7 @@ _ADDED_COLUMNS = [
     ("settings", "backup_config", "JSON"),
     ("rules", "tax_treatment", "VARCHAR(30)"),
     ("change_events", "tax_treatment", "VARCHAR(30)"),
+    ("assets", "decided_date", "VARCHAR(10)"),
 ]
 
 
@@ -60,6 +61,9 @@ def create_app(config=None):
 
     from pages import pages_bp
     app.register_blueprint(pages_bp)
+
+    from importer.cli import imports_cli
+    app.cli.add_command(imports_cli)
 
     # Regular cloud backups (no-op when testing)
     from backup import start_scheduler

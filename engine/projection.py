@@ -249,8 +249,13 @@ def project_v2(
     stock_prices: dict,
     from_date: str,
     to_date: str,
+    disabled_ids: set | None = None,
+    fill_months: bool = False,
 ) -> tuple[list[MonthlyBucket], list[CashFlowEvent]]:
     """Project net worth using the simplified v2 schema (Rules + ChangeEvents).
+
+    disabled_ids: rule / change / loan ids left out, for what-if scenarios.
+    fill_months: also return months with no events, so charts have no gaps.
 
     Args:
         rules: List of Rule dicts:
@@ -265,9 +270,10 @@ def project_v2(
         to_date: End date YYYY-MM-DD
     """
     all_events: list[CashFlowEvent] = []
+    disabled_ids = disabled_ids or set()
 
     for rule in rules:
-        if not rule.get("is_active", True):
+        if not rule.get("is_active", True) or rule.get("id") in disabled_ids:
             continue
         rt = rule.get("rule_type", "income")
 
@@ -333,10 +339,14 @@ def project_v2(
                         category="equity",
                     ))
 
-    # Manual change events
+    # Manual change events. Only those inside the horizon: starting_net_worth comes
+    # from today's balances, which already include every past change (imported
+    # bank history would otherwise be counted twice).
     for change in changes:
         amt = change.get("amount", 0)
-        if amt == 0:
+        if amt == 0 or not (from_date <= change.get("date", "") <= to_date):
+            continue
+        if change.get("id") in disabled_ids:
             continue
         if amt < 0 and change.get("tax_treatment") in TRANSFER_KEYS:
             continue
@@ -352,6 +362,8 @@ def project_v2(
 
     # Auto loan payments
     for loan in loans:
+        if loan.get("id") in disabled_ids:
+            continue
         dates = expand_recurring_dates(
             loan["start_date"], loan.get("payoff_date"), "monthly", from_date, to_date
         )
@@ -380,6 +392,12 @@ def project_v2(
         else:
             b.expenses += event.amount
         b.net_cash_flow = b.income - b.expenses
+
+    if fill_months and from_date[:7] <= to_date[:7]:
+        y, m = int(from_date[:4]), int(from_date[5:7])
+        while f"{y:04d}-{m:02d}" <= to_date[:7]:
+            buckets.setdefault(f"{y:04d}-{m:02d}", MonthlyBucket(month=f"{y:04d}-{m:02d}"))
+            y, m = (y + 1, 1) if m == 12 else (y, m + 1)
 
     cumulative_nw = starting_net_worth
     monthly_buckets: list[MonthlyBucket] = []

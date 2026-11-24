@@ -62,9 +62,11 @@ Go to **http://localhost:5000** and start exploring!
 ## What You Can Do Right Away
 
 ### In the App:
-1. **Dashboard**: See net worth cards, monthly cash flow, and upcoming events
-2. **Timeline**: View the 5-year projection
-3. **Settings**: Export data as JSON, manage backups and restore points, or clear all data
+1. **Balances**: Add your accounts, assets and loans with today's values (your inputs)
+2. **Plan**: Add salary, rent and other repeating income and expenses (your inputs)
+3. **Overview** and **Forecast**: Net worth, this month, and where your plan takes you (computed)
+4. **Insights**: What needs attention, each with its basis
+5. **Settings**: Export data as JSON, manage backups and restore points, or clear all data
 
 ### Via API (Use curl or Postman):
 
@@ -83,17 +85,16 @@ curl "http://localhost:5000/api/projection?from=2026-05-10&to=2027-05-10"
 curl http://localhost:5000/api/categories
 ```
 
-**Create a one-time transaction:**
+**Add a one-off entry (amount in cents, positive = money in):**
 ```bash
-curl -X POST http://localhost:5000/api/transactions/one-time \
+curl -X POST http://localhost:5000/api/changes \
   -H "Content-Type: application/json" \
   -d '{
-    "type": "income",
-    "amount": 50000,
     "date": "2026-05-15",
+    "description": "Sign-on bonus",
+    "amount": 50000,
     "category": "bonus",
-    "account_id": "<account_id_from_/api/accounts>",
-    "note": "Sign-on bonus"
+    "account_id": "<account_id_from_/api/accounts>"
   }'
 ```
 
@@ -103,9 +104,9 @@ curl -X POST http://localhost:5000/api/transactions/one-time \
 
 ### Add Your Own Data
 
-1. Go to **Accounts** → **Add Account** and add your bank accounts
-2. Go to **Transactions** → **Add Transaction** for your income/expenses
-3. Go to **Timeline** to see your 5-year projection
+1. Go to **Balances** → **+ Add** and add your bank accounts, then use **Update value** or the monthly check-in
+2. Go to **Plan** → **+ Add rule** for income and expenses that repeat, and **+ Add entry** for one-off amounts
+3. Go to **Forecast** to see the projection, and untick anything under "What if…" to compare
 
 ### Export/Backup Data
 
@@ -188,7 +189,7 @@ The app is organized into clean layers:
 ```
 Browser (Jinja2 Templates + Alpine.js)
     ↓
-Flask Page Routes (/dashboard, /transactions, etc.)
+Flask Page Routes (/overview, /plan, /balances, /forecast, /insights, etc.)
     ↓
 REST API Endpoints (/api/accounts, /api/projection, etc.)
     ↓

@@ -1,0 +1,71 @@
+{# Shared building blocks. Every list in the app uses the same toolbar and sortable headers. #}
+{% import "_icons.html" as ic %}
+
+{# Search / filter / sort toolbar bound to a makeList() object.
+   lv       Alpine expression of the list state, e.g. "rulesList"
+   items    Alpine expression of the unfiltered items (for dropdown options and counts)
+   shown    Alpine expression of the filtered items
+   filters  [(name, label)] dropdowns, options taken from the data
+   date / amount   show the range inputs #}
+{% macro toolbar(lv, items, shown, filters=[], date=false, amount=false, placeholder="Search", noun="items") %}
+<div class="toolbar" role="search" x-data="{ open: false }">
+    <input type="search" class="field tb-search" placeholder="{{ placeholder }}" aria-label="{{ placeholder }}"
+           x-model="{{ lv }}.q" @input.debounce.200ms="{{ lv }}.sync()" enterkeyhint="search">
+    {# On phones the filters fold behind one button so the list stays in view. #}
+    <button type="button" class="btn btn-soft btn-sm tb-toggle" @click="open = !open" :aria-expanded="open.toString()">
+        {{ ic.icon("filter", "icon icon-sm") }} Filters
+        <span class="tb-dot" x-show="{{ lv }}.active() - ({{ lv }}.q ? 1 : 0) > 0" x-text="{{ lv }}.active() - ({{ lv }}.q ? 1 : 0)"></span>
+    </button>
+    <div class="tb-filters" :class="open && 'is-open'">
+    {% for name, label in filters %}
+    <select class="field" aria-label="Filter by {{ label|lower }}" x-model="{{ lv }}.f.{{ name }}" @change="{{ lv }}.sync()">
+        <option value="">All {{ label|lower }}</option>
+        <template x-for="o in {{ lv }}.options('{{ name }}', {{ items }})" :key="o">
+            <option :value="o" :selected="o === {{ lv }}.f.{{ name }}" x-text="titleCase(o)"></option>
+        </template>
+    </select>
+    {% endfor %}
+    {% if date %}
+    <label>From <input type="date" class="field" aria-label="From date" x-model="{{ lv }}.from" @change="{{ lv }}.sync()"></label>
+    <label>to <input type="date" class="field" aria-label="To date" x-model="{{ lv }}.to" @change="{{ lv }}.sync()"></label>
+    {% endif %}
+    {% if amount %}
+    <label>$ <input type="number" min="0" step="1" class="field tb-num" placeholder="min" aria-label="Minimum amount in dollars"
+                    x-model="{{ lv }}.min" @input.debounce.200ms="{{ lv }}.sync()"></label>
+    <label>– <input type="number" min="0" step="1" class="field tb-num" placeholder="max" aria-label="Maximum amount in dollars"
+                    x-model="{{ lv }}.max" @input.debounce.200ms="{{ lv }}.sync()"></label>
+    {% endif %}
+    </div>
+    <button type="button" class="btn btn-ghost btn-sm" x-show="{{ lv }}.active() > 0" @click="{{ lv }}.clear()">Clear</button>
+    <span class="tb-count" aria-live="polite" x-text="{{ shown }}.length + ' of ' + {{ items }}.length + ' {{ noun }}'"></span>
+</div>
+<div class="flex flex-wrap items-center gap-2 mt-2" x-show="$store.app.ai.ok" x-cloak>
+    <span class="role-chip ai">AI</span>
+    <input type="text" class="field ai-field" style="flex:1 1 220px;width:auto"
+           placeholder='Describe a filter in words, e.g. "over $500 next quarter"' aria-label="Describe a filter in words"
+           x-model="{{ lv }}.aiText" @keydown.enter="{{ lv }}.askAI({{ items }})">
+    <button type="button" class="btn btn-ai btn-sm" :disabled="{{ lv }}.aiBusy || !{{ lv }}.aiText.trim()"
+            @click="{{ lv }}.askAI({{ items }})" x-text="{{ lv }}.aiBusy ? 'Thinking…' : 'Set filters'"></button>
+    <span class="text-xs text-gray-500 w-full" x-show="{{ lv }}.aiNote" x-text="{{ lv }}.aiNote"></span>
+</div>
+{% endmacro %}
+
+{# Sortable column header. #}
+{% macro th(lv, name, label, num=false) %}
+<th class="sortable{% if num %} num{% endif %}" scope="col" tabindex="0" :aria-sort="{{ lv }}.ariaSort('{{ name }}')"
+    @click="{{ lv }}.toggleSort('{{ name }}')" @keydown.enter="{{ lv }}.toggleSort('{{ name }}')">{{ label }}<span x-text="{{ lv }}.arrow('{{ name }}')"></span></th>
+{% endmacro %}
+
+{# Section heading with a role chip. role: manage | view | guidance | ai #}
+{% macro section(title, role, note="") %}
+<div class="section-head">
+    <div>
+        <h3>{{ title }}</h3>
+        {% if note %}<p>{{ note }}</p>{% endif %}
+    </div>
+    <div class="flex items-center gap-2">
+        <span class="role-chip {{ role }}">{{ {"manage": "You manage", "view": "View only", "guidance": "Guidance", "ai": "AI"}[role] }}</span>
+        {{ caller() if caller else "" }}
+    </div>
+</div>
+{% endmacro %}

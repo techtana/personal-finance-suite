@@ -1,0 +1,22 @@
+        CEDAR & SALT KITCHEN
+     418 Market St, Seattle WA
+          (206) 555-0142
+
+Server: Dana        Table 12
+Date: 11/15/2026   7:48 PM
+Check #4471
+
+2  Margherita Pizza       32.00
+1  Caesar Salad           12.50
+2  Sparkling Water         7.00
+1  Tiramisu                9.00
+
+Subtotal                  60.50
+Sales Tax 10.25%           6.20
+Tip                       12.00
+TOTAL                     78.70
+
+MASTERCARD  ************4821
+AUTH CODE 08821B     APPROVED
+
+     Thank you for dining with us!
