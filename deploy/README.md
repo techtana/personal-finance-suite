@@ -64,8 +64,9 @@ first run.
 
 ## AI from your home computer
 
-The server has no model of its own. On the desktop with the GPU (Ollama running), in a
-checkout of this repository:
+The server has no model of its own. On the desktop with the GPU (Ollama running), the
+simplest way is the desktop app: double-click `install-desktop.cmd`; its tray shares the PC's
+AI with the server whenever it is running. Or, in a checkout of this repository:
 
 ```bash
 python home_runner.py --server https://finance.<your-tailnet>.ts.net
