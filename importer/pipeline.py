@@ -120,6 +120,8 @@ def process_batch(batch_id: str) -> None:
             proposals = documents.from_receipt(doc.text, ctx, allowed)
         elif doc_type == "payslip":
             proposals = documents.from_payslip(doc.text, ctx, rules)
+        elif doc_type == "equity":
+            raise ImportFailure(documents.EQUITY_MESSAGE)
         else:
             proposals = []
             ctx.warn("Couldn't tell whether this is a statement, a receipt or a pay stub. Pick the type above and "

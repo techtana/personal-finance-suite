@@ -82,12 +82,14 @@ def transcribe(llm, image: bytes) -> str:
 
 # ── 2. what kind of document is this ───────────────────────────────────────────
 
-DOC_TYPES = ["statement", "receipt", "payslip", "other"]
+DOC_TYPES = ["statement", "receipt", "payslip", "equity", "other"]
 _CLASSIFY_SYSTEM = (
     "You sort financial documents into one type.\n"
     "statement: a bank, credit card or brokerage statement or export that lists many transactions.\n"
     "receipt: proof of one purchase or refund at a shop, restaurant, or online store.\n"
     "payslip: a pay stub or earnings statement from an employer with gross pay, deductions and net pay.\n"
+    "equity: stock-plan paperwork: an RSU grant, vesting or release confirmation, an ESPP purchase, a stock "
+    "option statement, or a yearly summary of those.\n"
     "other: anything else."
 )
 

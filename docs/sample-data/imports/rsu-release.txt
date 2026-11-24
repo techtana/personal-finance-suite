@@ -1,0 +1,16 @@
+EXAMPLE BROKERAGE STOCK PLAN SERVICES
+Restricted Stock Units - 2025 Release Summary
+
+Participant: Sample Employee            Employer: Example Corp (EXMP)
+Award Number: RS-004211                 Grant Date: 03/15/2023
+
+Release Date   Shares Released   Fair Market Value   Total Value   Shares Withheld   Net Shares
+02/15/2025     125               $84.20              $10,525.00    46                79
+05/15/2025     125               $91.75              $11,468.75    46                79
+08/15/2025     125               $88.10              $11,012.50    46                79
+11/15/2025     125               $97.40              $12,175.00    46                79
+
+Total shares vested in 2025: 500
+Total value at vest: $45,181.25
+Tax withheld (sell to cover): $16,631.52
+Remaining unvested shares: 1,000
