@@ -3,6 +3,8 @@
 from datetime import date
 from flask import Blueprint, request, jsonify
 from models import db, Account, Loan, Asset, Rule, Snapshot, PricePoint
+from api import _data
+from engine import ledger
 from engine.lookback import build_lookback
 
 bp = Blueprint("api_lookback", __name__)
@@ -26,6 +28,7 @@ def then_vs_now():
     if not _valid_date(today):
         today = date.today().isoformat()
 
+    txns = _data.balance_txns(today)
     payload = build_lookback(
         rules=[
             {"id": r.id, "name": r.name, "rule_type": r.rule_type, "start_date": r.start_date,
@@ -39,7 +42,8 @@ def then_vs_now():
             for a in Asset.query.all()
         ],
         accounts=[
-            {"id": a.id, "current_balance": a.current_balance, "last_updated_date": a.last_updated_date}
+            {"id": a.id, "current_balance": a.current_balance, "last_updated_date": a.last_updated_date,
+             "txns": txns.get(a.id, []), "owed": ledger.is_owed(a.type)}
             for a in Account.query.filter_by(is_active=True).all()
         ],
         loans=[

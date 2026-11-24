@@ -84,15 +84,21 @@
                     <tbody>
                         <template x-for="r in shown" :key="r.entity_type + r.id">
                             <tr>
-                                <td data-label="Type"><span class="badge" :class="r.entity_type" x-text="typeLabel(r.entity_type)"></span></td>
+                                <td data-label="Type"><span class="badge" :class="r.owed ? 'liability' : r.entity_type" x-text="r.owed ? 'Owed' : typeLabel(r.entity_type)"></span></td>
                                 <td class="cell-title">
                                     <p class="font-medium text-gray-900" x-text="r.name"></p>
                                     <p class="text-xs text-gray-500" x-text="[r.institution, titleCase(r.kind)].filter(Boolean).join(' · ')"></p>
                                 </td>
                                 <td class="num" data-label="Current value">
                                     <template x-if="editing !== r.entity_type + r.id">
-                                        <span class="font-semibold" :class="r.entity_type==='liability' ? 'text-red-600' : 'text-gray-900'"
-                                              x-text="(r.entity_type==='liability' ? '−' : '') + fmt(r.value)"></span>
+                                        <span>
+                                            <span class="font-semibold" :class="r.bucket==='liability' ? 'text-red-600' : 'text-gray-900'"
+                                                  x-text="(r.bucket==='liability' ? '−' : '') + fmt(r.value)"></span>
+                                            <span class="block text-xs text-gray-500" x-show="r.since_count"
+                                                  x-text="'Recorded ' + fmt(r.recorded) + ' on ' + r.recorded_date + ', then ' + r.since_count + (r.since_count === 1 ? ' transaction' : ' transactions')"></span>
+                                            <button type="button" class="block ml-auto text-xs text-amber-700 hover:underline" x-show="r.needs_start" @click="openHistory(r)"
+                                                    title="The balance starts from the value typed in when the account was added. Record a balance from a statement to anchor it.">Confirm a starting balance</button>
+                                        </span>
                                     </template>
                                     <template x-if="editing === r.entity_type + r.id">
                                         <span class="inline-flex flex-wrap justify-end items-center gap-1">
@@ -115,7 +121,7 @@
                                     <template x-if="editing !== r.entity_type + r.id">
                                         <span>
                                             <button type="button" class="btn btn-primary btn-sm" @click="startInline(r)">Update value</button>
-                                            <button type="button" class="btn btn-soft btn-sm" @click="openHistory(r)">History</button>
+                                            <button type="button" class="btn btn-soft btn-sm" x-show="r.entity_type==='cash'" @click="openLedger(r)">Transactions</button>                                            <button type="button" class="btn btn-soft btn-sm" @click="openHistory(r)">History</button>
                                             <button type="button" class="btn btn-soft btn-sm" @click="openEntity(r.entity_type, r)">Edit</button>
                                             <button type="button" class="btn btn-soft btn-sm" x-show="r.entity_type==='asset'" @click="openEvents(r)">Events</button>
                                             <button type="button" class="btn btn-danger btn-sm" @click="deleteEntity(r)">Delete</button>
@@ -133,7 +139,7 @@
                         <tr x-show="!loading && shown.length === 0">
                             <td colspan="6" class="text-center text-gray-500 py-8">
                                 <span x-show="rows.length">No rows match these filters.</span>
-                                <span x-show="!rows.length">Nothing here yet. Start with your main bank account: + Add, then Cash account.</span>
+                                <span x-show="!rows.length">Nothing here yet. Start with your main bank account: + Add, then Cash account. Or <a class="text-blue-600 hover:underline" href="/import">import a statement</a> after adding it.</span>
                             </td>
                         </tr>
                     </tbody>
@@ -204,10 +210,11 @@
                     <div class="h-1.5 bg-gray-100 rounded-full mb-4"><div class="h-1.5 bg-blue-600 rounded-full" :style="'width:' + (checkin.i / checkin.queue.length * 100) + '%'"></div></div>
                     <h3 id="ciTitle" x-text="ciRow.name"></h3>
                     <p class="text-sm text-gray-500 -mt-2 mb-4">
-                        <span class="badge" :class="ciRow.entity_type" x-text="typeLabel(ciRow.entity_type)"></span>
-                        Last recorded <strong x-text="fmt(ciRow.value)"></strong> <span x-text="ciRow.last_updated ? 'on ' + ciRow.last_updated : '(never)'"></span>
+                        <span class="badge" :class="ciRow.owed ? 'liability' : ciRow.entity_type" x-text="ciRow.owed ? 'Owed' : typeLabel(ciRow.entity_type)"></span>
+                        <template x-if="!ciRow.since_count"><span>Last recorded <strong x-text="fmt(ciRow.value)"></strong> <span x-text="ciRow.last_updated ? 'on ' + ciRow.last_updated : '(never)'"></span></span></template>
+                        <template x-if="ciRow.since_count"><span>Recorded <span x-text="fmt(ciRow.recorded)"></span> on <span x-text="ciRow.recorded_date"></span>; with the <span x-text="ciRow.since_count"></span> transactions since, it should be about <strong x-text="fmt(ciRow.value)"></strong></span></template>
                     </p>
-                    <label class="field-label" for="ciVal" x-text="ciRow.entity_type==='liability' ? 'Amount owed today ($)' : 'Value today ($)'"></label>
+                    <label class="field-label" for="ciVal" x-text="ciRow.bucket==='liability' ? 'Amount owed today ($)' : 'Value today ($)'"></label>
                     <input id="ciVal" type="number" step="0.01" min="0" class="field" style="font-size:18px;padding:10px 12px" x-model="checkin.value"
                            @keydown.enter="ciSave()" x-effect="checkin.i; $nextTick(() => $el.select())">
                     <div class="modal-actions" style="justify-content:space-between">
@@ -224,6 +231,15 @@
                 <div>
                     <h3 id="ciTitle">Check-in done</h3>
                     <p class="text-sm text-gray-600" x-text="checkin.saved + ' updated, ' + (checkin.queue.length - checkin.saved) + ' skipped. Net worth is now ' + fmt(totals.net_worth) + '.'"></p>
+                    <div class="mt-3 space-y-2" x-show="checkin.gaps.length">
+                        <p class="text-sm font-medium text-gray-900">Balances the transactions don't fully explain</p>
+                        <template x-for="g in checkin.gaps" :key="g.snapshot_id">
+                            <div class="card manage p-3 text-sm flex flex-wrap items-center justify-between gap-2">
+                                <span><strong x-text="g.name"></strong>: <span x-text="gapText(g.check)"></span></span>
+                                <button type="button" class="btn btn-soft btn-sm" :disabled="g.done" @click="logGap(g)" x-text="g.done ? 'Logged' : 'Log the difference'"></button>
+                            </div>
+                        </template>
+                    </div>
                     <div class="modal-actions">
                         <a class="btn btn-ghost" href="/insights">See insights</a>
                         <button type="button" class="btn btn-primary" @click="checkin.open=false">Close</button>
@@ -249,6 +265,7 @@
                                 </select></div>
                             <div><label class="field-label">Institution</label><input class="field" x-model="form.d.institution" placeholder="e.g. Example Bank"></div>
                         </div>
+                        <p class="field-hint" x-show="form.d.type==='credit_card'">A credit card holds what you owe, entered as a positive amount. It is subtracted from net worth, and spending on it raises it.</p>
                     </div>
                 </template>
 
@@ -303,7 +320,7 @@
                 </template>
 
                 <div x-show="!form.id">
-                    <label class="field-label" for="eVal" x-text="form.type==='liability' ? 'Amount owed today ($)' : 'Value today ($)'"></label>
+                    <label class="field-label" for="eVal" x-text="form.type==='liability' || (form.type==='cash' && form.d.type==='credit_card') ? 'Amount owed today ($)' : 'Value today ($)'"></label>
                     <input id="eVal" type="number" step="0.01" min="0" class="field" x-model="form.d.value_dollars" placeholder="0.00">
                 </div>
                 <p class="field-hint" x-show="form.id">To change the current value, close this and use “Update value” so the change is kept in its history.</p>
@@ -351,6 +368,80 @@
         </div>
     </div>
 
+    <!-- ── Account ledger ──────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" x-show="led.open" @click.self="led.open=false" @keydown.escape.window="led.open=false">
+        <div class="modal" style="max-width:820px" role="dialog" aria-modal="true" aria-labelledby="ledTitle">
+            <h3 id="ledTitle" x-text="'Transactions · ' + (led.row ? led.row.name : '')"></h3>
+            <p class="text-sm text-gray-600 -mt-2 mb-3" x-show="led.data">
+                <span x-text="(led.data && led.data.account.owed ? 'Owed now: ' : 'Balance now: ')"></span><strong x-text="led.data ? fmt(led.data.current) : ''"></strong>
+                <span class="text-gray-500" x-text="led.data && led.data.as_of ? ' as of ' + led.data.as_of : ''"></span>.
+                <span class="text-gray-500">Each recorded balance is the truth on its day; the transactions after it move the balance until the next one.</span>
+            </p>
+            <div class="flex flex-wrap gap-2 mb-3">
+                <button type="button" class="btn btn-primary btn-sm" @click="led.open=false; openHistory(led.row)">Record a balance</button>
+                <a class="btn btn-soft btn-sm" :href="led.row ? '/import?account=' + led.row.id : '/import'">Import a statement</a>
+            </div>
+            <div x-show="led.loading" class="p-4 text-sm text-gray-500">Loading…</div>
+            <div class="sm:overflow-y-auto sm:max-h-[420px]" x-show="!led.loading">
+                <table class="data stack">
+                    <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th class="num" x-text="led.data && led.data.account.owed ? 'Owed' : 'Balance'"></th></tr></thead>
+                    <tbody>
+                        <template x-for="(e, i) in (led.data ? led.data.entries : [])" :key="e.kind + (e.id || e.date) + i">
+                            <tr :class="e.kind === 'recorded' ? 'bg-blue-50' : ''">
+                                <td class="cell-title whitespace-nowrap" x-text="e.date"></td>
+                                <td data-label="Description">
+                                    <template x-if="e.kind === 'recorded'">
+                                        <span>
+                                            <span class="font-medium text-gray-900">Recorded balance</span>
+                                            <span class="text-xs text-gray-500" x-text="e.note ? ' · ' + e.note : ''"></span>
+                                            <span class="block text-xs" x-show="e.gap" :class="'text-amber-700'"
+                                                  x-text="'The transactions since the record before reach ' + fmt(e.expected) + '; ' + fmtSigned(e.gap) + ' unexplained.'"></span>
+                                            <span class="block text-xs text-green-700" x-show="e.gap === 0 && e.expected !== null">Matches the transactions since the record before.</span>
+                                            <button type="button" class="btn btn-soft btn-sm mt-1" x-show="e.gap && e.id" @click="reconcileSnap(e.id)">Log the difference</button>
+                                        </span>
+                                    </template>
+                                    <template x-if="e.kind === 'txn'">
+                                        <span>
+                                            <span x-text="e.description"></span>
+                                            <span class="badge ml-1" x-show="e.transfer">transfer</span>
+                                            <span class="badge ml-1" x-show="e.change_type === 'adjustment'">adjustment</span>
+                                            <span class="block text-xs text-gray-500" x-text="[e.category && !e.transfer ? titleCase(e.category) : '', e.file].filter(Boolean).join(' · ')"></span>
+                                        </span>
+                                    </template>
+                                </td>
+                                <td class="num whitespace-nowrap" data-label="Amount" :class="e.amount > 0 ? 'text-green-700' : 'text-red-600'" x-text="e.kind === 'txn' ? fmtSigned(e.amount) : ''"></td>
+                                <td class="num whitespace-nowrap font-medium" data-label="Balance">
+                                    <span x-text="e.balance === null || e.balance === undefined ? '—' : fmt(e.balance)" :class="e.estimated ? 'text-gray-400' : ''"
+                                          :title="e.estimated ? 'Worked back from the first recorded balance' : ''"></span>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="led.data && !led.data.entries.length"><td colspan="4" class="text-center text-gray-500 py-6">No transactions yet. Import a statement to see them here.</td></tr>
+                    </tbody>
+                </table>
+                <div class="p-3 text-center" x-show="led.data && led.data.entries.length < led.data.total">
+                    <button type="button" class="btn btn-ghost btn-sm" @click="loadLedger(true)">Show older</button>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Balances in grey are worked back from the first recorded balance. Transfers move money between your accounts, so they change this balance but not your income, spending or net worth.</p>
+            <div class="modal-actions"><button type="button" class="btn btn-ghost" @click="led.open=false">Close</button></div>
+        </div>
+    </div>
+
+    <!-- ── Reconcile prompt ────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" x-show="rec.open" @keydown.escape.window="rec.open=false">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="recTitle">
+            <h3 id="recTitle" x-text="(rec.name || '') + ': the transactions don\'t add up to this balance'"></h3>
+            <p class="text-sm text-gray-600" x-text="rec.check ? gapText(rec.check) : ''"></p>
+            <p class="text-xs text-gray-500 mt-2">Often it's interest, a fee, or transactions that haven't been imported yet. Logging the difference adds one adjustment entry dated on this balance, so the account's history adds up. The balance you entered stays as it is.</p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" @click="rec.open=false">Leave it</button>
+                <a class="btn btn-soft" :href="'/import?account=' + rec.accountId">Import missing transactions</a>
+                <button type="button" class="btn btn-primary" :disabled="saving" @click="reconcileSnap(rec.snapshotId).then(() => rec.open=false)">Log the difference</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ── Scheduled asset events ──────────────────────────────────────────── -->
     <div class="modal-backdrop" x-show="ev.open" @click.self="ev.open=false" @keydown.escape.window="ev.open=false">
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="evTitle">
@@ -395,7 +486,9 @@ function balancesPage() {
         tab: 'balances', rows: [], totals: { cash: 0, assets: 0, liabilities: 0, net_worth: 0 }, staleDays: 35, loading: true, saving: false,
         today: todayISO(), list: null, priceList: null,
         editing: null, editValue: '', editDate: '',
-        checkin: { open: false, queue: [], i: 0, value: '', saved: 0 },
+        checkin: { open: false, queue: [], i: 0, value: '', saved: 0, gaps: [] },
+        led: { open: false, row: null, data: null, loading: false },
+        rec: { open: false, name: '', check: null, snapshotId: null, accountId: null },
         form: { open: false, type: 'cash', id: null, d: {} },
         hist: { open: false, row: null, snaps: [], date: '', value: '', note: '', editId: null, chart: null },
         ev: { open: false, asset: null, f: {} },
@@ -424,7 +517,7 @@ function balancesPage() {
             this.list = makeList({
                 sort: 'type',
                 search: r => [r.name, r.institution, r.kind, r.note].join(' '),
-                filters: { type: r => r.entity_type, kind: r => r.kind, freshness: r => r.stale ? 'stale' : 'up to date' },
+                filters: { type: r => r.bucket || r.entity_type, kind: r => r.kind, freshness: r => r.stale ? 'stale' : 'up to date' },
                 amount: r => r.value,
                 sorts: { type: r => ({ cash: 0, asset: 1, liability: 2 })[r.entity_type], name: r => r.name.toLowerCase(), value: r => r.value,
                          updated: r => r.last_updated || '' },
@@ -437,6 +530,8 @@ function balancesPage() {
             if (p.get('tab') === 'prices') this.tab = 'prices';
             await Promise.all([this.load(), this.loadPrices()]);
             if (p.get('checkin') === '1' && this.rows.length) this.startCheckin(this.staleRows.length ? this.staleRows : this.rows);
+            const ledgerRow = p.get('ledger') && this.rows.find(r => r.entity_type === 'cash' && r.id === p.get('ledger'));
+            if (ledgerRow) this.openLedger(ledgerRow);
         },
         async load() {
             try {
@@ -447,7 +542,41 @@ function balancesPage() {
             Alpine.store('app').refreshAttention();
         },
         async record(row, valueCents, date, note) {
-            await API.post('/balances/record', { entity_type: row.entity_type, entity_id: row.id, value: valueCents, date: date || this.today, note: note || null });
+            return await API.post('/balances/record', { entity_type: row.entity_type, entity_id: row.id, value: valueCents, date: date || this.today, note: note || null });
+        },
+        // A new balance the transactions since the last one don't add up to: offer to log the difference.
+        offerReconcile(row, res) {
+            const c = res && res.check;
+            if (!c || !c.gap) return;
+            this.rec = { open: true, name: row.name, check: c, snapshotId: res.id, accountId: row.id };
+        },
+        gapText(c) {
+            const what = c.owed ? 'owed' : 'balance';
+            return 'From the ' + c.since_date + ' record, ' + c.count + (c.count === 1 ? ' transaction brings' : ' transactions bring') +
+                ' the ' + what + ' to ' + this.fmt(c.expected) + '. You recorded ' + this.fmt(c.actual) + ', so ' + fmtSigned(c.gap) + ' is unexplained.';
+        },
+        async reconcileSnap(snapshotId) {
+            this.saving = true;
+            try {
+                const r = await API.post('/balances/reconcile', { snapshot_id: snapshotId });
+                showAlert(r.created ? 'Difference logged as an adjustment' : 'Nothing to log: it already adds up', 'success');
+                if (this.led.open) await this.loadLedger();
+                await this.load();
+            } catch (e) { showAlert('Could not log it: ' + e.message, 'error'); }
+            finally { this.saving = false; }
+        },
+        async logGap(g) { await this.reconcileSnap(g.snapshot_id); g.done = true; },
+
+        // ── Ledger ────────────────────────────────────────────────────────
+        async openLedger(r) { this.led = { open: true, row: r, data: null, loading: true }; await this.loadLedger(); },
+        async loadLedger(more) {
+            const r = this.led.row, offset = more && this.led.data ? this.led.data.entries.length : 0;
+            try {
+                const d = await API.get('/balances/' + r.id + '/ledger?limit=100&offset=' + offset);
+                if (more && this.led.data) d.entries = this.led.data.entries.concat(d.entries);
+                this.led.data = d;
+            } catch (e) { showAlert('Could not load transactions: ' + e.message, 'error'); }
+            finally { this.led.loading = false; }
         },
 
         // ── Inline update ─────────────────────────────────────────────────
@@ -456,7 +585,7 @@ function balancesPage() {
             const v = parseFloat(this.editValue);
             if (isNaN(v) || v < 0) return showAlert('Enter a value of zero or more', 'warning');
             this.saving = true;
-            try { await this.record(r, Math.round(v * 100), this.editDate); this.editing = null; showAlert(r.name + ' updated', 'success'); await this.load(); }
+            try { const res = await this.record(r, Math.round(v * 100), this.editDate); this.editing = null; showAlert(r.name + ' updated', 'success'); await this.load(); this.offerReconcile(r, res); }
             catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
             finally { this.saving = false; }
         },
@@ -464,7 +593,7 @@ function balancesPage() {
         // ── Check-in ──────────────────────────────────────────────────────
         startCheckin(rows) {
             const queue = rows.slice().sort((a, b) => (b.days_since ?? 1e9) - (a.days_since ?? 1e9));
-            this.checkin = { open: true, queue, i: 0, value: queue.length ? (queue[0].value / 100).toFixed(2) : '', saved: 0 };
+            this.checkin = { open: true, queue, i: 0, value: queue.length ? (queue[0].value / 100).toFixed(2) : '', saved: 0, gaps: [] };
         },
         ciNext() {
             this.checkin.i += 1;
@@ -476,7 +605,11 @@ function balancesPage() {
             const v = parseFloat(this.checkin.value);
             if (isNaN(v) || v < 0) return showAlert('Enter a value of zero or more', 'warning');
             this.saving = true;
-            try { await this.record(this.ciRow, Math.round(v * 100)); this.checkin.saved += 1; this.ciNext(); }
+            try {
+                const row = this.ciRow, res = await this.record(row, Math.round(v * 100));
+                if (res && res.check && res.check.gap) this.checkin.gaps.push({ name: row.name, check: res.check, snapshot_id: res.id, done: false });
+                this.checkin.saved += 1; this.ciNext();
+            }
             catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
             finally { this.saving = false; }
         },
@@ -562,8 +695,8 @@ function balancesPage() {
             this.saving = true;
             try {
                 if (this.hist.editId) await API.patch('/snapshots/' + this.hist.editId, { date: this.hist.date, value: Math.round(v * 100), note: this.hist.note || null });
-                await this.record(this.hist.row, Math.round(v * 100), this.hist.date, this.hist.note);
-                this.resetHistForm(); await this.loadHistory(); await this.load();
+                const res = await this.record(this.hist.row, Math.round(v * 100), this.hist.date, this.hist.note);
+                this.resetHistForm(); await this.loadHistory(); await this.load(); this.offerReconcile(this.hist.row, res);
             } catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
             finally { this.saving = false; }
         },

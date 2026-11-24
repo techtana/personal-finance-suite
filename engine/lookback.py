@@ -12,6 +12,8 @@ Shares are counted gross: sell-to-cover and later sales are not tracked.
 
 from datetime import date as _date, timedelta
 
+from engine.ledger import value_at
+
 STALE_PRICE_DAYS = 7      # a "today" price older than this is reported as missing
 MAX_HISTORY_YEARS = 20
 
@@ -266,15 +268,21 @@ def _asset(asset: dict, snaps: dict, today: str):
 def _entity_value(entity: dict, history: list, iso: str):
     """Value of one account, asset or loan on a date. None = not recorded yet.
 
-    The latest snapshot on or before the date wins. The entity's current value
-    counts as a snapshot on its last-updated date. Before any snapshot, assets
-    fall back to cost basis and loans to their starting balance from the day
-    they began, and are worth nothing before that.
+    The latest snapshot on or before the date wins. The entity's own recorded
+    value counts as a snapshot on its last-updated date. Cash accounts that carry
+    `txns` add the transactions since that record (engine.ledger.value_at).
+    Before any snapshot, assets fall back to cost basis and loans to their
+    starting balance from the day they began, and are worth nothing before that.
     """
     points = list(history)
-    cur_date = entity.get("current_date")
+    cur_date = entity.get("recorded_date", entity.get("current_date"))
+    cur_value = entity.get("recorded", entity.get("current"))
     if _valid(cur_date) and not any(p[0] >= cur_date for p in points):
-        points.append((cur_date, entity.get("current") or 0))
+        points.append((cur_date, cur_value or 0))
+    if entity.get("txns"):
+        v = value_at(points, entity["txns"], iso, bool(entity.get("owed")))
+        if v is not None:
+            return v
     best = None
     for p_date, p_val in points:
         if p_date <= iso:
@@ -303,7 +311,7 @@ def net_worth_at(entities: list, snaps: dict, iso: str):
             partial = True
             continue
         known += 1
-        total += -v if e["type"] == "liability" else v
+        total += -v if e.get("negative", e["type"] == "liability") else v
     if not known:
         return None, True
     return total, partial
@@ -381,7 +389,8 @@ def build_lookback(rules, assets, accounts, loans, snapshots, prices, today: str
 
     entities = (
         [{"type": "cash", "id": a["id"], "current": a.get("current_balance") or 0,
-          "current_date": a.get("last_updated_date")} for a in accounts]
+          "current_date": a.get("last_updated_date"), "txns": a.get("txns") or [],
+          "owed": bool(a.get("owed")), "negative": bool(a.get("owed"))} for a in accounts]
         + [{"type": "asset", "id": a["id"], "current": a.get("current_value") or 0,
             "current_date": a.get("last_updated_date"),
             "first_date": a.get("acquired_date"), "first_value": a.get("cost_basis")} for a in assets]
@@ -407,6 +416,7 @@ def build_lookback(rules, assets, accounts, loans, snapshots, prices, today: str
     recorded = [h[0][0] for h in snaps.values() if h]
     recorded += [e["first_date"] for e in entities if _valid(e.get("first_date"))]
     recorded += [e["current_date"] for e in entities if _valid(e.get("current_date"))]
+    recorded += [e["txns"][0][0] for e in entities if e.get("txns")]
     series = net_worth_series(entities, snaps, min(recorded), today) if recorded else []
     now_value, _ = net_worth_at(entities, snaps, today)
 

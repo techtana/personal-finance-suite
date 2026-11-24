@@ -15,10 +15,12 @@ The app is organised by what you do on each page, and every block on screen is m
 - **Overview**: Net worth, this month's planned cash flow, what needs attention, history by cash / assets / liabilities
 - **Plan**: Recurring rules (income, expenses, RSU grants, ESPP plans) and one-off entries
 - **Balances**: Every account, asset and liability in one table; update a value inline or run the monthly check-in;
-  share prices
+  each account's transactions with a running balance; share prices. A cash account's balance is its latest
+  recorded balance plus the imported transactions since (see [How balances work](#how-balances-work))
 - **Forecast**: Net worth and monthly cash flow from your plan, with what-if (untick any rule or entry)
-- **Insights**: Stale balances, net worth off plan, months that run negative, upcoming one-off events, loan
-  payoffs, missing share prices, imports waiting for review, tax findings
+- **Insights**: Stale balances, net worth off plan, spending against plan, months that run negative, upcoming
+  one-off events, loan payoffs, missing share prices, imports waiting for review, tax findings; a plan vs. actual
+  table by category and month
 - **Search, filter and sort** on every list, kept in the page address so a filtered view can be linked
 - **AI assistant** (optional, local by default): ask a question, describe a filter in words, get an insight
   explained, draft a Plan entry (see [AI assistant](#ai-assistant))
@@ -189,9 +191,33 @@ What goes where:
 | Receipt | one expense entry with the receipt total; items, tax and tip in the note |
 | Pay stub | net pay as income to the account it was paid into; 401(k)/403(b) contributions plus employer match as income to your retirement account; a suggested salary rule |
 
-Transfers between your own accounts and credit card payments are recognised and left unticked, so they aren't
-counted as spending or income. Duplicates are caught across files and sources: the same file twice, overlapping
-statements, a receipt and the card statement line for the same purchase, a pay stub and the payroll deposit.
+Transfers between your own accounts and credit card payments are recognised and imported with the category
+`transfer`: they move the account's balance but aren't counted as spending, income or a change in net worth.
+Duplicates are caught across files and sources: the same file twice, overlapping statements, a receipt and the
+card statement line for the same purchase, a pay stub and the payroll deposit.
+
+When a statement has a closing balance, the review screen checks it: the account's earlier balance plus the
+transactions in between (already imported, and ticked in this file) should reach it. A card statement's balance is
+recorded as the amount owed, on an account whose type is Credit card.
+
+### How balances work
+
+One rule, in `engine/ledger.py`, used by Balances, Overview, the Forecast's starting point, net-worth history and
+Then vs. Now:
+
+> balance on a date = the latest recorded balance on or before it + the account's transactions dated after it
+
+- A **recorded balance** (from the check-in, *Update value*, a statement's closing balance, or the value typed in
+  when the account was added) is the truth on its day, as the end-of-day balance.
+- Only what **actually happened** moves a balance: imported transactions and reconcile adjustments. One-off
+  entries typed on the Plan page are the plan, like rules; they feed the Forecast and Taxes, never a balance.
+  That split also keeps anything from being counted twice: the Forecast, the "net worth vs. plan" insight and
+  the Taxes estimate use the plan; Balances and net worth use the actuals. Imported deposits count toward taxes
+  only once you give them a tax treatment.
+- **Reconcile**: when a new recorded balance differs from the previous one plus the transactions since, Balances
+  says by how much and offers to log the difference as one adjustment entry dated on that balance.
+- **Credit cards** (account type Credit card) hold the amount owed: spending raises it, a payment lowers it, and
+  net worth subtracts it.
 
 ### How the local AI is used
 
@@ -289,8 +315,13 @@ The SQLite database file is located at `instance/finance.db`. Back it up by:
 
 - `GET /api/balances` — Every cash account, asset and liability in one list, with totals and freshness
 - `POST /api/balances/record` — Record a value (`entity_type` cash|asset|liability, `entity_id`, `value` in cents,
-  optional `date`)
-- `GET /api/net-worth/history?months=24&types=cash,asset` — Month-end recorded values by type
+  optional `date`). For a cash account the answer's `check` compares it with the previous record plus the
+  transactions since
+- `GET /api/balances/<account_id>/ledger?limit=&offset=` — One account's recorded balances and transactions,
+  newest first, with the running balance and the unexplained gap at each record
+- `POST /api/balances/reconcile` — `{snapshot_id}`: log a record's unexplained gap as an adjustment entry
+- `GET /api/net-worth/history?months=24&types=cash,asset` — Month-end values by type
+- `GET /api/plan-vs-actual?months=4` — Planned vs. imported amounts per category and month
 - `GET /api/assets`, `POST /api/assets`, `PATCH /api/assets/<id>` — Assets
 - `GET /api/prices`, `POST /api/prices`, `DELETE /api/prices/<id>` — Share prices
 

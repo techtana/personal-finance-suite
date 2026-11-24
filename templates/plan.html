@@ -69,7 +69,7 @@
 
     <!-- ── One-off entries ─────────────────────────────────────────────────── -->
     <section>
-        {% call ui.section("One-off entries", "manage", "Single dated amounts: a planned purchase, a bonus, a correction, or history brought in by Import.") %}
+        {% call ui.section("One-off entries", "manage", "Single dated amounts: a planned purchase or a bonus (the plan), and what actually happened: transactions brought in by Import and balance adjustments, which move the account's balance on Balances.") %}
             <button type="button" class="btn btn-primary" @click="openAddChange()">+ Add entry</button>
         {% endcall %}
         {{ ui.toolbar("changesList", "changes", "shownChanges", filters=[("when", "dates"), ("source", "sources"), ("category", "categories"), ("account", "accounts")], date=true, amount=true, placeholder="Search entries", noun="entries") }}
@@ -152,6 +152,8 @@
                         </select>
                     </div>
                 </div>
+                <p class="field-hint" x-show="changeForm.change_type==='manual'">A planned entry feeds the Forecast and Taxes. It doesn't change an account's balance: that comes from recorded balances and imported transactions.</p>
+                <p class="field-hint" x-show="changeForm.change_type!=='manual'">This entry moves the chosen account's balance from its date on, and is left out of the Forecast.</p>
                 <div>
                     <label class="field-label" for="cCat">Category (optional)</label>
                     <select id="cCat" x-model="changeForm.category" class="field">

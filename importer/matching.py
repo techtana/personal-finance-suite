@@ -11,6 +11,7 @@ import re
 from collections import Counter
 from datetime import date, timedelta
 
+from engine.ledger import is_owed
 from importer.core import SKIP_FLAGS
 from importer.parsing import merchant_similar
 
@@ -132,10 +133,13 @@ def refresh_matches(batch) -> int:
     for r in rows:
         if r.target == "snapshot":
             account = db.session.get(Account, acct) if acct else None
+            owed = account is not None and is_owed(account.type)
+            card_doc = bool((r.raw or {}).get("card"))
             if not acct:
                 r.flags = r.flags + ["pick_account"]
-            elif account is not None and _CARD_ACCOUNT.search(f"{account.type} {account.name}"):
-                r.flags = r.flags + ["card_balance"]  # a card balance is money owed, not cash
+            elif account is not None and not owed and (card_doc or _CARD_ACCOUNT.search(f"{account.type} {account.name}")):
+                # Money owed can only be recorded on an account marked as a credit card.
+                r.flags = r.flags + ["card_balance"]
             else:
                 latest = (Snapshot.query.filter_by(entity_type="cash", entity_id=acct)
                           .order_by(Snapshot.date.desc()).first())

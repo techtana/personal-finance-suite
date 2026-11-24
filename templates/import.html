@@ -144,10 +144,18 @@
             <div x-show="batch.status === 'committed'" class="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg p-4 flex flex-wrap items-center justify-between gap-3" role="status">
                 <span x-text="committedText()"></span>
                 <span class="flex gap-3">
-                    <a href="/plan" class="text-green-800 underline">See it in Plan</a>
+                    <a x-show="batch.account_id" :href="'/balances?ledger=' + batch.account_id" class="text-green-800 underline" x-text="'See ' + acctLabel(batch.account_id)"></a>
+                    <a href="/plan" class="text-green-800 underline" x-show="((batch.created || {}).rules || []).length">See it in Plan</a>
                     <button type="button" @click="undo()" class="px-3 py-1 text-sm border border-green-300 rounded-lg hover:bg-green-100">Undo this import</button>
                 </span>
             </div>
+
+            <!-- Statement closing balance vs. the account's earlier balance plus these transactions -->
+            <template x-if="batch.balance_check && batch.status !== 'processing'">
+                <div class="text-sm rounded-lg px-3 py-2 border" role="status"
+                     :class="{gap: 'bg-amber-50 text-amber-900 border-amber-200', ok: 'bg-green-50 text-green-800 border-green-200'}[batch.balance_check.status] || 'bg-gray-50 text-gray-700 border-gray-200'"
+                     x-text="balanceCheckText(batch.balance_check)"></div>
+            </template>
 
             <!-- Notes -->
             <template x-if="(batch.warnings || []).length">
@@ -505,7 +513,7 @@
 const FLAGS = {
     duplicate:          { label: 'Already imported', cls: 'bg-gray-200 text-gray-700', title: 'The same transaction is already in your data.' },
     possible_duplicate: { label: 'Possible duplicate', cls: 'bg-amber-100 text-amber-800', title: 'Same amount within 3 days of an entry you already have.' },
-    transfer:           { label: 'Transfer', cls: 'bg-slate-200 text-slate-700', title: 'Money moving between your own accounts, or paying a card. Skipped so it isn\'t counted as spending or income.' },
+    transfer:           { label: 'Transfer', cls: 'bg-slate-200 text-slate-700', title: 'Money moving between your own accounts, or paying a card. Imported so the account\'s balance adds up, and left out of income, spending and net worth.' },
     low_confidence:     { label: 'AI unsure', cls: 'bg-amber-100 text-amber-800', title: 'The local AI wasn\'t confident about this category.' },
     uncategorized:      { label: 'No category', cls: 'bg-amber-100 text-amber-800', title: 'Pick a category.' },
     unparsed_date:      { label: 'Date unreadable', cls: 'bg-red-100 text-red-700', title: 'Set the date to import this row.' },
@@ -523,7 +531,7 @@ const FLAGS = {
     rule_exists:        { label: 'Rule exists', cls: 'bg-gray-200 text-gray-700', title: 'You already have a similar rule.' },
     older_snapshot:     { label: 'Older balance', cls: 'bg-gray-200 text-gray-700', title: 'You already have a newer balance for this account.' },
     negative_balance:   { label: 'Negative', cls: 'bg-gray-200 text-gray-700', title: 'A negative cash balance can\'t be recorded as a snapshot.' },
-    card_balance:       { label: 'Card balance', cls: 'bg-gray-200 text-gray-700', title: 'A credit card balance is money owed, not cash, so it isn\'t recorded as an account balance.' },
+    card_balance:       { label: 'Card balance', cls: 'bg-gray-200 text-gray-700', title: 'This is an amount owed on a card. Set the account\'s type to Credit card on the Balances page (Edit), then it is recorded as what you owe.' },
     from_photo:         { label: 'From photo', cls: 'bg-purple-100 text-purple-800', title: 'Read from a photo by the local AI. Compare with the picture.' },
 };
 // rsu_grant rows are shown in their own card above the table, not as a section of it
@@ -561,12 +569,25 @@ function importPage() {
 
         async init() {
             await Promise.all([this.loadAccounts(), this.loadBatches(), this.loadAi()]);
-            const id = new URLSearchParams(location.search).get('batch');
+            const q = new URLSearchParams(location.search), id = q.get('batch');
+            if (q.get('account') && this.accounts.some(a => a.id === q.get('account'))) this.upload.account_id = q.get('account');
             if (id) this.open(id);
             this.timer = setInterval(() => this.poll(), 1500);
         },
         async loadAi() { try { this.ai = { ...(await API.get('/imports/ai-status')), loaded: true }; } catch { this.ai = { ok: false, loaded: true, error: 'status unavailable' }; } },
         async loadAccounts() { try { this.accounts = await API.get('/accounts'); } catch {} },
+        acctLabel(id) { const a = this.accounts.find(a => a.id === id); return a ? a.name : 'the account'; },
+        balanceCheckText(c) {
+            const money = v => formatCurrency(v || 0), what = c.owed ? 'amount owed' : 'closing balance';
+            if (c.status === 'first')
+                return 'No earlier balance for ' + c.account + ', so this statement\'s ' + what + ' (' + money(c.actual) + ' on ' + c.date +
+                       ') becomes its starting point. Later transactions move it from there.';
+            const n = c.count_here + c.count_existing;
+            let t = 'Statement ' + what + ': ' + money(c.actual) + ' on ' + c.date + '. The ' + c.since_date + ' balance of ' + money(c.since_value) +
+                    ' plus ' + n + ' transaction' + (n === 1 ? '' : 's') + ' (' + c.count_here + ' ticked here, ' + c.count_existing + ' already in your data) reach ' + money(c.expected) + '.';
+            if (c.status === 'ok') return t + ' It adds up.';
+            return t + ' ' + money(Math.abs(c.gap)) + ' isn\'t explained: look for unticked or missing rows. After importing, you can log what\'s left as an adjustment from the account\'s Transactions on Balances.';
+        },
         async loadBatches() { try { this.batches = await API.get('/imports'); } catch (e) { showAlert('Couldn\'t load imports: ' + e.message, 'error'); } },
         async loadLearned() { try { this.learned = await API.get('/imports/merchant-rules'); } catch {} },
         async forget(r) { await API.delete('/imports/merchant-rules/' + r.id); this.loadLearned(); },
