@@ -36,6 +36,8 @@ class Settings(db.Model):
     # Tax profile: {filing_status, state_rate, age, hsa_coverage, loss_carryover,
     #               other_gain_short, other_gain_long}. Empty = engine defaults.
     tax_profile = db.Column(JSON, nullable=True, default=lambda: {})
+    # Cloud backup setup: {project, bucket, prefix, frequency, keep}. See backup.py.
+    backup_config = db.Column(JSON, nullable=True, default=lambda: {})
     schema_version = db.Column(Integer, nullable=False, default=1)
 
 

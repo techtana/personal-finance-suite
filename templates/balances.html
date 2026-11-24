@@ -133,8 +133,7 @@
                         <tr x-show="!loading && shown.length === 0">
                             <td colspan="6" class="text-center text-gray-500 py-8">
                                 <span x-show="rows.length">No rows match these filters.</span>
-                                <span x-show="!rows.length">Nothing here yet. Add your main bank account first, or
-                                    <button type="button" class="text-blue-600 hover:underline" @click="loadSample()">load sample data</button> to look around.</span>
+                                <span x-show="!rows.length">Nothing here yet. Start with your main bank account: + Add, then Cash account.</span>
                             </td>
                         </tr>
                     </tbody>
@@ -449,11 +448,6 @@ function balancesPage() {
         },
         async record(row, valueCents, date, note) {
             await API.post('/balances/record', { entity_type: row.entity_type, entity_id: row.id, value: valueCents, date: date || this.today, note: note || null });
-        },
-        async loadSample() {
-            if (!confirm('Load sample data? This replaces everything currently in the app.')) return;
-            try { await API.post('/seed', {}); showAlert('Sample data loaded', 'success'); await this.load(); await this.loadPrices(); }
-            catch (e) { showAlert('Could not load sample data: ' + e.message, 'error'); }
         },
 
         // ── Inline update ─────────────────────────────────────────────────

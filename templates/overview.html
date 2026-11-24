@@ -30,7 +30,6 @@
                     <div><p class="font-medium text-gray-900">3. Come back here</p><p class="text-xs text-gray-500">Net worth, a forecast and anything that needs attention appear on their own.</p></div>
                 </li>
             </ol>
-            <p class="text-sm text-gray-500 mt-5">Just looking around? <button type="button" class="text-blue-600 hover:underline" @click="loadSample()">Load sample data</button> (fictional, replaceable any time).</p>
         </div>
     </template>
 
@@ -212,10 +211,6 @@ function overviewPage() {
                 options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: chartTooltipMoney } } },
                     scales: { y: { ticks: { callback: chartMoneyTick } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 7, maxRotation: 0 } } } },
             });
-        },
-        async loadSample() {
-            if (!confirm('Load sample data? This replaces everything currently in the app.')) return;
-            try { await API.post('/seed', {}); location.reload(); } catch (e) { showAlert('Could not load sample data: ' + e.message, 'error'); }
         },
     };
 }

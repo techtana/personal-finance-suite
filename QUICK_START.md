@@ -37,21 +37,10 @@ flask db upgrade
 
 This creates the SQLite database at `instance/finance.db` with all 11 tables.
 
-### Step 4: Load Sample Data (Optional)
+### Step 4: Set Up Cloud Backups (Optional)
 
-```bash
-# Option A: Via API (while app is running)
-curl -X POST http://localhost:5000/api/seed
-
-# Option B: Via Flask shell
-flask shell
->>> from api.settings import seed_sample_data
->>> from app import create_app
->>> app = create_app()
->>> with app.app_context():
-...     seed_sample_data()
->>> exit()
-```
+Run `gcloud auth application-default login` once, then add your Google Cloud Storage bucket under
+**Settings → Backups**. See README.md for details.
 
 ### Step 5: Run the App
 
@@ -72,13 +61,12 @@ Go to **http://localhost:5000** and start exploring!
 
 ## What You Can Do Right Away
 
-### If You Loaded Sample Data:
-1. **Overview**: Net worth, this month's planned cash flow and what needs attention
-2. **Balances**: Update a value inline, or run the check-in for the stale ones
-3. **Plan**: Browse the sample rules and one-off entries; search, filter and sort them
-4. **Forecast**: See the projection and untick a rule under "What if…"
-5. **Insights**: See what the app noticed, each with its basis
-6. **Settings**: Export everything as JSON or load a fresh sample data set
+### In the App:
+1. **Balances**: Add your accounts, assets and loans with today's values (your inputs)
+2. **Plan**: Add salary, rent and other repeating income and expenses (your inputs)
+3. **Overview** and **Forecast**: Net worth, this month, and where your plan takes you (computed)
+4. **Insights**: What needs attention, each with its basis
+5. **Settings**: Export data as JSON, manage backups and restore points, or clear all data
 
 ### Via API (Use curl or Postman):
 
@@ -97,17 +85,16 @@ curl "http://localhost:5000/api/projection?from=2026-05-10&to=2027-05-10"
 curl http://localhost:5000/api/categories
 ```
 
-**Create a one-time transaction:**
+**Add a one-off entry (amount in cents, positive = money in):**
 ```bash
-curl -X POST http://localhost:5000/api/transactions/one-time \
+curl -X POST http://localhost:5000/api/changes \
   -H "Content-Type: application/json" \
   -d '{
-    "type": "income",
-    "amount": 50000,
     "date": "2026-05-15",
+    "description": "Sign-on bonus",
+    "amount": 50000,
     "category": "bonus",
-    "account_id": "<account_id_from_/api/accounts>",
-    "note": "Sign-on bonus"
+    "account_id": "<account_id_from_/api/accounts>"
   }'
 ```
 
@@ -117,10 +104,9 @@ curl -X POST http://localhost:5000/api/transactions/one-time \
 
 ### Add Your Own Data
 
-1. Go to **Settings** → **Load Sample Data** to clear existing data first
-2. Go to **Accounts** → **Add Account** and add your bank accounts
-3. Go to **Transactions** → **Add Transaction** for your income/expenses
-4. Go to **Timeline** to see your 5-year projection
+1. Go to **Balances** → **+ Add** and add your bank accounts, then use **Update value** or the monthly check-in
+2. Go to **Plan** → **+ Add rule** for income and expenses that repeat, and **+ Add entry** for one-off amounts
+3. Go to **Forecast** to see the projection, and untick anything under "What if…" to compare
 
 ### Export/Backup Data
 
@@ -232,8 +218,7 @@ All code is in Python—no build step, no Node.js, no additional tools needed.
 
 1. Check **README.md** for detailed API reference
 2. Review **docs/SRD.md** for architecture and data format
-3. Try the **POST /api/seed** endpoint to load sample data
-4. Use **GET /api/export** to download all data as JSON (for debugging)
+3. Use **GET /api/export** to download all data as JSON (for debugging)
 
 ---
 

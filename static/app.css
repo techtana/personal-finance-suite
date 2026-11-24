@@ -282,6 +282,8 @@ a.card:hover { box-shadow: var(--shadow), 0 0 0 1px #cbd5e1; }
     .btn-sm { min-height: 40px; padding: 6px 12px; }
     .field, select.field, input.field { min-height: 44px; font-size: 16px; }
     .toolbar .field, .ai-field { min-height: 44px; font-size: 16px; }
+    /* Older pages style inputs with utility classes; keep them at 16px too so iOS never zooms on focus. */
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px !important; }
     .toolbar .btn-sm { min-height: 44px; }
     [role="tab"] { min-height: 44px; }
     .badge { padding: 2px 9px; }

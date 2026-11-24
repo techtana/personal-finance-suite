@@ -62,22 +62,22 @@ flask db upgrade
 
 This creates the SQLite database with all tables at `instance/finance.db`.
 
-### 5. Load Sample Data (Optional)
+### 5. Set Up Google Cloud Backups (Optional)
 
-```bash
-flask shell
->>> from app import create_app, db
->>> from api.settings import seed_sample_data
->>> app = create_app()
->>> with app.app_context():
-...     seed_sample_data()
-```
+Backups and restore points are full copies of the database saved to a Google Cloud Storage bucket.
 
-Or call the API endpoint:
+1. Create a private bucket in your Google Cloud project (for example `<project-id>-finance-backups`).
+2. Sign in once on this computer so the app can reach it:
 
-```bash
-curl -X POST http://localhost:5000/api/seed
-```
+   ```bash
+   gcloud auth application-default login
+   ```
+
+3. In the app, open **Settings → Backups**, enter the project and bucket, pick how often to back up, and save.
+
+Backup files are named `finance_<UTC time>_<reason>.db`, where the reason is `scheduled`, `manual`,
+`before-clear`, `before-restore` or `before-import`. **Settings → Data → Clear All Data** always saves a backup
+first and deletes nothing if that backup fails.
 
 ### 6. Run the App
 
@@ -296,7 +296,10 @@ live in `engine/tax_tables.py`.
 - `GET /api/categories` — List categories
 - `GET /api/export` — Download all data as JSON
 - `POST /api/import` — Restore from JSON
-- `POST /api/seed` — Load sample data
+- `GET /api/backups` — Backup setup and restore points
+- `POST /api/backups` — Back up now
+- `POST /api/backups/<name>/restore` — Restore a restore point (backs up current data first)
+- `POST /api/data/clear` — Back up to Google Cloud, then delete all data
 
 ## Project Structure
 

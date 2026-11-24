@@ -12,6 +12,7 @@
         <nav class="flex space-x-8 overflow-x-auto whitespace-nowrap">
             <button @click="tab='general'" :class="tab==='general' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">General</button>
             <button @click="tab='categories'" :class="tab==='categories' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">Categories</button>
+            <button @click="tab='backups'; loadBackups()" :class="tab==='backups' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">Backups</button>
             <button @click="tab='data'" :class="tab==='data' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">Data</button>
             <button @click="tab='ai'" :class="tab==='ai' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">AI assistant</button>
         </nav>
@@ -127,6 +128,92 @@
         </div>
     </template>
 
+    <!-- Backups / restore points -->
+    <template x-if="!loading && tab==='backups'">
+        <div class="space-y-4">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Google Cloud backups</h3>
+                <p class="text-sm text-gray-500 mb-5">
+                    Each backup is a full copy of your data saved to a Google Cloud Storage bucket.
+                    Sign in once on this computer with <code class="text-xs bg-gray-100 px-1 rounded">gcloud auth application-default login</code>,
+                    and keep the bucket private.
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Google Cloud project</label>
+                        <input x-model="backupCfg.project" type="text" placeholder="my-project-id" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Bucket</label>
+                        <input x-model="backupCfg.bucket" type="text" placeholder="my-finance-backups" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Folder in bucket</label>
+                        <input x-model="backupCfg.prefix" type="text" placeholder="finance-backups/" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Regular backup</label>
+                            <select x-model="backupCfg.frequency" class="w-full px-3 py-2 border rounded-lg bg-white text-sm">
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="off">Off</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Keep last</label>
+                            <input x-model.number="backupCfg.keep" type="number" min="1" max="365" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">Only scheduled backups are pruned. Backups made before clearing, restoring, or importing are kept until you delete them.</p>
+                <div class="mt-5 flex items-center gap-3">
+                    <button @click="saveBackupCfg()" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Save</button>
+                    <button @click="backupNow()" :disabled="!!busy || !backups.configured" class="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-50">Back up now</button>
+                    <span x-show="busy" class="text-sm text-gray-500" x-text="busy"></span>
+                </div>
+                <div x-show="backups.status && backups.status.last_scheduled_error" class="mt-4 p-3 rounded bg-yellow-50 border border-yellow-200 text-sm text-yellow-800">
+                    Last scheduled backup failed: <span x-text="backups.status && backups.status.last_scheduled_error"></span>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex justify-between items-baseline mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Restore points</h3>
+                    <span class="text-xs text-gray-400 font-mono" x-text="backups.target || ''"></span>
+                </div>
+                <div x-show="!backups.configured" class="text-sm text-gray-500 py-4">Set a bucket above to start backing up.</div>
+                <div x-show="backups.error" class="p-3 rounded bg-red-50 border border-red-200 text-sm text-red-800" x-text="backups.error"></div>
+                <div x-show="backups.configured && !backups.error && backups.backups.length === 0" class="text-sm text-gray-400 py-4">No backups yet.</div>
+                <table x-show="backups.backups.length > 0" class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-2 text-left font-medium text-gray-600">Created</th>
+                            <th class="px-4 py-2 text-left font-medium text-gray-600">Reason</th>
+                            <th class="px-4 py-2 text-left font-medium text-gray-600">File</th>
+                            <th class="px-4 py-2 text-right font-medium text-gray-600">Size</th>
+                            <th class="px-4 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        <template x-for="b in backups.backups" :key="b.name">
+                            <tr>
+                                <td class="px-4 py-3 whitespace-nowrap" x-text="new Date(b.created_at).toLocaleString()"></td>
+                                <td class="px-4 py-3" x-text="b.kind_label"></td>
+                                <td class="px-4 py-3 font-mono text-xs text-gray-500" x-text="b.name"></td>
+                                <td class="px-4 py-3 text-right text-gray-500" x-text="Math.max(1, Math.round(b.size / 1024)) + ' KB'"></td>
+                                <td class="px-4 py-3 text-right whitespace-nowrap">
+                                    <button @click="restore(b)" :disabled="!!busy" class="text-blue-600 hover:underline mr-3 disabled:opacity-50">Restore</button>
+                                    <button @click="deleteBackup(b)" :disabled="!!busy" class="text-red-600 hover:underline disabled:opacity-50">Delete</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
     <!-- Data Management -->
     <template x-if="!loading && tab==='data'">
         <div class="space-y-4">
@@ -156,9 +243,13 @@
                     </div>
 
                     <div class="p-4 border rounded-lg bg-red-50 border-red-200">
-                        <h4 class="font-semibold text-red-900 mb-2">Danger Zone</h4>
-                        <p class="text-sm text-red-700 mb-3">Load sample data — this will erase all existing data.</p>
-                        <button @click="seedData()" class="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700">Load Sample Data</button>
+                        <h4 class="font-semibold text-red-900 mb-2">Danger Zone: Clear All Data</h4>
+                        <p class="text-sm text-red-700 mb-3">
+                            Deletes every account, loan, asset, rule, transaction, snapshot, and category. A backup is saved to
+                            Google Cloud first; if that backup fails, nothing is deleted. Your settings are kept.
+                        </p>
+                        <button @click="clearAll()" :disabled="!!busy" class="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50">Clear All Data</button>
+                        <span x-show="busy" class="ml-3 text-sm text-red-700" x-text="busy"></span>
                     </div>
 
                 </div>
@@ -246,6 +337,9 @@ function settingsPage() {
         staleDays: 35,
         divergencePct: 5,
         legacyTotal: 0,
+        backups: { configured: false, backups: [], error: null, status: {} },
+        backupCfg: {},
+        busy: '',
 
         async init() {
             try {
@@ -258,7 +352,8 @@ function settingsPage() {
                 this.divergencePct = (t.net_worth_bps || 500) / 100;
                 this.legacyTotal = (await API.get('/legacy').catch(() => ({ total: 0 }))).total;
                 const wanted = new URLSearchParams(location.search).get('tab');
-                if (['general', 'categories', 'data', 'ai'].includes(wanted)) this.tab = wanted;
+                if (['general', 'categories', 'backups', 'data', 'ai'].includes(wanted)) this.tab = wanted;
+                if (this.tab === 'backups') this.loadBackups();
             } catch (e) {
                 showAlert('Failed to load: ' + e.message, 'error');
             } finally {
@@ -345,16 +440,79 @@ function settingsPage() {
             }
         },
 
-        async seedData() {
-            if (!confirm('This will erase all existing data and load sample data. Continue?')) return;
+        async loadBackups() {
             try {
-                await API.post('/seed', {});
-                showAlert('Sample data loaded', 'success');
-                await this.init();
+                this.backups = await API.get('/backups');
+                this.backupCfg = { ...this.backups.config };
+            } catch (e) {
+                showAlert('Failed to load backups: ' + e.message, 'error');
+            }
+        },
+
+        async saveBackupCfg() {
+            try {
+                await API.patch('/backups/config', this.backupCfg);
+                showAlert('Backup settings saved', 'success');
+                await this.loadBackups();
             } catch (e) {
                 showAlert('Error: ' + e.message, 'error');
             }
         },
+
+        async backupNow() {
+            this.busy = 'Backing up to Google Cloud…';
+            try {
+                const b = await API.post('/backups', {});
+                showAlert('Saved ' + b.name, 'success');
+                await this.loadBackups();
+            } catch (e) {
+                showAlert('Backup failed: ' + e.message, 'error');
+            } finally {
+                this.busy = '';
+            }
+        },
+
+        async restore(b) {
+            const when = new Date(b.created_at).toLocaleString();
+            if (!confirm('Replace all current data with the restore point from ' + when + '?\n\nYour current data is backed up first, so you can undo this by restoring that backup.')) return;
+            this.busy = 'Restoring…';
+            try {
+                await API.post('/backups/' + encodeURIComponent(b.name) + '/restore', {});
+                showAlert('Restored data from ' + when, 'success');
+                await this.init();
+                await this.loadBackups();
+            } catch (e) {
+                showAlert('Restore failed: ' + e.message, 'error');
+            } finally {
+                this.busy = '';
+            }
+        },
+
+        async deleteBackup(b) {
+            if (!confirm('Permanently delete ' + b.name + ' from Google Cloud? This cannot be undone.')) return;
+            try {
+                await API.delete('/backups/' + encodeURIComponent(b.name));
+                showAlert('Deleted ' + b.name, 'success');
+                await this.loadBackups();
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+            }
+        },
+
+        async clearAll() {
+            if (prompt('This deletes ALL your financial data after saving a backup to Google Cloud.\n\nType DELETE to continue.') !== 'DELETE') return;
+            this.busy = 'Backing up, then clearing…';
+            try {
+                const r = await API.post('/data/clear', {});
+                showAlert('All data cleared. Backup saved as ' + r.backup.name, 'success');
+                await this.init();
+            } catch (e) {
+                showAlert(e.message, 'error');
+            } finally {
+                this.busy = '';
+            }
+        },
+
     };
 }
 </script>

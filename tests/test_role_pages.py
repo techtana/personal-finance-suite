@@ -6,6 +6,7 @@ import pytest
 
 from engine import assistant as A
 from engine.projection import project_v2
+from tests.sample_data import load_sample_data
 from models import Account, ChangeEvent, Loan, OneTimeTxn, RecurringTxn, Rule, Snapshot, db
 
 TODAY = date.today().isoformat()
@@ -17,7 +18,7 @@ def days_ago(n):
 
 @pytest.fixture
 def seeded(client):
-    assert client.post("/api/seed").status_code == 201
+    load_sample_data()
     return client
 
 
