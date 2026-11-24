@@ -5,7 +5,8 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
+/build/
+# static/build/ holds the compiled stylesheet and IS committed: the app and the server image need it.
 develop-eggs/
 dist/
 downloads/

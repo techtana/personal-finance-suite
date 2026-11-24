@@ -1,6 +1,6 @@
 # Personal Finance Suite
 
-A self-hosted Flask web application for personal financial planning. Track income, expenses, equity compensation, and project your net worth over time—all stored locally on your device.
+A self-hosted Flask web application for personal financial planning. Track income, expenses, equity compensation, and project your net worth over time. It runs on one computer, or as a private server that only your own devices can reach; either way the data stays on machines you control.
 
 ## Features
 
@@ -129,6 +129,23 @@ Your financial data is never cached on the phone; every figure comes from the co
 Without a connection the app shows "Can't reach your finance app" with a retry button. When a new
 version of the app is running, a **Reload** bar appears; nothing reloads under an open form.
 
+## Run it as a private server (optional)
+
+Instead of one computer, the app can run on a small cloud server that your phone, laptop and desktop all
+use, reachable only over your Tailscale network. That server then holds the one copy of your data and backs
+it up by itself. Steps: [deploy/README.md](deploy/README.md). Design and reasons:
+[docs/design/cloud-server-and-ai-endpoints.md](docs/design/cloud-server-and-ai-endpoints.md).
+
+What that adds, and what also works on a single computer:
+
+- **Activity** (Settings → Activity): every change with when, who and what. Values are not recorded.
+- **No silent overwrites**: if two devices change the same entry, the second save is refused and asks for a
+  reload.
+- **This device** (Settings → This device): every optional feature, whether it works on the device in your
+  hand, and why not if it doesn't. Features that can't work are left out of the pages.
+- **Backups the server can't erase**: with `BACKUP_PRUNE=bucket` the app only adds backups; a rule on the
+  bucket removes old ones. `flask --app app:create_app backups verify` checks that the newest one restores.
+
 ## Environment Variables
 
 Create a `.env` file in the project root:
@@ -211,6 +228,13 @@ Optional. The same model client serves Import and the assistant, configured with
 
 - **Local by default.** An address that is not this computer is refused unless `LLM_ALLOW_REMOTE=1`, because that
   sends your financial data to that service.
+- **Several places it can run.** When the app is on a server, a computer at home can do the AI work by running
+  `python home_runner.py --server <the app's address>`: it collects requests and answers them with its local
+  model, and the server never connects to it (`AI_HOME_RUNNER=1` on the server). `AI_ENDPOINTS` lists further
+  endpoints, such as your own cloud GPU service or a paid API limited to named features. Your own machines are
+  always tried first.
+- **Hidden when it can't work.** If nothing can answer right now, the assistant's controls are not shown. Files
+  that need AI wait for the home computer when one is set up.
 - **Numbers come from the app.** The model picks one read-only lookup and words the reply; a reply containing a
   number the lookup did not produce is discarded and the raw figures are shown instead.
 - **It never writes data.** Drafts open a form that you check and save. Words-to-filter can only choose values
@@ -354,8 +378,10 @@ personal-finance-suite/
 
 ## Security Notes
 
-- **No authentication**: Single-user, localhost only (v1)
-- **Data locality**: All data stays on your device; no cloud sync
+- **No passwords of its own**: on one computer it listens on localhost only. As a server it is reachable only
+  through Tailscale, which also tells the app who is asking (`TRUST_TAILSCALE_HEADERS=1`, set by the deploy).
+  Never expose it to the internet.
+- **Data locality**: data stays on machines you control. Nothing is cached on phones.
 - **SQL injection prevention**: SQLAlchemy parameterized queries
 - **XSS prevention**: Jinja2 auto-escaping
 - **CSRF protection**: Flask-WTF tokens on state-changing requests

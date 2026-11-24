@@ -22,7 +22,7 @@ def status_cmd():
     """Show whether the local AI is reachable."""
     from importer.llm import get_client
 
-    client = get_client(current_app)
+    client = get_client(current_app, "batch")
     s = client.status() if client.enabled else {"ok": False, "error": client.blocked_reason}
     click.echo(f"provider={client.provider} url={client.base_url} model={client.model}")
     click.echo("ready" if s.get("ok") else f"not ready: {s.get('error')}")

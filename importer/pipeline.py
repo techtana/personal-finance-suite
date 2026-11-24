@@ -29,6 +29,10 @@ MAPPING_KEYS = ("date_col", "description_col", "amount_col", "debit_col", "credi
 FREQUENCIES = ("weekly", "biweekly", "monthly", "quarterly", "annually")
 
 
+class ImportWaiting(Exception):
+    """The file needs AI, and the only AI that can read it is a home computer that is off."""
+
+
 class CommitError(Exception):
     def __init__(self, message, status=400):
         super().__init__(message)
@@ -50,7 +54,7 @@ def process_batch(batch_id: str) -> None:
     if batch is None:
         return
     app = current_app._get_current_object()
-    llm = get_client(app)
+    llm = get_client(app, "batch")
     status = llm.status() if llm.enabled else {"ok": False, "error": llm.blocked_reason}
     settings = m.Settings.query.first()
     locale = (settings.locale if settings else "en-US") or "en-US"
@@ -79,6 +83,8 @@ def process_batch(batch_id: str) -> None:
         batch.file_kind = doc.kind
         from_photo = False
         if doc.images and not doc.text:
+            if not ctx.ai_ok and status.get("waiting"):
+                raise ImportWaiting()
             if not ctx.ai_ok:
                 raise ImportFailure("Reading photos and scanned PDFs needs the local AI, which isn't available: "
                                     f"{ctx.ai_reason}")
@@ -142,6 +148,9 @@ def process_batch(batch_id: str) -> None:
         stage("Checking for duplicates and transfers")
         refresh_matches(batch)
         batch.status = "review"
+    except ImportWaiting:
+        # Not a failure: api/ai.py reads the file as soon as the home computer connects.
+        batch.status, batch.error = "waiting", None
     except (ImportFailure, UnsupportedFile) as e:
         batch.status, batch.error = "failed", str(e)
     except Exception as e:  # keep the batch visible with a message instead of a stuck spinner

@@ -47,6 +47,7 @@ def status():
     s = llm.status()
     return jsonify({"enabled": bool(llm.enabled), "ok": bool(s.get("ok")), "provider": s.get("provider"),
                     "model": s.get("model"), "base_url": s.get("base_url"), "error": s.get("error"),
+                    "through": s.get("through"), "kind": s.get("kind"), "asleep": bool(s.get("asleep")),
                     "remote_allowed": bool(current_app.config.get("LLM_ALLOW_REMOTE"))})
 
 

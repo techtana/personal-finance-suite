@@ -309,7 +309,34 @@ def _check_backup_file(path):
 
 def delete_backup(name):
     validate_name(name)
+    if not can_delete():
+        raise BackupError("This server can add backups but not delete them. Old scheduled backups are removed "
+                          "by a rule on the bucket.")
     get_store().delete(name)
+
+
+def verify_latest():
+    """Restore drill: fetch the newest backup into a scratch file and check it opens. Changes nothing."""
+    store = get_store()
+    entries = list_backups(store)
+    if not entries:
+        raise BackupError(f"No backups found in {store.description}")
+    newest = entries[0]
+    tmp_dir = tempfile.mkdtemp(prefix="finance-verify-")
+    try:
+        path = os.path.join(tmp_dir, newest["name"])
+        store.download(newest["name"], path)
+        _check_backup_file(path)
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")]
+            counts = {t: conn.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0] for t in tables}
+        finally:
+            conn.close()
+        return {**newest, "tables": len(tables), "rows": sum(counts.values()),
+                "counts": {t: n for t, n in counts.items() if n}}
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 # ── Clear all data ────────────────────────────────────────────────────────────
@@ -346,9 +373,15 @@ def run_scheduled_backup(now=None):
         scheduled.insert(0, created)
 
     # Only scheduled backups are pruned; ones made before a clear/restore/import are kept.
-    for old in scheduled[cfg["keep"]:]:
-        store.delete(old["name"])
+    if can_delete():
+        for old in scheduled[cfg["keep"]:]:
+            store.delete(old["name"])
     return created
+
+
+def can_delete():
+    """False when a bucket rule expires old backups and the app has no right to delete any."""
+    return current_app.config.get("BACKUP_PRUNE", "app") != "bucket"
 
 
 def status():
@@ -380,3 +413,32 @@ def start_scheduler(app):
                     db.session.remove()
 
     threading.Thread(target=loop, name="backup-scheduler", daemon=True).start()
+
+
+# ── Command line ──────────────────────────────────────────────────────────────
+
+import click  # noqa: E402
+from flask.cli import AppGroup  # noqa: E402
+
+backups_cli = AppGroup("backups", help="Cloud backups: make one now, or check that the newest one restores.")
+
+
+@backups_cli.command("now")
+def backup_now_cmd():
+    """Make a backup right now."""
+    try:
+        entry = create_backup("manual")
+    except BackupError as e:
+        raise click.ClickException(str(e))
+    click.echo(f"saved {entry['name']} ({entry['size']} bytes)")
+
+
+@backups_cli.command("verify")
+def backup_verify_cmd():
+    """Restore drill: download the newest backup and check that it opens. Changes nothing."""
+    try:
+        result = verify_latest()
+    except BackupError as e:
+        raise click.ClickException(str(e))
+    click.echo(f"ok: {result['name']} from {result['created_at']} opens cleanly "
+               f"({result['tables']} tables, {result['rows']} rows)")

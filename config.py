@@ -48,6 +48,35 @@ class Config:
     # Financial data stays on this machine unless this is set to 1.
     LLM_ALLOW_REMOTE = _llm_env("ALLOW_REMOTE", "0") == "1"
 
+    # More places AI work can run (ai/endpoints.py) ───────────────────────────
+    # The LLM_* settings above describe one endpoint. To use several, or one that is
+    # only right for batch work, list them here as JSON; this replaces LLM_*. Each entry:
+    #   name, kind ("server" | "own-cloud" | "paid"), provider, base_url, model,
+    #   vision_model, api_key or api_key_env, auth ("google-id-token" for a private
+    #   Cloud Run service), use_for (["realtime", "batch"]), assume_up (true for a
+    #   service that sleeps until called), features (paid only: ["assistant", "import"]).
+    # A paid endpoint is used only for the features it lists, and only after every
+    # endpoint you own.
+    AI_ENDPOINTS = os.environ.get("AI_ENDPOINTS", "")
+    # A computer at home with a GPU can do the work without the server ever connecting
+    # to it: home_runner.py there asks this app for jobs. Tried before any other endpoint.
+    AI_HOME_RUNNER = os.environ.get("AI_HOME_RUNNER", "0") == "1"
+    AI_RUNNER_TOKEN = os.environ.get("AI_RUNNER_TOKEN", "")      # optional shared secret for the runner
+    AI_RUNNER_TIMEOUT = int(os.environ.get("AI_RUNNER_TIMEOUT", "300"))
+
+    # Behind Tailscale Serve (audit.py) ───────────────────────────────────────
+    # Believe the Tailscale-User-Login header. Only safe when the app listens on
+    # 127.0.0.1 and Tailscale Serve is the only thing that can reach it.
+    TRUST_TAILSCALE_HEADERS = os.environ.get("TRUST_TAILSCALE_HEADERS", "0") == "1"
+    # Optional second lock: comma-separated Tailscale logins that may use the app.
+    ALLOWED_LOGINS = [x.strip().lower() for x in os.environ.get("ALLOWED_LOGINS", "").split(",") if x.strip()]
+
+    # Backups ────────────────────────────────────────────────────────────────
+    # "app": the app deletes old scheduled backups itself (it needs delete rights).
+    # "bucket": the app can only add and read backups; a bucket lifecycle rule expires
+    #           old ones, so nothing running on the server can erase the history.
+    BACKUP_PRUNE = os.environ.get("BACKUP_PRUNE", "app")
+
     # File import (drop statements, receipts, pay stubs) ─────────────────────
     IMPORT_STORAGE_DIR = os.environ.get("IMPORT_STORAGE_DIR", os.path.join(_BASE_DIR, "instance", "imports"))
     IMPORT_MAX_FILE_MB = int(os.environ.get("IMPORT_MAX_FILE_MB", "20"))
@@ -82,6 +111,12 @@ class TestingConfig(Config):
     WTF_CSRF_ENABLED = False
     LLM_PROVIDER = "off"
     IMPORT_SYNC = True
+    AI_ENDPOINTS = ""
+    AI_HOME_RUNNER = False
+    AI_RUNNER_TOKEN = ""
+    TRUST_TAILSCALE_HEADERS = False
+    ALLOWED_LOGINS = []
+    BACKUP_PRUNE = "app"
 
 
 def get_config():

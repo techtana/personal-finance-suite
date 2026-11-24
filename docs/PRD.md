@@ -12,7 +12,7 @@
 
 Personal Finance Suite is a **self-hosted Flask web application** that replaces complex Excel-based financial planners with a modern, clean UI. Unlike bank-connected apps (Mint, CreditKarma), it focuses on **scheduled and planned** financial events rather than exact transaction capture. Users maintain a high-level picture of their finances by entering what they know — salaries, RSU vests, ESPP purchases, recurring bills, mortgages — and periodically reconciling against actual account balances.
 
-All data is stored in a **local SQLite database** on the user's machine. There is no cloud dependency, no third-party account, and no data ever leaves the user's device. The app runs as a local server (`flask run`) and is accessed through a browser on the same machine.
+All data is stored in one **SQLite database** on a machine the user controls: their own computer, or (since 2026-11) a private server only their devices can reach. No third-party account is needed, and data leaves the user's own machines only if they switch on a paid AI service for a named feature. The app runs as a local server (`flask run`) and is accessed through a browser on the same machine.
 
 ---
 
@@ -24,7 +24,7 @@ All data is stored in a **local SQLite database** on the user's machine. There i
 | G2 | Let users model their full financial picture from known, scheduled events |
 | G3 | Detect divergence between predicted and actual balances without automated bank pulls |
 | G4 | Support equity compensation (RSU, ESPP) as first-class plan objects |
-| G5 | Keep all financial data entirely local — no cloud accounts, no external services required |
+| G5 | Keep all financial data on machines the user controls (their computer, their private server, their own AI endpoint) — no external services required. Restated 2026-11-23; see docs/design/cloud-server-and-ai-endpoints.md |
 | G6 | Be approachable for non-technical users: simple install, runs with one command |
 
 ---

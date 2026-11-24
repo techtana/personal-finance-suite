@@ -22,7 +22,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>{% block title %}{{ page_title }} · Finance{% endblock %}</title>
-    <meta name="description" content="Your plan, balances and forecast, kept on your own computer.">
+    <meta name="description" content="Your plan, balances and forecast, kept on machines you control.">
     <meta name="theme-color" content="#0f172a">
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="{{ asset('icons/favicon.svg') }}" type="image/svg+xml">
@@ -69,10 +69,12 @@
             <button type="button" class="install-btn" x-show="$store.pwa.showInstall" x-cloak @click="$store.pwa.install()">
                 {{ ic.icon("install") }} <span>Install app</span>
             </button>
-            <a href="/settings?tab=ai" class="ai-status" x-cloak x-show="$store.app.ai.loaded">
-                <span class="dot" :class="$store.app.ai.ok ? 'on' : ''"></span>
-                <span x-text="$store.app.ai.ok ? 'AI ready · ' + $store.app.ai.model : 'AI assistant off'"></span>
+            <a href="/settings?tab=device" class="ai-status" x-cloak x-show="$store.app.ai.ok">
+                <span class="dot on"></span>
+                <span x-text="'AI ready · ' + ($store.app.ai.through || $store.app.ai.model)"></span>
             </a>
+            <a href="/settings?tab=device" class="ai-status" x-cloak x-show="$store.app.caps.identity.trusted"
+               x-text="$store.app.caps.identity.login"></a>
             <dl class="legend">
                 <div><dt class="role-chip view">View only</dt><dd>computed for you</dd></div>
                 <div><dt class="role-chip manage">You manage</dt><dd>your entries</dd></div>

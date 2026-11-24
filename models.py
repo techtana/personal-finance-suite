@@ -488,3 +488,26 @@ class ImportProfile(db.Model):
     uses = db.Column(Integer, nullable=False, default=0)
     created_at = db.Column(String(32), nullable=False, default=get_iso_datetime)
     updated_at = db.Column(String(32), nullable=False, default=get_iso_datetime, onupdate=get_iso_datetime)
+
+
+class AuditLog(db.Model):
+    """Who changed what, and when. One row per record created, changed or deleted.
+
+    Written by audit.py for every change made through the app. It holds field
+    names, never values. The row id doubles as the data revision that the
+    stale-save check compares against.
+    """
+
+    __tablename__ = "audit_log"
+    __table_args__ = (db.Index("ix_audit_record", "table_name", "record_id"),)
+
+    id = db.Column(Integer, primary_key=True, autoincrement=True)
+    at = db.Column(String(32), nullable=False, default=get_iso_datetime)
+    who = db.Column(String(120), nullable=False, default="local")
+    client = db.Column(String(40), nullable=False, default="")   # one id per open page
+    action = db.Column(String(10), nullable=False)                # create | update | delete | event
+    table_name = db.Column(String(50), nullable=False)
+    record_id = db.Column(String(64), nullable=False, default="")
+    label = db.Column(String(120), nullable=True)
+    fields = db.Column(JSON, nullable=True)                       # names of the changed fields
+    path = db.Column(String(200), nullable=True)                  # the request that made the change

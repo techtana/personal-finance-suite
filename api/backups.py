@@ -2,6 +2,7 @@
 
 from flask import Blueprint, jsonify, request
 
+import audit
 import backup
 from backup import BackupError
 
@@ -20,6 +21,7 @@ def list_backups():
         "configured": backup.is_configured(cfg),
         "frequencies": list(backup.FREQUENCIES),
         "status": backup.status(),
+        "can_delete": backup.can_delete(),
         "backups": [],
         "error": None,
     }
@@ -55,6 +57,7 @@ def restore_backup(name):
         safety = backup.restore_backup(name)
     except BackupError as e:
         return _error(e)
+    audit.record_event("restore", name)
     return jsonify({"message": f"Restored {name}", "safety_backup": safety})
 
 
@@ -63,7 +66,7 @@ def delete_backup(name):
     try:
         backup.delete_backup(name)
     except BackupError as e:
-        return _error(e)
+        return _error(e, 502 if backup.can_delete() else 403)
     return "", 204
 
 
@@ -73,4 +76,5 @@ def clear_all_data():
         saved = backup.clear_all_data()
     except BackupError as e:
         return _error(f"Nothing was deleted because the cloud backup failed: {e}")
+    audit.record_event("clear", saved["name"] if saved else None)
     return jsonify({"message": "All data cleared", "backup": saved})

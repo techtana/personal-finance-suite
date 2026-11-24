@@ -10,11 +10,12 @@
             Drop bank or card exports (CSV, Excel, OFX/QFX), PDF statements, receipts or pay stubs (text, PDF or a photo).
             Nothing is added to your data until you've reviewed it and clicked <strong>Import</strong>, and every import can be undone.
         </p>
-        <div class="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border"
+        <!-- Shown only when AI reading works here, or will once the home computer is on. See Settings → This device. -->
+        <div class="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border" x-cloak x-show="ai.ok || ai.waiting"
              :class="ai.ok ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800'"
-             :title="ai.ok ? ('Model ' + ai.model + ' at ' + ai.base_url) : ai.error">
+             :title="ai.ok ? ('Model ' + ai.model) : ''">
             <span class="w-2 h-2 rounded-full" :class="ai.ok ? 'bg-green-500' : 'bg-amber-500'"></span>
-            <span x-text="ai.ok ? ('Local AI ready · ' + ai.model) : (ai.loaded ? 'Local AI offline: rules only, photos can\'t be read' : 'Checking local AI…')"></span>
+            <span x-text="ai.ok ? ('AI ready · ' + (ai.through || ai.model)) : 'Photos and scans are read when the home computer is on'"></span>
         </div>
     </div>
 
@@ -29,7 +30,10 @@
             <p class="text-base font-medium text-gray-800">Drop files here</p>
             <p class="text-sm text-gray-500 mb-3">or</p>
             <button type="button" @click="$refs.picker.click()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Choose files</button>
-            <p class="text-xs text-gray-400 mt-3">CSV · Excel · OFX/QFX · PDF · text · JPG/PNG photos · up to 20 MB each</p>
+            <!-- The device's own camera, offered only where there is one and a model that can read the photo. -->
+            <input x-ref="camera" type="file" accept="image/*" capture="environment" class="sr-only" @change="onPick($event)" aria-hidden="true" tabindex="-1">
+            <button type="button" x-cloak x-show="Device.camera && (ai.ok || ai.waiting)" @click="$refs.camera.click()" class="ml-2 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm font-medium">Take a photo</button>
+            <p class="text-xs text-gray-400 mt-3">CSV · Excel · OFX/QFX · PDF · text<span x-show="ai.ok || ai.waiting"> · JPG/PNG photos</span> · up to 20 MB each</p>
             <p x-show="uploading" class="text-sm text-blue-700 mt-3">Uploading…</p>
         </div>
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-3">
@@ -127,6 +131,10 @@
             <div x-show="batch.status === 'processing'" class="flex items-center gap-3 text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg p-4" role="status">
                 <span class="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
                 <span x-text="batch.stage || 'Working…'"></span>
+            </div>
+            <div x-show="batch.status === 'waiting'" class="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-4" role="status">
+                <p class="font-medium mb-1">Waiting for the home computer</p>
+                <p>This file is a photo or scan, and the model that reads those runs on your home computer, which isn't connected right now. It will be read by itself when that computer is on. Nothing else is needed.</p>
             </div>
             <div x-show="batch.status === 'failed'" class="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg p-4" role="alert">
                 <p class="font-medium mb-1">Couldn't read this file</p>
@@ -420,7 +428,11 @@ function importPage() {
 
         async poll() {
             const busy = this.batches.some(b => b.status === 'processing') || (this.batch && this.batch.status === 'processing');
-            if (!busy) return;
+            // Files waiting for the home computer are checked less often (every 15 s), along with whether it is back.
+            this.tick = (this.tick || 0) + 1;
+            const waiting = this.tick % 10 === 0 && (this.ai.waiting || this.batches.some(b => b.status === 'waiting'));
+            if (waiting) this.loadAi();
+            if (!busy && !waiting) return;
             await this.loadBatches();
             if (this.batch) {
                 const s = this.batches.find(b => b.id === this.batch.id);
@@ -469,7 +481,7 @@ function importPage() {
         needsAccount() { return this.batch && this.batch.status === 'review' && !this.batch.account_id && this.batch.doc_type === 'statement'; },
 
         async req(method, path, body) {
-            const res = await fetch('/api' + path, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+            const res = await fetch('/api' + path, { method, headers: apiHeaders(method, path, true), body: body ? JSON.stringify(body) : undefined });
             const data = res.status === 204 ? {} : await res.json();
             if (!res.ok) { const err = new Error(data.error || ('HTTP ' + res.status)); err.status = res.status; throw err; }
             return data;
@@ -605,10 +617,10 @@ function importPage() {
             return 'Local AI (' + u.model + '): ' + u.calls + ' call' + (u.calls === 1 ? '' : 's') + ', ' + u.seconds + ' s, for ' + tasks;
         },
         docLabel(t) { return { statement: 'Statement', receipt: 'Receipt', payslip: 'Pay stub', unknown: 'Unknown' }[t] || '…'; },
-        statusLabel(s) { return { processing: 'Reading…', review: 'To review', committed: 'Imported', failed: 'Failed' }[s] || s; },
-        statusClass(s) { return { processing: 'bg-blue-100 text-blue-700', review: 'bg-amber-100 text-amber-800', committed: 'bg-green-100 text-green-700', failed: 'bg-red-100 text-red-700' }[s] || 'bg-gray-100'; },
+        statusLabel(s) { return { processing: 'Reading…', waiting: 'Waiting', review: 'To review', committed: 'Imported', failed: 'Failed' }[s] || s; },
+        statusClass(s) { return { processing: 'bg-blue-100 text-blue-700', waiting: 'bg-amber-100 text-amber-800', review: 'bg-amber-100 text-amber-800', committed: 'bg-green-100 text-green-700', failed: 'bg-red-100 text-red-700' }[s] || 'bg-gray-100'; },
         countText(b) {
-            if (b.status === 'processing' || b.status === 'failed') return '';
+            if (b.status === 'processing' || b.status === 'failed' || b.status === 'waiting') return '';
             return b.counts.rows + ' row' + (b.counts.rows === 1 ? '' : 's') + (b.counts.needs_review ? ' · ' + b.counts.needs_review + ' to check' : '');
         },
         when(iso) { if (!iso) return ''; const d = new Date(iso + 'Z'); return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); },
