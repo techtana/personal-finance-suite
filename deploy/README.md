@@ -40,8 +40,9 @@ first run.
   everyone the tailnet rule allows.
 - To share the Logseq server's network and NAT in the same project, add
   `NET=logseq-net SUBNET=logseq-subnet ROUTER=logseq-router NAT=logseq-nat`.
-- Run the same command again to ship a new version: it rebuilds the image and restarts the
-  app. No Tailscale key is needed the second time.
+- Run the same command again to ship a new version: it rebuilds the image, then stops and
+  starts the VM so it boots on the new image. The app is offline for about two minutes; the data
+  disk is not touched. No Tailscale key and no SSH are needed the second time.
 
 ## After the first deploy
 

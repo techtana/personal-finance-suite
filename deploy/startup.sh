@@ -35,7 +35,9 @@ APP_UID=10001          # the user the image runs as
 APT="apt-get -o DPkg::Lock::Timeout=600 -y -q"
 export DEBIAN_FRONTEND=noninteractive
 
+DEPLOY_ID="$(attr deploy-id)"
 guest_attr status "bootstrapping"
+guest_attr deploy-id "$DEPLOY_ID"
 
 # ---------------------------------------------------------------- swap (e2-micro has 1 GB RAM)
 if [[ ! -f /swapfile ]]; then
