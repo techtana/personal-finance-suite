@@ -228,6 +228,8 @@ def update_row(batch, row, data: dict) -> None:
     allowed = allowed_categories(m.Category.query.all())
     if row.target == "rsu_grant":
         _update_grant_row(row, data)
+        refresh_matches(batch)
+        m.db.session.commit()
         return
     if "amount" in data:
         try:

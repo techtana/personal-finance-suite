@@ -172,3 +172,13 @@ def test_editing_an_imported_grant_in_plan_keeps_the_documents_dates(client, acc
     db.session.refresh(rule)
     assert rule.schedule == [{"date": "2026-09-15", "shares": 40_000}]
     assert rule.config["withholding_rate"] == 3000 and rule.config["grant_number"] == "US00012345"
+
+
+def test_the_ticker_is_saved_to_the_database(client, accounts):
+    """Checked from a fresh session, so a missing commit can't hide behind the test's shared session."""
+    batch = upload(client, "rsu-grant-notice.txt")
+    row = grant_row(batch)
+    client.patch(f"/api/imports/{batch['id']}/rows/{row['id']}", json={"ticker": "EXMP"})
+    db.session.remove()
+    from models import ImportRow
+    assert db.session.get(ImportRow, row["id"]).raw["ticker"] == "EXMP"
