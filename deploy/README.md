@@ -2,7 +2,7 @@
 
 A private server on Google Cloud that only your Tailscale devices can reach. You run every
 step here yourself: the scripts create billable resources and need a Tailscale key. The first
-deploy has been done once with these scripts; re-deploying over an existing VM has not. Design and reasons: [docs/design/cloud-server-and-ai-endpoints.md](../docs/design/cloud-server-and-ai-endpoints.md).
+deploy and a re-deploy over the existing VM have both been run with these scripts. Design and reasons: [docs/design/cloud-server-and-ai-endpoints.md](../docs/design/cloud-server-and-ai-endpoints.md).
 
 **What it costs.** A small VM, a 10 GB disk with snapshots, Cloud NAT and a storage bucket,
 running all month. Google's free tier covers one e2-micro VM per billing account; if the Logseq
@@ -36,8 +36,11 @@ appears; don't paste again, or the key ends up on your command line when the scr
 The script prints the app's address when the server is up, about 10 minutes in all on the
 first run.
 
-- `ALLOWED_LOGINS` is a comma-separated list of Tailscale logins. Leave it out to let in
-  everyone the tailnet rule allows.
+- `ALLOWED_LOGINS` is a comma-separated list of Tailscale logins. Leave it out on the first run
+  to let in everyone the tailnet rule allows. On a re-deploy, leaving it out keeps the list the
+  VM already has; set it to change the list, or `ALLOWED_LOGINS=` to remove it.
+- To allow just yourself without typing your login, take it from Tailscale on this computer:
+  `ALLOWED_LOGINS="$(tailscale status --json | python -c "import json,sys; s=json.load(sys.stdin); print(s['User'][str(s['Self']['UserID'])]['LoginName'])")"`
 - To share the Logseq server's network and NAT in the same project, add
   `NET=logseq-net SUBNET=logseq-subnet ROUTER=logseq-router NAT=logseq-nat`.
 - Run the same command again to ship a new version: it rebuilds the image, then stops and
@@ -108,7 +111,7 @@ after every endpoint you own. Its key goes in `extra.env` as its own variable, n
 |---|---|
 | The address doesn't load, and `tailscale status` doesn't list `finance` | Tailscale hides devices you have no rule to reach: the `tag:finance` grant is missing from the live policy, or its `src` doesn't include you |
 | The address doesn't load, but `finance` is listed | Is this device connected to Tailscale? The first request can take a few seconds while the certificate is issued |
-| "This Tailscale account isn't allowed" | `ALLOWED_LOGINS` doesn't include that login. Re-run the deploy with the right list |
+| "This Tailscale account isn't allowed" | `ALLOWED_LOGINS` doesn't include that login. Re-run the deploy with the right list, or with `ALLOWED_LOGINS=` to remove the list (break-glass: the deploy uses gcloud, not the tailnet) |
 | Backups fail with a permission error | The bucket's IAM should give the VM account `objectCreator` and `objectViewer`, nothing more |
 | A save is refused, asking to reload | Another device changed that entry first. Reload and repeat the change |
 | AI features are missing | Settings → This device says why for each one |

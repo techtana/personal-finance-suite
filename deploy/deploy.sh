@@ -26,7 +26,10 @@ SNAPSHOT_DAYS="${SNAPSHOT_DAYS:-14}"
 BACKUP_BUCKET="${BACKUP_BUCKET:-${PROJECT_ID}-finance-backups}"
 BACKUP_PREFIX="${BACKUP_PREFIX:-finance-backups/}"
 BACKUP_KEEP_DAYS="${BACKUP_KEEP_DAYS:-30}"  # scheduled backups older than this are removed by the bucket
-ALLOWED_LOGINS="${ALLOWED_LOGINS:-}"        # comma-separated Tailscale logins; empty = anyone the tailnet lets in
+# Comma-separated Tailscale logins allowed to open the app; empty = anyone the tailnet lets in.
+# Left unset on a re-deploy, the VM keeps the list it has. Set it (even to "") to change it.
+ALLOWED_LOGINS_GIVEN="${ALLOWED_LOGINS+yes}"
+ALLOWED_LOGINS="${ALLOWED_LOGINS:-}"
 AI_HOME_RUNNER="${AI_HOME_RUNNER:-1}"       # let a home computer collect AI work (home_runner.py)
 
 # To share an existing private network and its Cloud NAT in the same project instead of paying
@@ -49,6 +52,17 @@ exists() { "$@" >/dev/null 2>&1; }
 export CLOUDSDK_CORE_DISABLE_PROMPTS=1
 export CLOUDSDK_CORE_PROJECT="$PROJECT_ID"
 VM_EXISTS=0; exists gcloud compute instances describe "$NAME" --zone "$ZONE" && VM_EXISTS=1
+
+if [[ "$VM_EXISTS" == 1 && -z "$ALLOWED_LOGINS_GIVEN" ]]; then
+  # A re-deploy must not quietly open the app to the whole tailnet: keep the list the VM has.
+  ALLOWED_LOGINS="$(gcloud compute instances describe "$NAME" --zone "$ZONE"     --format 'value(metadata.items.allowed-logins)' 2>/dev/null | tr -d '' | tr ';' ',')"
+fi
+if [[ -n "$ALLOWED_LOGINS" ]]; then
+  echo "Allowed logins: $(tr ',' '
+' <<<"$ALLOWED_LOGINS" | grep -c .) (only they can open the app)"
+else
+  echo "Allowed logins: none set, so anyone the tailnet policy lets reach tag:finance can open the app"
+fi
 
 if [[ "$VM_EXISTS" == 0 ]]; then
   if [[ -z "${TS_AUTHKEY:-}" ]]; then
