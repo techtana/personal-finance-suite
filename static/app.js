@@ -22,14 +22,38 @@ function parseDate(isoString) {
 
 // ── API ──────────────────────────────────────────────────────────────────────
 // Every call either returns parsed JSON or throws an Error whose message can be shown as is.
+//
+// Saving on top of out-of-date data: every answer from the app carries the data revision
+// (X-Data-Rev). A change says which revision this page last read for that kind of record
+// (X-Base-Rev); if another device changed the same record since, the app refuses with a
+// message asking to reload, instead of overwriting their edit.
+const CLIENT_ID = ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).slice(0, 36);
+const _rev = { first: null, by: {} };
+function _collection(endpoint) { return endpoint.split('?')[0].split('/')[1] || ''; }
+function _noteRev(method, endpoint, response) {
+    const raw = response.headers.get('X-Data-Rev');
+    if (method !== 'GET' || raw === null || raw === '' || !Number.isFinite(Number(raw))) return;
+    if (_rev.first === null) _rev.first = Number(raw);
+    _rev.by[_collection(endpoint)] = Number(raw);
+}
+function apiHeaders(method, endpoint, hasBody) {
+    const headers = hasBody ? { 'Content-Type': 'application/json' } : {};
+    if (method === 'GET') return headers;
+    headers['X-Client-Id'] = CLIENT_ID;
+    const base = _rev.by[_collection(endpoint)] ?? _rev.first;
+    if (method !== 'POST' && base !== null && base !== undefined) headers['X-Base-Rev'] = String(base);
+    return headers;
+}
+
 async function _request(method, endpoint, data) {
     let response;
     try {
         response = await fetch(`/api${endpoint}`, {
             method,
-            headers: data === undefined ? {} : { 'Content-Type': 'application/json' },
+            headers: apiHeaders(method, endpoint, data !== undefined),
             body: data === undefined ? undefined : JSON.stringify(data),
         });
+        _noteRev(method, endpoint, response);
     } catch (e) {
         throw new Error("Can't reach the app. Check that it is running and that this device is connected.");
     }
@@ -47,6 +71,16 @@ const API = {
     post: (endpoint, data) => _request('POST', endpoint, data ?? {}),
     patch: (endpoint, data) => _request('PATCH', endpoint, data ?? {}),
     delete: (endpoint) => _request('DELETE', endpoint),
+};
+
+// ── This device ──────────────────────────────────────────────────────────────
+// What the device in hand can do by itself. Pages use it, together with the server's
+// /capabilities, to leave out controls that can't work here.
+const _coarse = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+const Device = {
+    touch: _coarse,
+    // A camera the browser can open straight from a file field: phones and tablets.
+    camera: _coarse && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
 };
 
 // ── Toasts ───────────────────────────────────────────────────────────────────
@@ -176,6 +210,8 @@ window.fmtWhole = fmtWhole;
 window.formatDate = formatDate;
 window.parseDate = parseDate;
 window.API = API;
+window.apiHeaders = apiHeaders;
+window.Device = Device;
 window.showModal = showModal;
 window.showAlert = showAlert;
 window.CHART = CHART;

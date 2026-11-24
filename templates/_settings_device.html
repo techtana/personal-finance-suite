@@ -1,0 +1,101 @@
+    <!-- This device: the one place that lists every optional feature, including the ones hidden here -->
+    <template x-if="!loading && tab==='device'">
+        <div class="space-y-6">
+            <div class="bg-white rounded-lg shadow p-6 space-y-4">
+                <div class="flex items-center justify-between gap-3">
+                    <h3 class="text-lg font-semibold text-gray-900">What works on this device</h3>
+                    <button type="button" @click="refreshDevice()" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Check again</button>
+                </div>
+                <p class="text-sm text-gray-600">A feature that can't work here is left out of the pages, so you never tap something that fails. This list is the one place that shows all of them, and why.</p>
+                <ul class="divide-y divide-gray-100">
+                    <template x-for="f in deviceFeatures()" :key="f.id">
+                        <li class="py-3 flex items-start gap-3">
+                            <span class="mt-1.5 w-2.5 h-2.5 rounded-full shrink-0" aria-hidden="true"
+                                  :class="f.available ? 'bg-green-500' : (f.waiting ? 'bg-amber-500' : 'bg-gray-300')"></span>
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-900">
+                                    <span x-text="f.label"></span>
+                                    <span class="text-xs font-normal text-gray-500" x-text="'· ' + f.where"></span>
+                                </p>
+                                <p class="text-sm text-gray-600" x-text="f.summary"></p>
+                            </div>
+                        </li>
+                    </template>
+                </ul>
+                <p class="text-xs text-gray-500">Without a connection the app shows an offline page. Your financial data is never stored on this device.</p>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6 space-y-4">
+                <div class="flex items-center justify-between gap-3">
+                    <h3 class="text-lg font-semibold text-gray-900">Where AI work runs</h3>
+                    <span class="role-chip ai">AI</span>
+                </div>
+                <p class="text-sm text-gray-600">Optional. Each request goes to the first place in this list that can take it. Your own machines come first; a paid service is used only for the features it is switched on for.</p>
+                <p class="text-sm text-gray-600" x-show="!$store.app.caps.endpoints.length">Nothing is set up, so the AI features are hidden everywhere. The rest of the app works fully without them.</p>
+                <ul class="divide-y divide-gray-100" x-show="$store.app.caps.endpoints.length">
+                    <template x-for="e in $store.app.caps.endpoints" :key="e.name">
+                        <li class="py-3 flex items-start gap-3">
+                            <span class="mt-1.5 w-2.5 h-2.5 rounded-full shrink-0" aria-hidden="true"
+                                  :class="{ ready: 'bg-green-500', asleep: 'bg-green-500', offline: 'bg-amber-500', off: 'bg-gray-300' }[e.state]"></span>
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-900">
+                                    <span x-text="e.label"></span>
+                                    <span class="text-xs font-normal text-gray-500" x-text="'· ' + endpointState(e)"></span>
+                                </p>
+                                <p class="text-sm text-gray-600" x-text="endpointDetail(e)"></p>
+                                <p class="text-sm text-gray-500" x-show="e.error && e.state !== 'ready'" x-text="e.error"></p>
+                            </div>
+                        </li>
+                    </template>
+                </ul>
+                <div class="text-sm text-gray-600 space-y-2">
+                    <p class="font-medium text-gray-900">What the AI can and cannot do</p>
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li>It chooses which lookup answers a question and words the reply. The figures come from the app's own calculations, and a reply containing any other number is discarded.</li>
+                        <li>It never saves or changes data. Drafts and imported rows wait for you to check and save.</li>
+                        <li>Anything it produced is marked with the AI chip.</li>
+                    </ul>
+                    <p class="font-medium text-gray-900 pt-2">Changing it</p>
+                    <p>These are set on the server, then it is restarted: <code>AI_HOME_RUNNER=1</code> lets a home computer running <code>home_runner.py</code> collect work; <code>LLM_PROVIDER</code>, <code>LLM_BASE_URL</code> and <code>LLM_MODEL</code> describe one endpoint; <code>AI_ENDPOINTS</code> lists several. See <code>docs/design/cloud-server-and-ai-endpoints.md</code>.</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6 space-y-2" x-show="$store.app.caps.loaded">
+                <h3 class="text-lg font-semibold text-gray-900">Signed in as</h3>
+                <p class="text-sm text-gray-700" x-text="$store.app.caps.identity.trusted ? ($store.app.caps.identity.name + ' (' + $store.app.caps.identity.login + ')') : 'This computer'"></p>
+                <p class="text-sm text-gray-600" x-text="$store.app.caps.identity.trusted ? 'Tailscale tells the app who you are; there is no separate password. Your changes are recorded under this name in Activity.' : 'The app is not behind Tailscale here, so it does not know who is using it. Anyone who can reach this address can use it.'"></p>
+            </div>
+        </div>
+    </template>
+
+    <!-- Activity: who changed what -->
+    <template x-if="!loading && tab==='activity'">
+        <div class="bg-white rounded-lg shadow p-6 space-y-4">
+            <div class="flex items-center justify-between gap-3">
+                <h3 class="text-lg font-semibold text-gray-900">Activity</h3>
+                <button type="button" @click="loadActivity()" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Refresh</button>
+            </div>
+            <p class="text-sm text-gray-600">Every change made through the app: when, who and what. Amounts and other values are not recorded here. If two devices change the same entry, the second save is refused and asks for a reload, so nothing is overwritten unseen.</p>
+            <p class="text-sm text-gray-500" x-show="!activity.length">No changes recorded yet.</p>
+            <div class="overflow-x-auto" x-show="activity.length">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-50 text-left text-gray-500">
+                        <tr><th class="px-4 py-2 font-medium">When</th><th class="px-4 py-2 font-medium">Who</th><th class="px-4 py-2 font-medium">What</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <template x-for="e in activity" :key="e.id">
+                            <tr>
+                                <td class="px-4 py-2 whitespace-nowrap text-gray-600" x-text="new Date(e.at + 'Z').toLocaleString()"></td>
+                                <td class="px-4 py-2 whitespace-nowrap" x-text="e.who"></td>
+                                <td class="px-4 py-2">
+                                    <span x-text="e.kind + ' ' + e.action_label"></span>
+                                    <span class="text-gray-700" x-show="e.label" x-text="'· ' + e.label"></span>
+                                    <span class="text-xs text-gray-500" x-show="e.fields.length" x-text="'(' + e.fields.join(', ') + ')'"></span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </template>

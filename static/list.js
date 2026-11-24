@@ -140,10 +140,21 @@ document.addEventListener('alpine:init', () => {
     Alpine.store('ui', { menu: false });
     Alpine.store('app', {
         ai: { enabled: false, ok: false, model: '', error: '', loaded: false },
+        // What the server can do right now (see /api/capabilities) plus who is signed in.
+        caps: { loaded: false, features: [], endpoints: [], identity: {}, home_runner: {} },
         attention: 0,
+        feature(id) { return this.caps.features.find(f => f.id === id) || { available: false, waiting: false, shown: false }; },
         load() {
-            API.get('/assistant/status').then(s => { this.ai = { ...s, loaded: true }; }).catch(() => { this.ai.loaded = true; });
+            this.refreshAI();
             this.refreshAttention();
+            // The home computer comes and goes, so look again when the app returns to the front, and now and then.
+            document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') this.refreshAI(); });
+            setInterval(() => { if (document.visibilityState === 'visible') this.refreshAI(); }, 60000);
+        },
+        refreshAI() {
+            const status = API.get('/assistant/status').then(s => { this.ai = { ...s, loaded: true }; }).catch(() => { this.ai.loaded = true; });
+            const caps = API.get('/capabilities').then(c => { this.caps = { ...c, loaded: true }; }).catch(() => { this.caps.loaded = true; });
+            return Promise.all([status, caps]);
         },
         refreshAttention() {
             API.get('/insights').then(r => { this.attention = (r.counts || {}).attention || 0; }).catch(() => {});

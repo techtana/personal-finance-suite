@@ -1,0 +1,24 @@
+// Redacted reference copy of the tailnet policy lines this app needs. NOT the live policy.
+//
+// The Tailscale admin console holds the only live copy. Nothing syncs this file to
+// Tailscale, so a push here can't change who gets in. Merge these lines into the live
+// policy by hand, and keep this copy redacted: placeholders, no emails, no tailnet name.
+{
+	"groups": {
+		"group:owner": ["<owner>"],
+	},
+
+	// One tag for this app. The VM joins with a one-off, pre-approved auth key tagged tag:finance.
+	"tagOwners": {
+		"tag:finance": ["group:owner"],
+	},
+
+	"grants": [
+		// Who may open the app, on 443 only (Tailscale Serve). Add household members here.
+		{"src": ["group:owner"], "dst": ["tag:finance"], "ip": ["tcp:443"]},
+	],
+
+	// There is deliberately no rule from tag:finance to anything. The server cannot start a
+	// connection to your devices or your home network; the home computer that runs the AI
+	// model reaches the server through the rule above (home_runner.py), never the reverse.
+}

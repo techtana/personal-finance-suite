@@ -36,7 +36,7 @@ def _commit_error(e):
 
 @bp.route("/imports/ai-status", methods=["GET"])
 def ai_status():
-    client = get_client(current_app)
+    client = get_client(current_app, "batch")
     status = client.status() if client.enabled else {
         "ok": False, "error": client.blocked_reason, "provider": client.provider, "model": client.model}
     return jsonify(status)

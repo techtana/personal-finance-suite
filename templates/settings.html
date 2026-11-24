@@ -14,7 +14,8 @@
             <button @click="tab='categories'" :class="tab==='categories' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">Categories</button>
             <button @click="tab='backups'; loadBackups()" :class="tab==='backups' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">Backups</button>
             <button @click="tab='data'" :class="tab==='data' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">Data</button>
-            <button @click="tab='ai'" :class="tab==='ai' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">AI assistant</button>
+            <button @click="tab='device'; refreshDevice()" :class="tab==='device' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">This device</button>
+            <button @click="tab='activity'; loadActivity()" :class="tab==='activity' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">Activity</button>
         </nav>
     </div>
 
@@ -166,7 +167,8 @@
                         </div>
                     </div>
                 </div>
-                <p class="text-xs text-gray-400 mt-2">Only scheduled backups are pruned. Backups made before clearing, restoring, or importing are kept until you delete them.</p>
+                <p class="text-xs text-gray-400 mt-2" x-show="backups.can_delete === false">This server can add backups but cannot delete them, so nothing running here can erase the history. A rule on the bucket removes old scheduled backups; "Keep last" is not used.</p>
+                <p class="text-xs text-gray-400 mt-2" x-show="backups.can_delete !== false">Only scheduled backups are pruned. Backups made before clearing, restoring, or importing are kept until you delete them.</p>
                 <div class="mt-5 flex items-center gap-3">
                     <button @click="saveBackupCfg()" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Save</button>
                     <button @click="backupNow()" :disabled="!!busy || !backups.configured" class="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-50">Back up now</button>
@@ -204,7 +206,7 @@
                                 <td class="px-4 py-3 text-right text-gray-500" x-text="Math.max(1, Math.round(b.size / 1024)) + ' KB'"></td>
                                 <td class="px-4 py-3 text-right whitespace-nowrap">
                                     <button @click="restore(b)" :disabled="!!busy" class="text-blue-600 hover:underline mr-3 disabled:opacity-50">Restore</button>
-                                    <button @click="deleteBackup(b)" :disabled="!!busy" class="text-red-600 hover:underline disabled:opacity-50">Delete</button>
+                                    <button x-show="backups.can_delete" @click="deleteBackup(b)" :disabled="!!busy" class="text-red-600 hover:underline disabled:opacity-50">Delete</button>
                                 </td>
                             </tr>
                         </template>
@@ -257,36 +259,7 @@
         </div>
     </template>
 
-    <!-- AI assistant -->
-    <template x-if="!loading && tab==='ai'">
-        <div class="bg-white rounded-lg shadow p-6 space-y-4">
-            <div class="flex items-center justify-between gap-3">
-                <h3 class="text-lg font-semibold text-gray-900">AI assistant</h3>
-                <span class="role-chip ai">AI</span>
-            </div>
-            <p class="text-sm text-gray-600">Optional. One model serves Import (reading files), Insights (Ask and Explain), list filters in words and Plan drafts. The app works fully without it.</p>
-            <div class="p-4 border rounded-lg" :class="$store.app.ai.ok ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'">
-                <p class="text-sm font-medium" x-text="$store.app.ai.ok ? 'Ready' : ($store.app.ai.enabled ? 'Configured but not reachable' : 'Turned off')"></p>
-                <p class="text-sm text-gray-600 mt-1" x-show="$store.app.ai.error" x-text="$store.app.ai.error"></p>
-                <dl class="text-sm text-gray-700 mt-3 grid grid-cols-[auto,1fr] gap-x-4 gap-y-1">
-                    <dt class="text-gray-500">Provider</dt><dd x-text="$store.app.ai.provider || 'off'"></dd>
-                    <dt class="text-gray-500">Model</dt><dd x-text="$store.app.ai.model || '—'"></dd>
-                    <dt class="text-gray-500">Address</dt><dd x-text="$store.app.ai.base_url || '—'"></dd>
-                    <dt class="text-gray-500">Data leaves this computer</dt><dd x-text="$store.app.ai.remote_allowed ? 'Allowed (LLM_ALLOW_REMOTE=1)' : 'No'"></dd>
-                </dl>
-            </div>
-            <div class="text-sm text-gray-600 space-y-2">
-                <p class="font-medium text-gray-900">What it can and cannot do</p>
-                <ul class="list-disc pl-5 space-y-1">
-                    <li>It chooses which lookup answers a question and words the reply. The figures come from the app's own calculations, and a reply containing any other number is discarded.</li>
-                    <li>It never saves or changes data. Drafts open a form for you to check and save.</li>
-                    <li>Anything it produced is marked with the AI chip.</li>
-                </ul>
-                <p class="font-medium text-gray-900 pt-2">Changing it</p>
-                <p>Set these environment variables before starting the app, then restart: <code>LLM_PROVIDER</code> (<code>ollama</code>, <code>openai</code> for any OpenAI-compatible server, or <code>off</code>), <code>LLM_BASE_URL</code>, <code>LLM_MODEL</code>, <code>LLM_API_KEY</code>. A non-local address is refused unless <code>LLM_ALLOW_REMOTE=1</code>, because that sends your financial data to that service.</p>
-            </div>
-        </div>
-    </template>
+{% include "_settings_device.html" %}
 
     <!-- Category Modal -->
     <div x-show="showCatModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" @click.self="showCatModal = false">
@@ -340,6 +313,49 @@ function settingsPage() {
         backups: { configured: false, backups: [], error: null, status: {} },
         backupCfg: {},
         busy: '',
+        activity: [],
+
+        async loadActivity() {
+            try { this.activity = (await API.get('/activity?limit=200')).entries; }
+            catch (e) { showAlert('Failed to load activity: ' + e.message, 'error'); }
+        },
+        refreshDevice() { return Alpine.store('app').refreshAI(); },
+        // Every optional feature, available here or not: the server's AI features plus what this device itself offers.
+        deviceFeatures() {
+            const app = Alpine.store('app'), pwa = Alpine.store('pwa');
+            const lower = (s) => s ? s.charAt(0).toLowerCase() + s.slice(1) : 'the app';
+            const rows = app.caps.features.map(f => ({
+                ...f,
+                summary: f.available ? 'Available through ' + lower(f.through) + (f.model ? ' (' + f.model + ').' : '.') + (f.note ? ' ' + f.note : '')
+                    : f.waiting ? 'Set up, but not running right now. ' + f.note
+                    : 'Not available, so it is hidden: ' + f.reason,
+            }));
+            const reader = app.feature('import_ai');
+            rows.push({
+                id: 'camera', label: 'Take a photo of a receipt or pay stub', where: 'Import',
+                available: Device.camera && reader.shown, waiting: false,
+                summary: !Device.camera ? 'Not offered on this device: the browser has no camera to open (on a computer, choose a file instead).'
+                    : !reader.shown ? 'Hidden: reading a photo needs the AI feature above.'
+                    : "Available: uses this device's camera.",
+            });
+            rows.push({
+                id: 'install', label: 'Install as an app', where: 'Menu',
+                available: !!pwa && (pwa.standalone || pwa.showInstall), waiting: false,
+                summary: pwa && pwa.standalone ? 'Installed on this device.'
+                    : pwa && pwa.showInstall ? 'Available: use Install app in the menu.'
+                    : 'Not offered by this browser, or the address is not secure (https).',
+            });
+            return rows;
+        },
+        endpointState(e) {
+            return { ready: 'ready', asleep: 'starts when needed', offline: e.kind === 'home' ? 'not connected' : 'not reachable', off: 'not usable' }[e.state] || e.state;
+        },
+        endpointDetail(e) {
+            const uses = e.use_for.map(u => u === 'realtime' ? 'answers while you wait' : 'work that can wait').join(' and ');
+            const parts = [e.model ? 'Model ' + e.model : '', 'Used for ' + uses];
+            if (e.kind === 'paid') parts.push('Switched on for: ' + (e.features.join(', ') || 'nothing'));
+            return parts.filter(Boolean).join('. ') + '.';
+        },
 
         async init() {
             try {
@@ -352,7 +368,9 @@ function settingsPage() {
                 this.divergencePct = (t.net_worth_bps || 500) / 100;
                 this.legacyTotal = (await API.get('/legacy').catch(() => ({ total: 0 }))).total;
                 const wanted = new URLSearchParams(location.search).get('tab');
-                if (['general', 'categories', 'backups', 'data', 'ai'].includes(wanted)) this.tab = wanted;
+                if (['general', 'categories', 'backups', 'data', 'device', 'activity'].includes(wanted)) this.tab = wanted;
+                if (wanted === 'ai') this.tab = 'device';   // the tab's old name, still linked from older bookmarks
+                if (this.tab === 'activity') this.loadActivity();
                 if (this.tab === 'backups') this.loadBackups();
             } catch (e) {
                 showAlert('Failed to load: ' + e.message, 'error');

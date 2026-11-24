@@ -62,7 +62,7 @@ def manifest():
         "id": "/",
         "name": APP_NAME,
         "short_name": SHORT_NAME,
-        "description": "Your plan, balances and forecast, kept on your own computer.",
+        "description": "Your plan, balances and forecast, kept on machines you control.",
         "lang": "en",
         "start_url": "/overview",
         "scope": "/",

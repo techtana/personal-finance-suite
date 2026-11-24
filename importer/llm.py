@@ -14,6 +14,9 @@ Two wire formats:
 
 Financial data is private: a base URL that isn't this machine is refused
 unless LLM_ALLOW_REMOTE=1.
+
+This class talks to one endpoint. get_client() returns a router over every
+endpoint the owner has set up (ai/endpoints.py), with this same interface.
 """
 
 from __future__ import annotations
@@ -26,7 +29,7 @@ import time
 import urllib.error
 import urllib.request
 from collections import Counter
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
 
@@ -77,6 +80,34 @@ def extract_json(text: str):
     raise LLMError(f"answer is not JSON: {s[:120]!r}")
 
 
+_id_tokens: dict = {}
+_id_token_lock = threading.Lock()
+
+
+def google_id_token(audience: str) -> str:
+    """An identity token for this machine's service account, from Google's metadata server.
+
+    A private Cloud Run service accepts only callers it has been told to trust; this token
+    is how the app's server proves which account it is. Works only on Google Cloud.
+    """
+    with _id_token_lock:
+        hit = _id_tokens.get(audience)
+        if hit and hit[0] > time.time():
+            return hit[1]
+    url = ("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity"
+           f"?audience={quote(audience, safe='')}")
+    req = urllib.request.Request(url, headers={"Metadata-Flavor": "Google"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            token = resp.read().decode("utf-8").strip()
+    except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
+        raise LLMUnavailable(f"couldn't get a Google identity token (this only works on Google Cloud): "
+                             f"{getattr(e, 'reason', e)}")
+    with _id_token_lock:
+        _id_tokens[audience] = (time.time() + 45 * 60, token)  # tokens last an hour
+    return token
+
+
 class LLMClient:
     """One client per import batch, so usage is counted per batch."""
 
@@ -85,7 +116,7 @@ class LLMClient:
 
     def __init__(self, provider="ollama", base_url="http://127.0.0.1:11434", model="qwen3.5:9b",
                  vision_model=None, api_key=None, num_ctx=32768, timeout=180, think=False,
-                 allow_remote=False):
+                 allow_remote=False, auth=None, assume_up=False):
         self.provider = (provider or "off").lower()
         self.base_url = (base_url or "").rstrip("/")
         self.model = model
@@ -94,6 +125,8 @@ class LLMClient:
         self.num_ctx = num_ctx
         self.timeout = timeout
         self.think = think
+        self.auth = auth              # "google-id-token": prove this server's identity to Cloud Run
+        self.assume_up = assume_up    # a service that sleeps until called: don't wake it to ask if it's there
         self.calls = 0
         self.failures = 0
         self.seconds = 0.0
@@ -120,6 +153,8 @@ class LLMClient:
                 "vision_model": self.vision_model}
         if not self.enabled:
             return {**base, "ok": False, "error": self.blocked_reason, "models": []}
+        if self.assume_up:
+            return {**base, "ok": True, "error": None, "models": [], "asleep": True}
         key = (self.provider, self.base_url, self.model)
         with self._status_lock:
             hit = self._status_cache.get(key)
@@ -195,7 +230,10 @@ class LLMClient:
 
     def _request(self, method, path, payload, timeout):
         headers = {"Content-Type": "application/json"}
-        if self.api_key:
+        if self.auth == "google-id-token":
+            origin = urlparse(self.base_url)
+            headers["Authorization"] = "Bearer " + google_id_token(f"{origin.scheme}://{origin.netloc}")
+        elif self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         body = json.dumps(payload).encode() if payload is not None else None
         req = urllib.request.Request(self.base_url + path, data=body, headers=headers, method=method)
@@ -226,7 +264,15 @@ def build_client(config) -> LLMClient:
     )
 
 
-def get_client(app) -> LLMClient:
-    """A fresh client (so usage counts per job). Tests put a factory in app.extensions['llm_factory']."""
+def get_client(app, mode: str = "realtime"):
+    """A fresh client (so usage counts per job) that sends each request to the first endpoint able
+    to take it. mode is "realtime" when a person is waiting and "batch" when the work can wait.
+
+    Tests put a factory in app.extensions['llm_factory'].
+    """
     factory = app.extensions.get("llm_factory")
-    return factory() if factory else build_client(app.config)
+    if factory:
+        return factory()
+    # The app registers the router over every endpoint (ai/endpoints.py); this module stays free of app imports.
+    router = app.extensions.get("llm_router")
+    return router(app.config, mode) if router else build_client(app.config)

@@ -16,6 +16,8 @@ from api.imports import bp as imports_bp
 from api.overview import bp as overview_bp
 from api.assistant import bp as assistant_bp
 from api.backups import bp as backups_bp
+from api.activity import bp as activity_bp
+from api.ai import bp as ai_bp
 
 api_bp.register_blueprint(accounts_bp)
 api_bp.register_blueprint(equity_bp)
@@ -30,4 +32,6 @@ api_bp.register_blueprint(imports_bp)
 api_bp.register_blueprint(overview_bp)
 api_bp.register_blueprint(assistant_bp)
 api_bp.register_blueprint(backups_bp)
+api_bp.register_blueprint(activity_bp)
+api_bp.register_blueprint(ai_bp)
 

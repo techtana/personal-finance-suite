@@ -161,3 +161,47 @@ def test_delete_backup(client):
     name = client.post("/api/backups").get_json()["name"]
     assert client.delete(f"/api/backups/{name}").status_code == 204
     assert client.get("/api/backups").get_json()["backups"] == []
+
+
+# ── A server that can add backups but not delete them ─────────────────────────
+
+@pytest.fixture
+def append_only(app):
+    app.config["BACKUP_PRUNE"] = "bucket"
+    return app.test_client()
+
+
+def test_append_only_server_never_deletes(append_only, app):
+    first = backup.create_backup("scheduled")["name"]
+    folder = app.config["BACKUP_LOCAL_DIR"]
+    for day in ("2026-01-01", "2026-01-02"):   # two older scheduled backups, well past "keep"
+        with open(os.path.join(folder, first), "rb") as src,                 open(os.path.join(folder, f"finance_{day}T00-00-00Z_scheduled.db"), "wb") as dst:
+            dst.write(src.read())
+    listing = append_only.get("/api/backups").get_json()
+    assert listing["can_delete"] is False
+    name = listing["backups"][0]["name"]
+
+    res = append_only.delete(f"/api/backups/{name}")
+    assert res.status_code == 403 and "not delete" in res.get_json()["error"]
+
+    backup.update_config({"keep": 1, "frequency": "daily"})
+    backup.run_scheduled_backup(datetime.now(timezone.utc) + timedelta(days=2))   # due: adds one, prunes none
+    assert len(os.listdir(folder)) >= 3
+
+
+def test_restore_drill_checks_the_newest_backup_and_changes_nothing(client, app):
+    client.post("/api/categories", json={"slug": "pets", "label": "Pets", "type": "expense", "color": "#112233"})
+    backup.create_backup("manual")
+    before = sorted(os.listdir(app.config["BACKUP_LOCAL_DIR"]))
+
+    result = backup.verify_latest()
+    assert result["kind"] == "manual" and result["counts"].get("categories", 0) >= 1
+    assert sorted(os.listdir(app.config["BACKUP_LOCAL_DIR"])) == before
+
+    out = app.test_cli_runner().invoke(args=["backups", "verify"])
+    assert out.exit_code == 0 and "opens cleanly" in out.output
+
+
+def test_restore_drill_says_so_when_there_is_nothing_to_check(app):
+    out = app.test_cli_runner().invoke(args=["backups", "verify"])
+    assert out.exit_code != 0 and "No backups found" in out.output

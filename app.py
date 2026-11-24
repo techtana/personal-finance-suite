@@ -55,6 +55,14 @@ def create_app(config=None):
         db.create_all()
         _add_missing_columns()
 
+    # Who is asking, the audit log and the stale-save check
+    import audit
+    audit.init_app(app)
+
+    @app.route("/healthz")
+    def healthz():
+        return {"ok": True}
+
     # Register blueprints
     from api import api_bp
     app.register_blueprint(api_bp, url_prefix="/api")
@@ -64,6 +72,15 @@ def create_app(config=None):
 
     from importer.cli import imports_cli
     app.cli.add_command(imports_cli)
+
+    # Files that waited for the home computer are read when it connects
+    from ai.endpoints import routed_client
+    from api import ai as ai_api
+    app.extensions["llm_router"] = routed_client
+    ai_api.init_app(app)
+
+    from backup import backups_cli
+    app.cli.add_command(backups_cli)
 
     # Regular cloud backups (no-op when testing)
     from backup import start_scheduler

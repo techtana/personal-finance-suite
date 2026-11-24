@@ -6,17 +6,16 @@
 <div x-data="insightsPage()" x-init="init()" class="space-y-6 max-w-5xl" x-cloak>
 
     <!-- ── Ask (AI, optional) ──────────────────────────────────────────────── -->
-    <section class="card ai p-5" x-show="$store.app.ai.loaded">
+    <section class="card ai p-5" x-show="$store.app.ai.ok">
         <div class="section-head">
             <div>
                 <h3>Ask about your numbers</h3>
-                <p x-show="$store.app.ai.ok">The model picks a lookup; the figures come from your own records. It cannot change anything.</p>
-                <p x-show="!$store.app.ai.ok" x-text="'The assistant is off or unreachable. ' + ($store.app.ai.error || '') + ' The rest of the app works without it.'"></p>
+                <p>The model picks a lookup; the figures come from your own records. It cannot change anything.</p>
             </div>
             <div class="flex items-center gap-2">
                 <span class="role-chip ai">AI</span>
-                <span class="text-xs text-gray-500" x-show="$store.app.ai.ok" x-text="$store.app.ai.model"></span>
-                <a class="btn btn-ghost btn-sm" href="/settings?tab=ai">Settings</a>
+                <span class="text-xs text-gray-500" x-text="$store.app.ai.through || $store.app.ai.model"></span>
+                <a class="btn btn-ghost btn-sm" href="/settings?tab=device">Settings</a>
             </div>
         </div>
         <div x-show="$store.app.ai.ok">

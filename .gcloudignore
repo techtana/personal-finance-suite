@@ -1,0 +1,15 @@
+# What `gcloud builds submit` uploads. Without this file gcloud falls back to .gitignore,
+# which leaves out static/build/ (the compiled stylesheet the image needs).
+.git
+.claude
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.env
+instance
+node_modules
+docs
+tests
+skill-updates
