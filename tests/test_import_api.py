@@ -209,3 +209,80 @@ def test_ai_category_is_a_suggestion_until_kept(client, accounts, fake_llm):
     assert kept["rows"][0]["category_source"] == "user"
     assert client.post(f"/api/imports/{b['id']}/commit", json={}).status_code == 200
     assert ImportMerchantRule.query.filter_by(merchant_key="FLOWER CART MARKET").one().category == "gifts"
+
+
+def big_statement(n=230):
+    """A bank export large enough to need several pages: n distinct money-out rows."""
+    lines = ["Date,Description,Amount"]
+    for i in range(n):
+        shop = "CORNER GROCER" if i % 2 == 0 else "CITY HARDWARE"
+        lines.append(f"11/{i % 28 + 1:02d}/2026,{shop} STORE {i:04d},-{10 + i}.25")
+    return ("\n".join(lines) + "\n").encode()
+
+
+def test_rows_come_a_page_at_a_time(client, accounts):
+    b = upload(client, "big.csv", big_statement(), account_id=accounts["chk"].id)
+    bid = b["id"]
+    lean = client.get(f"/api/imports/{bid}?rows=0").get_json()
+    assert "rows" not in lean and lean["counts"]["rows"] == len(b["rows"])
+    n = lean["row_counts"]["targets"]["change_event"]
+    assert n == 230 and lean["row_counts"]["filters"]["all"] == len(b["rows"])
+
+    first = client.get(f"/api/imports/{bid}/rows?target=change_event&limit=50").get_json()
+    assert (len(first["rows"]), first["total"], first["offset"]) == (50, 230, 0)
+    last = client.get(f"/api/imports/{bid}/rows?target=change_event&limit=50&offset=200").get_json()
+    assert len(last["rows"]) == 30
+    assert not {r["id"] for r in first["rows"]} & {r["id"] for r in last["rows"]}
+    # never more than 200 at once, and an offset past the end lands on the last page
+    assert len(client.get(f"/api/imports/{bid}/rows?limit=100000").get_json()["rows"]) == 200
+    assert client.get(f"/api/imports/{bid}/rows?target=change_event&limit=50&offset=9999").get_json()["offset"] == 200
+
+    found = client.get(f"/api/imports/{bid}/rows?target=change_event&q=hardware").get_json()
+    assert found["total"] == 115 and all("HARDWARE" in r["description"] for r in found["rows"])
+    one = client.get(f"/api/imports/{bid}/rows?q=grocer+0004").get_json()
+    assert [r["description"] for r in one["rows"]] == ["CORNER GROCER STORE 0004"]
+    assert client.get(f"/api/imports/{bid}/rows?filter=nope").status_code == 400
+
+    # an edit can answer without the rows too
+    res = client.patch(f"/api/imports/{bid}/rows/{first['rows'][0]['id']}?rows=0", json={"action": "skip"}).get_json()
+    assert "rows" not in res and res["row_counts"]["filters"]["skip"] >= 1
+
+
+def test_bulk_change(client, accounts):
+    b = upload(client, "big.csv", big_statement(), account_id=accounts["chk"].id)
+    bid = b["id"]
+    url = f"/api/imports/{bid}/rows/bulk?rows=0"
+
+    # everything matching a search, on screen or not
+    res = client.post(url, json={"q": "hardware", "target": "change_event", "set": {"category": "housing"}})
+    body = res.get_json()
+    assert res.status_code == 200, body
+    assert (body["changed"], body["skipped"]) == (115, 0) and "rows" not in body
+    rows = client.get(f"/api/imports/{bid}").get_json()["rows"]
+    hardware = [r for r in rows if "HARDWARE" in r["description"]]
+    assert all((r["category"], r["category_source"]) == ("housing", "user") for r in hardware)
+    assert not any(r["category"] == "housing" for r in rows if "GROCER" in r["description"])
+
+    # hand-picked rows: date, account and untick in one go
+    ids = [r["id"] for r in hardware[:3]]
+    body = client.post(url, json={"ids": ids, "set": {"date": "2026-10-31", "account_id": accounts["card"].id,
+                                                      "action": "skip"}}).get_json()
+    assert body["changed"] == 3
+    picked = [r for r in client.get(f"/api/imports/{bid}").get_json()["rows"] if r["id"] in ids]
+    assert all((r["date"], r["account_id"], r["action"]) == ("2026-10-31", accounts["card"].id, "skip") for r in picked)
+
+    # an income category doesn't fit money out: those rows are left alone and counted
+    body = client.post(url, json={"ids": ids, "set": {"category": "salary"}}).get_json()
+    assert (body["changed"], body["skipped"]) == (0, 3)
+    # flipping the sign turns them into money in, and then it fits
+    assert client.post(url, json={"ids": ids, "set": {"flip_sign": True}}).get_json()["changed"] == 3
+    assert client.post(url, json={"ids": ids, "set": {"category": "salary"}}).get_json()["changed"] == 3
+    picked = [r for r in client.get(f"/api/imports/{bid}").get_json()["rows"] if r["id"] in ids]
+    assert all(r["amount"] > 0 and r["category"] == "salary" for r in picked)
+
+    # the older shape still works; bad requests are refused
+    assert client.post(url, json={"ids": ids, "action": "import"}).get_json()["changed"] == 3
+    assert client.post(url, json={"ids": ids, "set": {}}).status_code == 400
+    assert client.post(url, json={"ids": ids, "set": {"category": "no_such"}}).status_code == 400
+    assert client.post(url, json={"ids": ids, "set": {"date": "31/10/2026"}}).status_code == 400
+    assert client.post(url, json={"filter": "skip", "set": {"action": "import"}}).status_code == 200

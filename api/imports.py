@@ -13,8 +13,8 @@ from importer.extract import ACCEPTED_EXTENSIONS
 from importer.llm import get_client
 from importer.matching import refresh_matches
 from importer.pipeline import (
-    CommitError, batch_detail, batch_summary, commit_batch, discard_batch, prepare_reprocess, set_batch_account,
-    undo_batch, update_row,
+    CommitError, batch_detail, batch_summary, bulk_update, commit_batch, discard_batch, prepare_reprocess, rows_page,
+    select_rows, set_batch_account, undo_batch, update_row,
 )
 from models import Account, ImportBatch, ImportMerchantRule, ImportRow, db
 
@@ -27,6 +27,11 @@ def _error(message, status=400):
 
 def _get_batch(batch_id):
     return db.session.get(ImportBatch, batch_id)
+
+
+def _detail(batch):
+    """The import, with every row unless the caller asked for none (?rows=0) and pages them from /rows instead."""
+    return batch_detail(batch, with_rows=request.args.get("rows") != "0")
 
 
 @bp.errorhandler(CommitError)
@@ -116,7 +121,7 @@ def get_import(batch_id):
     if batch.status == "review":
         refresh_matches(batch)  # another import may have been committed since this one was read
         db.session.commit()
-    return jsonify(batch_detail(batch))
+    return jsonify(_detail(batch))
 
 
 @bp.route("/imports/<batch_id>", methods=["PATCH"])
@@ -132,7 +137,7 @@ def patch_import(batch_id):
         prepare_reprocess(batch, doc_type=data.get("doc_type"), mapping=data.get("mapping"),
                           flip_signs=data.get("flip_signs"))
         worker.submit(current_app._get_current_object(), batch.id)
-    return jsonify(batch_detail(_get_batch(batch_id)))
+    return jsonify(_detail(_get_batch(batch_id)))
 
 
 @bp.route("/imports/<batch_id>/reprocess", methods=["POST"])
@@ -154,27 +159,47 @@ def patch_row(batch_id, row_id):
     row = db.session.get(ImportRow, row_id)
     if not batch or not row or row.batch_id != batch.id:
         return _error("not found", 404)
-    update_row(batch, row, request.get_json() or {})
-    return jsonify(batch_detail(batch))
+    also = update_row(batch, row, request.get_json() or {})
+    return jsonify({**_detail(batch), "also_changed": also})
+
+
+@bp.route("/imports/<batch_id>/rows", methods=["GET"])
+def list_rows(batch_id):
+    """One page of rows: ?filter=&q=&target=&offset=&limit= (at most 200 at a time)."""
+    batch = _get_batch(batch_id)
+    if not batch:
+        return _error("not found", 404)
+    try:
+        offset, limit = int(request.args.get("offset", 0)), int(request.args.get("limit", 50))
+    except ValueError:
+        return _error("offset and limit must be whole numbers")
+    return jsonify(rows_page(batch, filter=request.args.get("filter") or "all", q=request.args.get("q") or "",
+                             target=request.args.get("target") or None, offset=offset, limit=limit))
 
 
 @bp.route("/imports/<batch_id>/rows/bulk", methods=["POST"])
 def bulk_rows(batch_id):
+    """Change many rows at once.
+
+    Which rows: "ids": [...], or every row matching "filter", "q" and "target" (as in GET /rows).
+    What changes: "set": {action, category, account_id, date, flip_sign}. A bare "action" is still accepted.
+    """
     batch = _get_batch(batch_id)
     if not batch:
         return _error("not found", 404)
-    if batch.status != "review":
-        return _error("Rows can only be changed while the import is in review.", 409)
     data = request.get_json() or {}
-    action = data.get("action")
-    if action not in ("import", "skip"):
-        return _error("action must be import or skip")
-    ids = set(data.get("ids") or [])
-    for r in batch.rows:
-        if r.id in ids:
-            r.action, r.user_edited = action, True
-    db.session.commit()
-    return jsonify(batch_detail(batch))
+    changes = dict(data.get("set") or {})
+    if "action" in data:
+        changes.setdefault("action", data["action"])
+    if "ids" in data:
+        if not isinstance(data["ids"], list):
+            return _error("ids must be a list")
+        rows = select_rows(batch, ids=data["ids"])
+    else:
+        rows = select_rows(batch, filter=data.get("filter") or "all", q=data.get("q") or "",
+                           target=data.get("target") or None)
+    result = bulk_update(batch, rows, changes)
+    return jsonify({**_detail(batch), **result})
 
 
 @bp.route("/imports/<batch_id>/commit", methods=["POST"])
@@ -183,7 +208,7 @@ def commit(batch_id):
     if not batch:
         return _error("not found", 404)
     created = commit_batch(batch, force=bool((request.get_json(silent=True) or {}).get("force")))
-    return jsonify({"created": created, "import": batch_detail(batch)})
+    return jsonify({"created": created, "import": _detail(batch)})
 
 
 @bp.route("/imports/<batch_id>/undo", methods=["POST"])
@@ -192,7 +217,7 @@ def undo(batch_id):
     if not batch:
         return _error("not found", 404)
     result = undo_batch(batch)
-    return jsonify({**result, "import": batch_detail(batch)})
+    return jsonify({**result, "import": _detail(batch)})
 
 
 @bp.route("/imports/<batch_id>", methods=["DELETE"])

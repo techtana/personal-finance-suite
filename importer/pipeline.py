@@ -201,11 +201,13 @@ def _to_row(p: Proposal, i: int):
 
 # ── review edits ───────────────────────────────────────────────────────────────
 
-def update_row(batch, row, data: dict) -> None:
+def update_row(batch, row, data: dict) -> int:
+    """Edit one row. Returns how many other rows from the same merchant took the new category too."""
     m = _models()
     if batch.status != "review":
         raise CommitError("Rows can only be changed while the import is in review.", 409)
     allowed = allowed_categories(m.Category.query.all())
+    also = 0
     if "amount" in data:
         try:
             row.amount = int(data["amount"]) if data["amount"] is not None else None
@@ -238,6 +240,7 @@ def update_row(batch, row, data: dict) -> None:
                         and other.category_source != "user" and fits_direction(cat or "misc", other.amount, allowed):
                     other.category, other.category_source = cat, "user"
                     other.flags = [f for f in other.flags if f not in ("uncategorized", "low_confidence")]
+                    also += 1
     if "account_id" in data:
         acct = data["account_id"] or None
         if acct and not m.db.session.get(m.Account, acct):
@@ -254,6 +257,140 @@ def update_row(batch, row, data: dict) -> None:
         row.user_edited = True
     refresh_matches(batch)
     m.db.session.commit()
+    return also
+
+
+BULK_FIELDS = ("action", "category", "account_id", "date", "flip_sign")
+
+
+def bulk_update(batch, rows, changes: dict) -> dict:
+    """Apply the same change to many rows. Rows a change can't apply to are left alone and counted.
+
+    changes: any of action (import|skip), category (slug or None), account_id, date (YYYY-MM-DD), flip_sign (true).
+    """
+    m = _models()
+    if batch.status != "review":
+        raise CommitError("Rows can only be changed while the import is in review.", 409)
+    changes = {k: v for k, v in (changes or {}).items() if k in BULK_FIELDS}
+    if not changes.get("flip_sign"):
+        changes.pop("flip_sign", None)
+    if not changes:
+        raise CommitError("Nothing to change. Give one of: " + ", ".join(BULK_FIELDS))
+    allowed = allowed_categories(m.Category.query.all())
+    if "action" in changes and changes["action"] not in ("import", "skip"):
+        raise CommitError("action must be import or skip")
+    cat = changes.get("category") or None
+    if cat is not None and cat not in allowed:
+        raise CommitError(f"unknown category {cat!r}")
+    acct = changes.get("account_id") or None
+    if acct and not m.db.session.get(m.Account, acct):
+        raise CommitError("unknown account")
+    iso = None
+    if "date" in changes:
+        iso = parse_date(changes["date"], "%Y-%m-%d") if changes["date"] else None
+        if not iso:
+            raise CommitError("date must be YYYY-MM-DD")
+
+    changed = skipped = 0
+    for r in rows:
+        touched = False
+        if "flip_sign" in changes and r.target != "snapshot" and r.amount:
+            r.amount = -r.amount
+            r.flags = [f for f in r.flags if f not in ("direction_unknown", "sign_guessed")]
+            if r.category and not fits_direction(r.category, r.amount, allowed):
+                r.category, r.category_source = None, None  # an income category can't stay on money out
+                r.flags = r.flags + ["uncategorized"]
+            touched = True
+        if "date" in changes:
+            r.date = iso
+            r.flags = [f for f in r.flags if f not in ("unparsed_date", "missing_date", "ambiguous_date")]
+            touched = True
+        if "category" in changes and r.target != "snapshot" and (cat is None or fits_direction(cat, r.amount, allowed)):
+            r.category, r.category_source = cat, "user"
+            r.flags = [f for f in r.flags if f not in ("uncategorized", "low_confidence")]
+            touched = True
+        if "account_id" in changes and r.target == "change_event":
+            r.account_id = acct
+            touched = True
+        if "action" in changes:
+            r.action, r.user_edited = changes["action"], True
+            touched = True
+        changed += touched
+        skipped += not touched
+    refresh_matches(batch)
+    m.db.session.commit()
+    return {"changed": changed, "skipped": skipped}
+
+
+# ── picking rows for the review screen ─────────────────────────────────────────
+
+ROW_FILTERS = ("all", "import", "review", "ai", "dup", "transfer", "skip")
+ROW_TARGETS = ("change_event", "snapshot", "rule")
+MAX_PAGE = 200
+
+
+def _in_filter(r, name: str) -> bool:
+    flags = set(r.flags or [])
+    if name == "import":
+        return r.action == "import"
+    if name == "skip":
+        return r.action == "skip"
+    if name == "review":
+        return bool(flags & REVIEW_FLAGS)
+    if name == "ai":
+        return r.category_source == "ai" or bool(flags & {"ai_extracted", "from_photo"})
+    if name == "dup":
+        return bool(flags & {"duplicate", "possible_duplicate"})
+    if name == "transfer":
+        return "transfer" in flags
+    return True
+
+
+def select_rows(batch, *, filter: str = "all", q: str = "", target: str | None = None, ids=None) -> list:
+    """The batch's rows that match a review filter, a search in the description and a section, in file order.
+
+    With ids, only those rows (the filter and search are ignored: the user picked them by hand).
+    """
+    if ids is not None:
+        wanted = set(ids)
+        return [r for r in batch.rows if r.id in wanted]
+    if filter not in ROW_FILTERS:
+        raise CommitError("filter must be one of " + ", ".join(ROW_FILTERS))
+    if target is not None and target not in ROW_TARGETS:
+        raise CommitError("target must be one of " + ", ".join(ROW_TARGETS))
+    words = (q or "").lower().split()
+
+    def matches(r):
+        if target is not None and r.target != target:
+            return False
+        if not _in_filter(r, filter):
+            return False
+        if words:
+            text = f"{r.description or ''} {r.note or ''}".lower()
+            return all(w in text for w in words)
+        return True
+
+    return [r for r in batch.rows if matches(r)]
+
+
+def rows_page(batch, *, filter="all", q="", target=None, offset=0, limit=50) -> dict:
+    rows = select_rows(batch, filter=filter, q=q, target=target)
+    limit = max(1, min(int(limit), MAX_PAGE))
+    offset = max(0, int(offset))
+    if offset >= len(rows) and rows:
+        offset = ((len(rows) - 1) // limit) * limit  # rows left this filter after an edit: show the last page
+    return {"rows": [row_dict(r) for r in rows[offset:offset + limit]], "total": len(rows), "offset": offset,
+            "limit": limit}
+
+
+def row_counts(batch) -> dict:
+    """How many rows each filter and section holds, so the screen can show totals without holding the rows."""
+    rows = batch.rows
+    return {
+        "filters": {k: sum(1 for r in rows if _in_filter(r, k)) for k in ROW_FILTERS},
+        "targets": {t: sum(1 for r in rows if r.target == t) for t in ROW_TARGETS},
+        "import_targets": {t: sum(1 for r in rows if r.target == t and r.action == "import") for t in ROW_TARGETS},
+    }
 
 
 def set_batch_account(batch, account_id):
@@ -453,14 +590,17 @@ def batch_summary(b) -> dict:
     }
 
 
-def batch_detail(b) -> dict:
+def batch_detail(b, with_rows: bool = True) -> dict:
+    """One import in full. with_rows=False leaves the rows out; the review screen pages them with rows_page."""
     m = _models()
     out = batch_summary(b)
     mapping = dict(b.mapping or {})
     extracted = {k: v for k, v in (b.extracted or {}).items() if k != "category_cache"}
+    if with_rows:
+        out["rows"] = [row_dict(r) for r in b.rows]
     out.update({
         "mapping": mapping, "extracted": extracted, "warnings": b.warnings or [], "ai_usage": b.ai_usage or {},
-        "created": b.created, "rows": [row_dict(r) for r in b.rows],
+        "created": b.created, "row_counts": row_counts(b),
         "categories": [{"slug": k, **v} for k, v in sorted(allowed_categories(m.Category.query.all()).items(),
                                                             key=lambda kv: kv[1]["label"].lower())],
         "has_file": bool(b.stored_path and os.path.exists(b.stored_path)),
