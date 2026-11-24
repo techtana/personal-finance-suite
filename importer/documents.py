@@ -35,6 +35,31 @@ _SIGNALS = {
 }
 
 
+# Stock-plan paperwork (RSU grants and releases, ESPP purchases, option statements). The importer
+# can't read these yet, but it has to recognise them: they carry "total" and "tax" lines, so
+# without this they were taken for receipts and failed with a message about a missing total.
+_EQUITY_SIGNALS = [
+    r"\brsus?\b|\brestricted stock\b|\bstock units?\b",
+    r"\bespp\b|\bemployee stock purchase\b|\bstock plan\b|\bequity award\b",
+    r"\bvest(?:s|ed|ing)?\b|\brelease date\b|\bshares released\b",
+    r"\bgrant (?:date|id|number|price)\b|\baward (?:date|id|number|price)\b|\bgrant(?:ed)?\b",
+    r"\bfair market value\b|\bfmv\b|\bmarket value per share\b",
+    r"\bshares? (?:withheld|sold|issued|traded|deposited|purchased|granted)\b|\bnet shares\b|\bsell to cover\b",
+    r"\bstock options?\b|\bexercise price\b|\bstrike price\b|\bpurchase period\b|\boffering period\b",
+]
+EQUITY_MESSAGE = (
+    "This looks like a stock-plan document (an RSU, ESPP or option statement). Import reads statements, "
+    "receipts and pay stubs; it can't read stock-plan documents yet. Add or update the grant by hand under "
+    "Plan (New entry, type RSU grant or ESPP). If this is really a statement, a receipt or a pay stub, pick "
+    "that type above and click Re-read."
+)
+
+
+def equity_score(text: str) -> int:
+    low = text.lower()
+    return sum(1 for rx in _EQUITY_SIGNALS if re.search(rx, low))
+
+
 def score_document(text: str) -> dict[str, int]:
     low = text.lower()
     scores = {k: sum(1 for rx in v if re.search(rx, low)) for k, v in _SIGNALS.items()}
@@ -51,6 +76,11 @@ def classify(doc, ctx: Ctx) -> str:
         return "statement"
     text = doc.text or ""
     scores = score_document(text)
+    equity = equity_score(text)
+    # A pay stub can list RSU income and a brokerage statement can list share sales; those stay what
+    # they are. Anything else that talks this much about grants, vesting and shares is stock-plan paperwork.
+    if equity >= 3 and scores["payslip"] < 3 and scores["statement"] < 4:
+        return "equity"
     ranked = sorted(scores.items(), key=lambda kv: -kv[1])
     (top, s1), (_, s2) = ranked[0], ranked[1]
     if s1 >= 3 and s1 - s2 >= 2:
@@ -59,7 +89,11 @@ def classify(doc, ctx: Ctx) -> str:
     ai = ctx.ask(ai_tools.classify_document, text, what="tell what kind of document this is")
     if ai:
         kind, conf = ai
-        if kind != "other" and (scores.get(kind, 0) >= 1 or s1 == 0):
+        if kind == "equity":
+            if equity >= 1:
+                ctx.info("The local AI read this as a stock-plan document.")
+                return "equity"
+        elif kind != "other" and (scores.get(kind, 0) >= 1 or s1 == 0):
             ctx.info(f"The local AI read this as a {LABELS[kind]}.")
             return kind
     if s1 >= 2 and s1 > s2:
@@ -67,7 +101,8 @@ def classify(doc, ctx: Ctx) -> str:
     return "unknown"
 
 
-LABELS = {"statement": "statement", "receipt": "receipt", "payslip": "pay stub", "unknown": "document"}
+LABELS = {"statement": "statement", "receipt": "receipt", "payslip": "pay stub", "equity": "stock-plan document",
+          "unknown": "document"}
 
 
 # ── receipts ───────────────────────────────────────────────────────────────────
@@ -137,8 +172,9 @@ def from_receipt(text: str, ctx: Ctx, categories: dict) -> list[Proposal]:
                           "from the TOTAL line; using the TOTAL line.")
             conf = 0.55
     if total is None:
-        raise ImportFailure("No total was found on this receipt. Check the photo is readable and the total is in "
-                            "frame, or log it by hand on the Cash Flow page.")
+        raise ImportFailure("No total was found, so this may not be a receipt. If it is another kind of document, "
+                            "pick the type above and click Re-read. If it is a receipt, check that the total is "
+                            "readable and in frame, or add it by hand on the Plan page.")
 
     sub = (ai or {}).get("subtotal") or h["subtotal"]
     tax = (ai or {}).get("tax") if (ai or {}).get("tax") is not None else h["tax"]
@@ -328,7 +364,7 @@ def from_payslip(text: str, ctx: Ctx, existing_rules) -> list[Proposal]:
         rule = salary_rules[0]
         if rule.amount and abs(rule.amount - net) > max(100, rule.amount // 100):
             ctx.warn(f"Your rule '{rule.name}' expects {fmt_cents(rule.amount)} per {rule.frequency or 'period'}; "
-                     f"this pay stub's net pay is {fmt_cents(net)}. Update the rule on the Cash Flow page if your pay "
+                     f"this pay stub's net pay is {fmt_cents(net)}. Update the rule on the Plan page if your pay "
                      "changed.")
     elif freq and pay_date:
         step = {"weekly": 7, "biweekly": 14}.get(freq)
