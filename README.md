@@ -129,6 +129,24 @@ Your financial data is never cached on the phone; every figure comes from the co
 Without a connection the app shows "Can't reach your finance app" with a retry button. When a new
 version of the app is running, a **Reload** bar appears; nothing reloads under an open form.
 
+## Desktop app on Windows (Start menu and tray)
+
+Double-click `install-desktop.cmd`. It installs the app into `%LOCALAPPDATA%\Programs\PersonalFinance` with
+its own Python environment, adds **Personal Finance** to the Start menu, and starts a tray icon. Run it
+again to update; add `--autostart` to start the tray when you sign in (also a tray menu item).
+
+The tray (shown as **Finance** in Task Manager) runs in the background and:
+
+- **Opens the app** in its own window: your private server, found through Tailscale (a device named
+  `finance`), or, after "Run the app on this computer instead", a copy running on `127.0.0.1` with its own
+  data in `%LOCALAPPDATA%\PersonalFinance\data`.
+- **Shares this PC's AI with the server**: it runs `home_runner.py` with the local model (the agent stack's
+  Ollama by default), so the AI features appear on every device while this PC is on. Untick it in the tray
+  menu to stop.
+
+Double-click the icon, or start it again from the Start menu, to open the app. Settings and the log are in
+`%LOCALAPPDATA%\PersonalFinance`. To remove it: `py -3 desktop\install.py --uninstall`.
+
 ## Run it as a private server (optional)
 
 Instead of one computer, the app can run on a small cloud server that your phone, laptop and desktop all

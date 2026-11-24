@@ -62,25 +62,42 @@ def run_job(client: LLMClient, job: dict) -> str:
     return client._chat(job.get("messages") or [], job.get("task") or "job", schema=job.get("schema"), images=images)
 
 
-def serve(server: Server, client: LLMClient, name: str, once: bool = False, log=print) -> None:
+def serve(server: Server, client: LLMClient, name: str, once: bool = False, log=print, stop=None,
+          status: dict | None = None) -> None:
+    """Collect and answer model requests until `stop` (a threading.Event) is set.
+
+    `status`, if given, is kept up to date for a caller that shows it (the tray): connected, jobs, last_error.
+    """
     hello = {"name": name, "model": client.model, "vision_model": client.vision_model, "wait": 25}
+    status = status if status is not None else {}
+    status.update(connected=False, jobs=0, last_error=None)
     delay = 5
-    while True:
+
+    def pause(seconds):
+        if stop is not None:
+            stop.wait(seconds)
+        else:
+            time.sleep(seconds)
+
+    while not (stop is not None and stop.is_set()):
         try:
             job = server.post("/api/ai/runner/poll", hello, timeout=40).get("job")
             delay = 5
+            status.update(connected=True, last_error=None)
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", "replace")[:200]
             log(f"The server refused the runner (HTTP {e.code}): {detail}")
+            status.update(connected=False, last_error=f"The server refused the runner (HTTP {e.code})")
             if once:
                 return
-            time.sleep(60)
+            pause(60)
             continue
         except (urllib.error.URLError, TimeoutError, ConnectionError, OSError, ValueError) as e:
             log(f"Can't reach {server.base_url} ({getattr(e, 'reason', e)}); trying again in {delay}s")
+            status.update(connected=False, last_error=f"Can't reach the server ({getattr(e, 'reason', e)})")
             if once:
                 return
-            time.sleep(delay)
+            pause(delay)
             delay = min(delay * 2, 60)
             continue
         if job:
@@ -99,10 +116,12 @@ def serve(server: Server, client: LLMClient, name: str, once: bool = False, log=
                 server.post("/api/ai/runner/result", result, timeout=30)
             except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
                 outcome = f"couldn't send the answer ({getattr(e, 'reason', e)})"
+            status["jobs"] = status.get("jobs", 0) + 1
             # The task name only. What the request and the answer contain is never printed.
             log(f"{job.get('task', 'job')}: {outcome} in {time.time() - started:.1f}s")
         if once:
             return
+    status["connected"] = False
 
 
 def main(argv=None) -> int:
