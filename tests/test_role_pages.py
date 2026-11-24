@@ -83,13 +83,16 @@ def test_record_balance_updates_entity_and_history(app, client):
     res = client.post("/api/balances/record", json={"entity_type": "cash", "entity_id": acct.id, "value": 123400})
     assert res.status_code == 201
     assert acct.current_balance == 123400 and acct.last_updated_date == TODAY
+    # The value typed in with the account stays as the earlier record, so transactions can be checked against it.
+    kept = Snapshot.query.filter_by(entity_id=acct.id, date=days_ago(40)).one()
+    assert kept.value == 100000
     # Same day again replaces rather than duplicating.
     client.post("/api/balances/record", json={"entity_type": "cash", "entity_id": acct.id, "value": 125000})
-    assert Snapshot.query.filter_by(entity_id=acct.id).count() == 1 and acct.current_balance == 125000
+    assert Snapshot.query.filter_by(entity_id=acct.id).count() == 2 and acct.current_balance == 125000
     # A back-dated record is kept in history but does not overwrite the current value.
     client.post("/api/balances/record", json={"entity_type": "cash", "entity_id": acct.id, "value": 90000,
                                               "date": days_ago(60)})
-    assert acct.current_balance == 125000 and Snapshot.query.filter_by(entity_id=acct.id).count() == 2
+    assert acct.current_balance == 125000 and Snapshot.query.filter_by(entity_id=acct.id).count() == 3
 
 
 @pytest.mark.parametrize("payload,status", [

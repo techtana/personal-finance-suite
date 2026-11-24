@@ -19,7 +19,7 @@ def test_statement_csv_full_cycle(client, accounts):
     rows = rows_by_desc(b)
     assert rows["ACME CORP PAYROLL PPD ID: 9876543210"]["amount"] == 325000
     transfer = rows["ONLINE TRANSFER TO SAV XXXXXX5678 REF #IB0QWE"]
-    assert transfer["action"] == "skip" and "transfer" in transfer["flags"]
+    assert transfer["action"] == "import" and "transfer" in transfer["flags"]  # kept so the balance adds up
     zelle = rows["ZELLE TO JORDAN SAMPLE"]
     assert zelle["category"] is None and "uncategorized" in zelle["flags"]  # AI is off in tests
     snap = [r for r in b["rows"] if r["target"] == "snapshot"][0]
@@ -37,8 +37,9 @@ def test_statement_csv_full_cycle(client, accounts):
     res = client.post(f"/api/imports/{b['id']}/commit", json={})
     assert res.status_code == 200, res.get_json()
     created = res.get_json()["created"]
-    assert len(created["change_events"]) == 13 and len(created["snapshots"]) == 1 and len(created["rules"]) == 1
-    assert ChangeEvent.query.filter_by(change_type="imported").count() == 13
+    assert len(created["change_events"]) == 15 and len(created["snapshots"]) == 1 and len(created["rules"]) == 1
+    assert ChangeEvent.query.filter_by(change_type="imported").count() == 15
+    assert ChangeEvent.query.filter_by(description="ONLINE TRANSFER TO SAV XXXXXX5678 REF #IB0QWE").one().category == "transfer"
     assert ChangeEvent.query.filter_by(description="ZELLE TO JORDAN SAMPLE").one().category == "gifts"
     assert db.session.get(Category, "gifts") is not None  # starter category created on first use
     assert ImportMerchantRule.query.filter_by(merchant_key="ZELLE JORDAN SAMPLE").one().category == "gifts"
@@ -57,7 +58,7 @@ def test_statement_csv_full_cycle(client, accounts):
 
     # undo the first import
     res = client.post(f"/api/imports/{b['id']}/undo")
-    assert res.status_code == 200 and res.get_json()["removed"] == 15
+    assert res.status_code == 200 and res.get_json()["removed"] == 17
     assert ChangeEvent.query.count() == 0 and Rule.query.count() == 0 and Snapshot.query.count() == 0
     assert res.get_json()["import"]["status"] == "review"
 
@@ -180,7 +181,8 @@ def test_ofx_import_picks_account_and_balance(client, accounts):
     assert b["account_id"] == accounts["sav"].id
     rows = rows_by_desc(b)
     assert rows["INTEREST PAYMENT"]["category"] == "interest"
-    assert rows["ONLINE TRANSFER FROM CHK 1234"]["action"] == "skip"
+    assert rows["ONLINE TRANSFER FROM CHK 1234"]["action"] == "import"
+    assert "transfer" in rows["ONLINE TRANSFER FROM CHK 1234"]["flags"]
     snap = [r for r in b["rows"] if r["target"] == "snapshot"][0]
     assert snap["amount"] == 1850741 and snap["action"] == "import"
 

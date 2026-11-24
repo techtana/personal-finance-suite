@@ -6,6 +6,7 @@ Every page that shows a balance, a forecast or an insight goes through these, so
 
 from datetime import date
 
+from engine import ledger
 from models import Account, Asset, ChangeEvent, Loan, PricePoint, Rule, Settings, Snapshot
 
 DEFAULT_STALE_DAYS = 35
@@ -36,37 +37,78 @@ def current_value(field_value, field_date, history) -> tuple[int, str | None]:
     return field_value or 0, field_date
 
 
-def load_entities(snaps=None) -> list[dict]:
+def account_points(account, before: str | None = None) -> list:
+    """[(date, value)] recorded balances of one cash account, oldest first.
+
+    The value typed in with the account counts as a record on its date when no
+    snapshot is as new. `before` keeps only records dated before that day.
+    """
+    points = [(s.date, s.value) for s in Snapshot.query.filter_by(entity_type="cash", entity_id=account.id)
+              .order_by(Snapshot.date.asc(), Snapshot.created_at.asc()).all()]
+    if account.last_updated_date and not any(p[0] >= account.last_updated_date for p in points):
+        points.append((account.last_updated_date, account.current_balance or 0))
+        points.sort(key=lambda p: p[0])
+    return [p for p in points if before is None or p[0] < before]
+
+
+def balance_txns(today: str | None = None) -> dict:
+    """{account_id: [(date, amount)]}: the imported transactions and adjustments that move balances."""
+    return ledger.account_txns(change_dicts(), today or date.today().isoformat())
+
+
+def load_entities(snaps=None, txns=None, today: str | None = None) -> list[dict]:
     """Every tracked cash account, asset and liability in one shape.
 
-    type: cash | asset | liability. `current` is always positive; liabilities are
-    subtracted by the caller. first_date / first_value let history start before the
-    first recorded balance (cost basis for assets, original balance for loans).
+    type: cash | asset | liability. `current` is always positive; `negative` says
+    whether net worth subtracts it (liabilities, and owed accounts such as credit
+    cards). first_date / first_value let history start before the first recorded
+    balance (cost basis for assets, original balance for loans).
+
+    For cash accounts `current` is the newest recorded balance (`recorded`, on
+    `recorded_date`) plus the transactions since (see engine.ledger), and
+    `current_date` is the newer of that record and the last transaction.
     """
+    today = today or date.today().isoformat()
     snaps = snapshot_history() if snaps is None else snaps
+    txns = balance_txns(today) if txns is None else txns
     out = []
     for a in Account.query.filter_by(is_active=True).all():
-        value, as_of = current_value(a.current_balance, a.last_updated_date, snaps.get(("cash", a.id)))
+        history = snaps.get(("cash", a.id))
+        recorded, rec_date = current_value(a.current_balance, a.last_updated_date, history)
+        owed = ledger.is_owed(a.type)
+        t = txns.get(a.id, [])
+        now = ledger.current(recorded, rec_date, t, today, owed)
         out.append({"type": "cash", "id": a.id, "name": a.name, "kind": a.type, "institution": a.institution or "",
-                    "current": value, "current_date": as_of, "first_date": None, "first_value": None,
-                    "note": a.note})
+                    "current": now["value"], "current_date": now["as_of"], "first_date": None, "first_value": None,
+                    "recorded": recorded, "recorded_date": rec_date, "txns": t, "owed": owed, "negative": owed,
+                    "since_count": now["since_count"], "since_flow": now["since_flow"], "txn_count": len(t),
+                    "has_snapshots": bool(history), "note": a.note})
     for a in Asset.query.all():
         value, as_of = current_value(a.current_value, a.last_updated_date, snaps.get(("asset", a.id)))
         out.append({"type": "asset", "id": a.id, "name": a.name, "kind": a.category, "institution": a.ticker or "",
                     "current": value, "current_date": as_of, "first_date": a.acquired_date,
-                    "first_value": a.cost_basis, "note": a.note})
+                    "first_value": a.cost_basis, "negative": False, "note": a.note})
     for l in Loan.query.all():
         value, as_of = current_value(l.current_balance, l.last_updated_date, snaps.get(("liability", l.id)))
         out.append({"type": "liability", "id": l.id, "name": l.name, "kind": l.type,
                     "institution": l.institution or "", "current": value, "current_date": as_of,
-                    "first_date": l.start_date, "first_value": l.original_balance, "note": l.note})
+                    "first_date": l.start_date, "first_value": l.original_balance, "negative": True, "note": l.note})
     return out
+
+
+def bucket(entity: dict) -> str:
+    """Which total an entity adds to: cash, asset or liability (owed accounts count as liabilities)."""
+    return "liability" if entity.get("owed") else entity["type"]
+
+
+def signed(entity: dict) -> int:
+    return -entity["current"] if entity.get("negative", entity["type"] == "liability") else entity["current"]
 
 
 def totals(entities: list[dict]) -> dict:
     t = {"cash": 0, "asset": 0, "liability": 0}
     for e in entities:
-        t[e["type"]] += e["current"]
+        t[bucket(e)] += e["current"]
     return {"cash": t["cash"], "assets": t["asset"], "liabilities": t["liability"],
             "net_worth": t["cash"] + t["asset"] - t["liability"]}
 
@@ -84,7 +126,8 @@ def rule_dicts(active_only=True) -> list[dict]:
 def change_dicts() -> list[dict]:
     return [
         {"id": c.id, "date": c.date, "description": c.description, "amount": c.amount, "category": c.category,
-         "account_id": c.account_id, "change_type": c.change_type, "tax_treatment": c.tax_treatment}
+         "account_id": c.account_id, "change_type": c.change_type, "tax_treatment": c.tax_treatment,
+         "snapshot_id": c.snapshot_id}
         for c in ChangeEvent.query.all()
     ]
 

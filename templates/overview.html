@@ -56,7 +56,7 @@
 <a class="card view kpi" href="/balances?type=liability">
     <div class="kpi-top"><p class="kpi-label">Liabilities</p><span class="kpi-icon">{{ ic.icon("liability") }}</span></div>
     <p class="kpi-value text-red-600" x-text="fmtWhole(totals.liabilities)"></p>
-    <p class="kpi-sub" x-text="plural(count('liability'), 'loan')"></p>
+    <p class="kpi-sub" x-text="plural(count('liability'), 'debt')"></p>
 </a>
 <a class="card view kpi" :href="'/forecast?month=' + thisMonth">
     <div class="kpi-top"><p class="kpi-label">This month, planned</p><span class="kpi-icon">{{ ic.icon("calendar") }}</span></div>
@@ -148,7 +148,7 @@ function overviewPage() {
         fullHistory: [],
 
         fmt(c) { return formatCurrency(c || 0); },
-        count(t) { return this.rows.filter(r => r.entity_type === t).length; },
+        count(t) { return this.rows.filter(r => (r.bucket || r.entity_type) === t).length; },
         plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); },
 
         async init() {

@@ -93,7 +93,7 @@ def compute_tax_summary(year: int, stock_prices: dict | None = None) -> dict:
     ]
     changes = [
         {"id": c.id, "date": c.date, "description": c.description, "amount": c.amount,
-         "change_type": c.change_type, "tax_treatment": c.tax_treatment}
+         "change_type": c.change_type, "tax_treatment": c.tax_treatment, "category": c.category}
         for c in ChangeEvent.query.all()
     ]
     assets = [

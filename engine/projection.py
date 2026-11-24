@@ -4,6 +4,7 @@ from datetime import datetime
 from collections import defaultdict
 from dataclasses import dataclass, field
 
+from engine.ledger import is_actual, is_transfer
 from engine.recurrence import expand_recurring_dates
 from engine.tax_tables import TRANSFER_KEYS
 
@@ -339,14 +340,15 @@ def project_v2(
                         category="equity",
                     ))
 
-    # Manual change events. Only those inside the horizon: starting_net_worth comes
-    # from today's balances, which already include every past change (imported
-    # bank history would otherwise be counted twice).
+    # Planned one-off entries inside the horizon. Imported transactions and
+    # reconcile adjustments are what happened, not the plan: they already sit in
+    # the recorded balances this starts from (engine.ledger), so counting them
+    # here would count them twice. Transfers don't change net worth.
     for change in changes:
         amt = change.get("amount", 0)
         if amt == 0 or not (from_date <= change.get("date", "") <= to_date):
             continue
-        if change.get("id") in disabled_ids:
+        if change.get("id") in disabled_ids or is_actual(change) or is_transfer(change):
             continue
         if amt < 0 and change.get("tax_treatment") in TRANSFER_KEYS:
             continue

@@ -14,7 +14,7 @@ class ImportFailure(Exception):
 
 # Flags that make a row default to "skip" until the user ticks it.
 SKIP_FLAGS = {
-    "duplicate", "possible_duplicate", "transfer", "unparsed_date", "unparsed_amount", "missing_date",
+    "duplicate", "possible_duplicate", "unparsed_date", "unparsed_amount", "missing_date",
     "missing_amount", "zero_amount", "pick_account", "suggestion", "older_snapshot", "negative_balance",
     "rule_exists", "card_balance",
 }

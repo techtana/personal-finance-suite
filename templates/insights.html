@@ -81,6 +81,50 @@
         </div>
         <p class="text-xs text-gray-500 mt-4">These are observations about your own entries, not financial advice. Limits for "stale" and "off plan" are set in <a class="text-blue-600 hover:underline" href="/settings">Settings</a>.</p>
     </section>
+
+    <!-- ── Plan vs. actual ────────────────────────────────────────────────── -->
+    <section id="plan-vs-actual">
+        {% call ui.section("Plan vs. actual", "guidance", "What your Plan expected each month, next to the transactions you imported. Transfers between your own accounts are left out.") %}
+            <div class="flex flex-wrap gap-1" role="tablist" aria-label="Month">
+                <template x-for="m in (pva ? pva.months : [])" :key="m">
+                    <button type="button" role="tab" class="btn btn-sm" :class="pvaMonth === m ? 'btn-primary' : 'btn-soft'" :aria-selected="pvaMonth === m"
+                            @click="pvaMonth = m" x-text="monthLabel(m)"></button>
+                </template>
+            </div>
+        {% endcall %}
+        <div class="card guidance overflow-x-auto">
+            <template x-if="pvaTotals && !pvaTotals.has_actuals">
+                <p class="p-4 text-sm text-gray-600">No transactions imported for <span x-text="monthLabel(pvaMonth)"></span> yet, so there is nothing to compare. <a class="text-blue-600 hover:underline" href="/import">Import a statement</a> to see what actually happened.</p>
+            </template>
+            <template x-if="pvaTotals && pvaTotals.has_actuals && !pvaTotals.complete">
+                <p class="px-4 pt-3 text-xs text-amber-800" x-text="'Your imported transactions cover only ' + pvaTotals.covered_from + ' to ' + pvaTotals.covered_to + ' of this month, so the actual amounts are incomplete.'"></p>
+            </template>
+            <table class="data stack" x-show="pvaRows.length">
+                <thead><tr><th scope="col">Category</th><th scope="col" class="num">Planned</th><th scope="col" class="num">Actual</th><th scope="col" class="num">Difference</th></tr></thead>
+                <tbody>
+                    <template x-for="r in pvaRows" :key="r.category">
+                        <tr>
+                            <td class="cell-title" x-text="r.label"></td>
+                            <td class="num" data-label="Planned" x-text="r.cell.planned ? fmtSigned(r.cell.planned) : '—'"></td>
+                            <td class="num" data-label="Actual" x-text="r.cell.actual === null ? '—' : (r.cell.actual ? fmtSigned(r.cell.actual) : '—')"></td>
+                            <td class="num font-medium" data-label="Difference" :class="r.cell.diff > 0 ? 'text-green-700' : (r.cell.diff < 0 ? 'text-red-600' : 'text-gray-500')"
+                                x-text="r.cell.diff === null || r.cell.diff === 0 ? '—' : fmtSigned(r.cell.diff)"></td>
+                        </tr>
+                    </template>
+                </tbody>
+                <tfoot x-show="pvaTotals">
+                    <tr class="font-semibold">
+                        <td class="px-4 py-2">Net</td>
+                        <td class="num px-4 py-2" x-text="pvaTotals ? fmtSigned(pvaTotals.planned_net) : ''"></td>
+                        <td class="num px-4 py-2" x-text="pvaTotals && pvaTotals.actual_net !== null ? fmtSigned(pvaTotals.actual_net) : '—'"></td>
+                        <td class="num px-4 py-2" x-text="pvaTotals && pvaTotals.actual_net !== null ? fmtSigned(pvaTotals.actual_net - pvaTotals.planned_net) : '—'"></td>
+                    </tr>
+                </tfoot>
+            </table>
+            <p class="p-4 text-sm text-gray-500" x-show="pva && !pvaRows.length">Nothing planned or imported for this month.</p>
+        </div>
+        <p class="text-xs text-gray-500 mt-2">Money in is positive, money out negative. A positive difference means better than planned. “Unexplained” is the part of a recorded balance that the imported transactions didn't account for.</p>
+    </section>
 </div>
 
 <script>
@@ -91,14 +135,35 @@ function insightsPage() {
         explaining: null, explained: {},
         suggestions: ['What is my net worth today?', 'How much do I plan to spend in the next 3 months?', 'When are my loans paid off?', 'What does next month look like?'],
 
+        pva: null, pvaMonth: null,
+
         get shown() { return this.list ? this.list.apply(this.insights) : []; },
+        get pvaIndex() { return this.pva ? this.pva.months.indexOf(this.pvaMonth) : -1; },
+        get pvaTotals() { return this.pvaIndex >= 0 ? this.pva.totals[this.pvaIndex] : null; },
+        get pvaRows() {
+            const i = this.pvaIndex;
+            if (i < 0) return [];
+            return this.pva.rows.map(r => ({ ...r, cell: r.months[i] })).filter(r => r.cell.planned || r.cell.actual);
+        },
+        monthLabel(m) { return m ? new Date(m + '-15').toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : ''; },
 
         async init() {
             this.list = makeList({ search: i => [i.title, i.detail, i.basis].join(' '), filters: { severity: i => i.severity, source: i => i.source } });
             this.list.read();
+            this.loadPva();
             try { this.insights = (await API.get('/insights')).insights || []; }
             catch (e) { showAlert('Could not load insights: ' + e.message, 'error'); }
             this.loading = false;
+        },
+        async loadPva() {
+            try {
+                this.pva = await API.get('/plan-vs-actual?months=4');
+                const t = this.pva.totals;
+                // The newest month the imports fully cover, else the newest with any imports, else the last full month.
+                const pick = [...t].reverse().find(x => x.complete) || [...t].reverse().find(x => x.has_actuals) || t[Math.max(0, t.length - 2)];
+                this.pvaMonth = pick.month;
+                if (location.hash === '#plan-vs-actual') this.$nextTick(() => document.getElementById('plan-vs-actual').scrollIntoView());
+            } catch (e) { this.pva = null; }
         },
         async ask() {
             if (!this.question.trim() || this.asking) return;

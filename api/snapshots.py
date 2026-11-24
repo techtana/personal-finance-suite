@@ -1,7 +1,7 @@
 """REST API for entity snapshots (actual recorded values at specific dates)."""
 
 from flask import Blueprint, request, jsonify
-from models import db, Snapshot
+from models import db, ChangeEvent, Snapshot
 from schemas import SnapshotSchema
 
 bp = Blueprint("api_snapshots", __name__)
@@ -41,6 +41,8 @@ def update_snapshot(snap_id):
     if not snap:
         return jsonify({"error": "not found"}), 404
     data = request.get_json() or {}
+    if ("date" in data and data["date"] != snap.date) or ("value" in data and data["value"] != snap.value):
+        _drop_adjustments(snap.id)  # the difference it explained no longer applies
     for key in ("date", "value", "note"):
         if key in data:
             setattr(snap, key, data[key])
@@ -53,6 +55,13 @@ def delete_snapshot(snap_id):
     snap = Snapshot.query.get(snap_id)
     if not snap:
         return jsonify({"error": "not found"}), 404
+    _drop_adjustments(snap.id)
     db.session.delete(snap)
     db.session.commit()
     return "", 204
+
+
+def _drop_adjustments(snapshot_id):
+    """Reconcile adjustments belong to the record they explained."""
+    for c in ChangeEvent.query.filter_by(snapshot_id=snapshot_id, change_type="adjustment").all():
+        db.session.delete(c)
