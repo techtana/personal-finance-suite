@@ -21,7 +21,8 @@ def submit(app, batch_id: str) -> None:
     from importer.pipeline import process_batch
 
     if app.config.get("IMPORT_SYNC"):
-        process_batch(batch_id)
+        with _quiet():
+            process_batch(batch_id)
         return
     with _lock:
         if batch_id in _active:
@@ -34,13 +35,19 @@ def _run(app, batch_id: str) -> None:
     from importer.pipeline import process_batch
 
     try:
-        with app.app_context():
+        with app.app_context(), _quiet():
             process_batch(batch_id)
     except Exception:  # pragma: no cover - process_batch records its own failures
         log.exception("import worker crashed on %s", batch_id)
     finally:
         with _lock:
             _active.discard(batch_id)
+
+
+def _quiet():
+    from audit import processing  # the app's audit log; imported late so the importer has no import-time tie to it
+
+    return processing()
 
 
 def is_active(batch_id: str) -> bool:

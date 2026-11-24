@@ -122,7 +122,10 @@ exists gcloud compute resource-policies describe "$POLICY" --region "$REGION" ||
 gcloud compute disks add-resource-policies "$DATA_DISK" --zone "$ZONE" \
   --resource-policies "$POLICY" >/dev/null 2>&1 || true
 
-METADATA="ts-hostname=${NAME},ts-authkey-secret=${SECRET},app-image=${IMAGE},registry-host=${REGION}-docker.pkg.dev"
+# Each run gets its own id. The VM reports it back once it is up, so a "ready" left over from an
+# earlier boot is never taken for this one.
+DEPLOY_ID="$(date -u +%Y%m%dT%H%M%SZ)"
+METADATA="deploy-id=${DEPLOY_ID},ts-hostname=${NAME},ts-authkey-secret=${SECRET},app-image=${IMAGE},registry-host=${REGION}-docker.pkg.dev"
 METADATA+=",backup-bucket=${BACKUP_BUCKET},backup-prefix=${BACKUP_PREFIX},ai-home-runner=${AI_HOME_RUNNER}"
 # Logins contain commas between them; metadata values are comma-separated, so store them with ';'.
 METADATA+=",allowed-logins=${ALLOWED_LOGINS//,/;}"
@@ -152,18 +155,25 @@ if [[ "$VM_EXISTS" == 0 ]]; then
     --metadata-from-file startup-script=deploy/startup.sh \
     --deletion-protection
 else
-  say "VM exists: updating its settings and restarting the app on the new image"
+  say "VM exists: updating its settings, then restarting it on the new image (about 2 minutes offline)"
   gcloud compute instances add-metadata "$NAME" --zone "$ZONE" \
     --metadata-from-file startup-script=deploy/startup.sh --metadata "$METADATA"
-  gcloud compute ssh "$NAME" --zone "$ZONE" --tunnel-through-iap \
-    --command 'sudo google_metadata_script_runner startup' || true
+  # A clean shutdown and boot, not SSH: no SSH key is created on your account, and the startup
+  # script (which runs on every boot) pulls the new image. The data disk is untouched.
+  gcloud compute instances stop "$NAME" --zone "$ZONE"
+  gcloud compute instances start "$NAME" --zone "$ZONE"
 fi
 
-say "Waiting for the server to come up (first boot takes 3-6 minutes)"
+say "Waiting for the server to come up (first boot takes 3-6 minutes, a restart about 2)"
 status=""
 for _ in $(seq 1 90); do
-  status="$(gcloud compute instances get-guest-attributes "$NAME" --zone "$ZONE" \
-    --query-path finance/status --format 'value(value)' 2>/dev/null | tr -d '\r' || true)"
+  booted="$(gcloud compute instances get-guest-attributes "$NAME" --zone "$ZONE" \
+    --query-path finance/deploy-id --format 'value(value)' 2>/dev/null | tr -d '\r' || true)"
+  status=""
+  if [[ "$booted" == "$DEPLOY_ID" ]]; then
+    status="$(gcloud compute instances get-guest-attributes "$NAME" --zone "$ZONE" \
+      --query-path finance/status --format 'value(value)' 2>/dev/null | tr -d '\r' || true)"
+  fi
   printf '\r  status: %-40s' "${status:-booting}"
   [[ "$status" == ready || "$status" == error* ]] && break
   sleep 10

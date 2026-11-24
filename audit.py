@@ -19,6 +19,8 @@ Three things, all hooked into the database session so no endpoint has to remembe
 from __future__ import annotations
 
 import logging
+import threading
+from contextlib import contextmanager
 
 from flask import current_app, has_request_context, jsonify, request
 from sqlalchemy import event, func, inspect, select
@@ -83,8 +85,23 @@ def _changed_fields(obj) -> list[str]:
                   if a.key != "updated_at" and state.attrs[a.key].history.has_changes())
 
 
+_quiet = threading.local()
+
+
+@contextmanager
+def processing():
+    """Reading an imported file: its progress updates are not changes someone made."""
+    _quiet.on = True
+    try:
+        yield
+    finally:
+        _quiet.on = False
+
+
 def _tracked(obj) -> bool:
     table = getattr(obj, "__tablename__", None)
+    if table == "import_batches" and getattr(_quiet, "on", False):
+        return False
     return table is not None and table not in SKIP_TABLES
 
 

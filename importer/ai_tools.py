@@ -106,6 +106,29 @@ def classify_document(llm, text: str) -> tuple[str, float] | None:
     return res.data
 
 
+_RSU_SYSTEM = (
+    "You read an RSU grant notice (a restricted stock unit award agreement). Copy values exactly as they are "
+    "written in the document, character for character; do not reformat dates or numbers. Use \"\" for anything "
+    "the document does not say. vests: every scheduled vest, each with its date and number of units as written."
+)
+
+
+def read_rsu_grant(llm, text: str) -> dict | None:
+    vest = _obj({"date_as_written": _STR, "units_as_written": _STR})
+    schema = _obj({"company": _STR, "grant_number": _STR, "grant_date_as_written": _STR,
+                   "total_units_as_written": _STR, "vests": {"type": "array", "items": vest}})
+
+    def validate(raw):
+        if not isinstance(raw, dict) or not isinstance(raw.get("vests", []), list):
+            return None, ["answer with the JSON shape asked for"]
+        problems = [f"{v.get('date_as_written')!r} / {v.get('units_as_written')!r} is not copied from the document"
+                    for v in raw.get("vests") or [] if isinstance(v, dict)
+                    and not (str(v.get("date_as_written", "")) in text and str(v.get("units_as_written", "")) in text)]
+        return raw, problems
+
+    return run_tool(llm, "read_rsu_grant", _RSU_SYSTEM, "Document:\n" + text[:6000], schema, validate).data
+
+
 def _conf(v) -> float:
     try:
         return max(0.0, min(1.0, float(v)))

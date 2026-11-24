@@ -24,8 +24,8 @@ def create_rule():
     config = data.get("config") or {}
     schedule = data.get("schedule")
 
-    # Auto-build RSU vest schedule from config
-    if rule_type == "rsu" and config:
+    # Auto-build RSU vest schedule from config, unless the dates came from the grant document
+    if rule_type == "rsu" and config and not (config.get("schedule_source") == "document" and schedule):
         schedule = build_vest_schedule(
             config.get("grant_date", data.get("start_date", "")),
             config.get("total_shares", 0),
@@ -77,8 +77,13 @@ def update_rule(rule_id):
 
     data = request.get_json() or {}
 
-    # Re-build RSU schedule if config fields changed
-    if rule.rule_type == "rsu" and "config" in data:
+    # Re-build RSU schedule if config fields changed, unless the dates came from the grant document
+    from_document = ((rule.config or {}).get("schedule_source") == "document"
+                     and (data.get("config") or {}).get("schedule_source", "document") == "document")
+    if from_document and "config" in data:
+        data["config"] = {**(rule.config or {}), **data["config"], "schedule_source": "document"}
+        data.pop("schedule", None)
+    elif rule.rule_type == "rsu" and "config" in data:
         config = data["config"]
         data["schedule"] = build_vest_schedule(
             config.get("grant_date", rule.start_date),

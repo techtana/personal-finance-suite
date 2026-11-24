@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from datetime import datetime
 
 from flask import current_app
 
-from importer import ai_tools, documents, statements
+from importer import ai_tools, documents, equity, statements
 from importer.categorize import categorize
 from importer.core import REVIEW_FLAGS, Ctx, ImportFailure, Proposal
 from importer.extract import UnsupportedFile, load_document
@@ -121,7 +122,8 @@ def process_batch(batch_id: str) -> None:
         elif doc_type == "payslip":
             proposals = documents.from_payslip(doc.text, ctx, rules)
         elif doc_type == "equity":
-            raise ImportFailure(documents.EQUITY_MESSAGE)
+            stage("Reading the grant notice")
+            proposals = equity.from_grant_notice(doc.text, ctx, m.Rule.query.filter_by(rule_type="rsu").all())
         else:
             proposals = []
             ctx.warn("Couldn't tell whether this is a statement, a receipt or a pay stub. Pick the type above and "
@@ -189,6 +191,8 @@ def _to_row(p: Proposal, i: int):
     raw = {}
     if isinstance(p.raw, dict):
         raw = {k: v for k, v in p.raw.items() if k in ("cells", "line", "n", "fitid", "trntype")}
+        if p.raw.get("kind") == "rsu_grant":
+            raw = dict(p.raw)
     if p.explicit_account:
         raw["explicit_account"] = True
     return m.ImportRow(
@@ -201,6 +205,22 @@ def _to_row(p: Proposal, i: int):
 
 # ── review edits ───────────────────────────────────────────────────────────────
 
+def _update_grant_row(row, data: dict) -> None:
+    """A grant row: the ticker (never in the document), its name, and whether to import it."""
+    raw = dict(row.raw or {})
+    if "ticker" in data:
+        ticker = re.sub(r"[^A-Z0-9.\-]", "", str(data["ticker"] or "").upper())[:12]
+        raw["ticker"] = ticker
+    if "description" in data:
+        row.description = str(data["description"] or "")[:200] or row.description
+    if "action" in data:
+        if data["action"] not in ("import", "skip"):
+            raise CommitError("action must be import or skip")
+        row.action = data["action"]
+    row.raw = raw
+    row.user_edited = True
+
+
 def update_row(batch, row, data: dict) -> int:
     """Edit one row. Returns how many other rows from the same merchant took the new category too."""
     m = _models()
@@ -208,6 +228,11 @@ def update_row(batch, row, data: dict) -> int:
         raise CommitError("Rows can only be changed while the import is in review.", 409)
     allowed = allowed_categories(m.Category.query.all())
     also = 0
+    if row.target == "rsu_grant":
+        _update_grant_row(row, data)
+        refresh_matches(batch)
+        m.db.session.commit()
+        return also
     if "amount" in data:
         try:
             row.amount = int(data["amount"]) if data["amount"] is not None else None
@@ -325,7 +350,7 @@ def bulk_update(batch, rows, changes: dict) -> dict:
 # ── picking rows for the review screen ─────────────────────────────────────────
 
 ROW_FILTERS = ("all", "import", "review", "ai", "dup", "transfer", "skip")
-ROW_TARGETS = ("change_event", "snapshot", "rule")
+ROW_TARGETS = ("change_event", "snapshot", "rule", "rsu_grant")
 MAX_PAGE = 200
 
 
@@ -411,8 +436,8 @@ def prepare_reprocess(batch, *, doc_type=None, mapping=None, flip_signs=None) ->
         raise CommitError("Undo the import before re-reading the file.", 409)
     override = dict((batch.mapping or {}).get("override") or {})
     if doc_type:
-        if doc_type not in ("statement", "receipt", "payslip"):
-            raise CommitError("doc_type must be statement, receipt or payslip")
+        if doc_type not in ("statement", "receipt", "payslip", "equity"):
+            raise CommitError("doc_type must be statement, receipt, payslip or equity")
         batch.doc_type, batch.doc_type_forced = doc_type, True
     if mapping is not None:
         clean = {}
@@ -465,6 +490,28 @@ def commit_batch(batch, force: bool = False) -> dict:
             obj = m.Snapshot(entity_type="cash", entity_id=acct, date=r.date, value=r.amount,
                              note=f"Balance from {batch.filename}"[:500])
             key = "snapshots"
+        elif r.target == "rsu_grant":
+            g = r.raw or {}
+            if not g.get("ticker"):
+                raise CommitError("Enter the stock's ticker for the RSU grant (it isn't in the document).")
+            if not g.get("vests"):
+                bad.append(r)
+                continue
+            settings = m.Settings.query.first()
+            rule = m.Rule(
+                name=r.description, rule_type="rsu", start_date=g.get("grant_date") or r.date,
+                end_date=None, schedule=[{"date": v["date"], "shares": v["shares"]} for v in g["vests"]],
+                config={"ticker": g["ticker"], "total_shares": g.get("total_shares"), "grant_date": g.get("grant_date"),
+                        "grant_number": g.get("grant_number"), "company": g.get("company"), "price_at_grant": 0,
+                        "withholding_rate": settings.default_withholding_rate if settings else 2200,
+                        "schedule_source": "document"},
+                note=_note(r, batch),
+            )
+            db.session.add(rule)
+            db.session.flush()
+            r.created_id = rule.id
+            created["rules"].append(rule.id)
+            continue
         elif r.target == "rule":
             if not r.date or not r.amount or r.frequency not in FREQUENCIES:
                 bad.append(r)
@@ -533,7 +580,7 @@ def undo_batch(batch) -> dict:
     m = _models()
     if batch.status != "committed":
         raise CommitError("Only a committed import can be undone.", 409)
-    kinds = {"change_event": m.ChangeEvent, "snapshot": m.Snapshot, "rule": m.Rule}
+    kinds = {"change_event": m.ChangeEvent, "snapshot": m.Snapshot, "rule": m.Rule, "rsu_grant": m.Rule}
     removed = 0
     for r in batch.rows:
         if r.created_id and r.target in kinds:
@@ -572,6 +619,7 @@ def row_dict(r) -> dict:
         "confidence": r.confidence, "flags": r.flags or [], "match": r.match, "merchant_key": r.merchant_key,
         "note": r.note, "source": raw.get("cells") or raw.get("line"), "created_id": r.created_id,
         "needs_review": bool(set(r.flags or []) & REVIEW_FLAGS),
+        "grant": raw if r.target == "rsu_grant" else None,
     }
 
 

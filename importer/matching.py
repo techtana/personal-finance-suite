@@ -153,6 +153,14 @@ def refresh_matches(batch) -> int:
             if dup:
                 r.flags = r.flags + ["rule_exists"]
                 r.match = {"kind": "rule", "description": dup[0].name}
+        elif r.target == "rsu_grant":
+            number = (r.raw or {}).get("grant_number")
+            own = {x.created_id for x in rows if x.created_id}
+            dup = [x for x in Rule.query.filter_by(rule_type="rsu").all()
+                   if number and (x.config or {}).get("grant_number") == number and x.id not in own]
+            if dup:
+                r.flags = r.flags + ["duplicate"]
+                r.match = {"kind": "rule", "description": dup[0].name}
         elif r.target == "change_event" and r.raw and r.raw.get("explicit_account") and not r.account_id:
             r.flags = r.flags + ["pick_account"]
 

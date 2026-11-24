@@ -65,8 +65,8 @@ def upload():
     if account_id and not db.session.get(Account, account_id):
         return _error("unknown account")
     doc_type = request.form.get("doc_type") or None
-    if doc_type not in (None, "statement", "receipt", "payslip"):
-        return _error("doc_type must be statement, receipt or payslip")
+    if doc_type not in (None, "statement", "receipt", "payslip", "equity"):
+        return _error("doc_type must be statement, receipt, payslip or equity")
     max_bytes = current_app.config.get("IMPORT_MAX_FILE_MB", 20) * 1024 * 1024
     storage = current_app.config["IMPORT_STORAGE_DIR"]
     os.makedirs(storage, exist_ok=True)

@@ -112,9 +112,10 @@
                             <option value="statement">Statement or export</option>
                             <option value="receipt">Receipt</option>
                             <option value="payslip">Pay stub</option>
+                            <option value="equity">RSU grant notice</option>
                         </select>
                     </div>
-                    <div>
+                    <div x-show="batch.doc_type !== 'equity'">
                         <label for="rv-account" class="block text-xs text-gray-500 mb-1" x-text="batch.doc_type === 'payslip' ? 'Paid into' : (batch.doc_type === 'receipt' ? 'Paid with' : 'Account')"></label>
                         <select id="rv-account" :value="batch.account_id || ''" @change="changeAccount($event.target.value)" :disabled="locked()"
                                 class="px-3 py-1.5 border rounded-lg text-sm bg-white" :class="needsAccount() ? 'border-amber-400' : ''">
@@ -268,8 +269,61 @@
                 </div>
             </template>
 
+            <!-- RSU grant notice: what was read, the ticker to add, and the vest schedule -->
+            <template x-for="r in view.rsu_grant.rows" :key="r.id">
+                <div class="border rounded-lg p-4 text-sm space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <h4 class="font-semibold text-gray-900">Read from the RSU grant notice</h4>
+                        <label class="flex items-center gap-2 text-sm" x-show="batch.status === 'review'">
+                            <input type="checkbox" :checked="r.action === 'import'" @change="patchRow(r, { action: $event.target.checked ? 'import' : 'skip' })">
+                            Add to Plan
+                        </label>
+                    </div>
+                    <dl class="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1">
+                        <dt class="text-gray-500">Company</dt><dd x-text="r.grant.company || '—'"></dd>
+                        <dt class="text-gray-500">Grant number</dt><dd x-text="r.grant.grant_number || '—'"></dd>
+                        <dt class="text-gray-500">Grant date</dt><dd x-text="r.grant.grant_date || 'not found'"></dd>
+                        <dt class="text-gray-500">Units granted</dt><dd class="font-semibold" x-text="units(r.grant.total_shares)"></dd>
+                    </dl>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" x-show="batch.status === 'review'">
+                        <div>
+                            <label :for="'tk-' + r.id" class="block text-xs text-gray-500 mb-1">Ticker (not in the document)</label>
+                            <input :id="'tk-' + r.id" type="text" class="w-full px-3 py-1.5 border rounded-lg text-sm uppercase"
+                                   :class="r.grant.ticker ? '' : 'border-amber-400'" placeholder="e.g. MU" :value="r.grant.ticker || ''"
+                                   @change="patchRow(r, { ticker: $event.target.value })">
+                        </div>
+                        <div>
+                            <label :for="'nm-' + r.id" class="block text-xs text-gray-500 mb-1">Name in Plan</label>
+                            <input :id="'nm-' + r.id" type="text" class="w-full px-3 py-1.5 border rounded-lg text-sm" :value="r.description"
+                                   @change="patchRow(r, { description: $event.target.value })">
+                        </div>
+                    </div>
+                    <table class="min-w-full text-sm">
+                        <thead class="text-left text-gray-500"><tr><th class="py-1 pr-4 font-medium">Vest date</th><th class="py-1 font-medium text-right">Units</th></tr></thead>
+                        <tbody>
+                            <template x-for="v in r.grant.vests" :key="v.date">
+                                <tr><td class="py-0.5 pr-4" x-text="v.date"></td><td class="py-0.5 text-right" x-text="units(v.shares)"></td></tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <ul class="space-y-1">
+                        <template x-for="c in (batch.extracted || {}).checks || []" :key="c">
+                            <li class="text-xs" :class="c.startsWith('The vest quantities add up to the') ? 'text-green-700' : 'text-amber-700'" x-text="c"></li>
+                        </template>
+                        <li class="text-xs text-amber-700" x-show="(r.flags || []).includes('duplicate')" x-text="'This grant is already in your Plan as “' + ((r.match || {}).description || '') + '”, so it is unticked.'"></li>
+                        <li class="text-xs text-gray-500" x-show="(r.flags || []).includes('from_ai')">Some values were read by the AI and checked against the document's text.</li>
+                    </ul>
+                    <p class="text-xs text-gray-500">Import adds one RSU grant to Plan with these vest dates. Its value in the Forecast uses the ticker's price and your default withholding; you can change both in Plan. Undo removes it.</p>
+                    <div class="flex flex-wrap items-center justify-end gap-4 pt-1" x-show="batch.status === 'review'">
+                        <button type="button" @click="commit()" :disabled="busy || r.action !== 'import' || !r.grant.ticker"
+                                class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
+                                x-text="busy ? 'Importing…' : 'Add RSU grant to Plan'"></button>
+                    </div>
+                </div>
+            </template>
+
             <!-- Rows: fetched a page at a time per section, so a file with thousands of rows stays light -->
-            <template x-if="rowTotal() > 0">
+            <template x-if="rowTotal() > 0 && batch.doc_type !== 'equity'">
                 <div class="space-y-3">
                     <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Filter rows">
                         <template x-for="f in filters" :key="f.k">
@@ -472,7 +526,9 @@ const FLAGS = {
     card_balance:       { label: 'Card balance', cls: 'bg-gray-200 text-gray-700', title: 'A credit card balance is money owed, not cash, so it isn\'t recorded as an account balance.' },
     from_photo:         { label: 'From photo', cls: 'bg-purple-100 text-purple-800', title: 'Read from a photo by the local AI. Compare with the picture.' },
 };
-const TARGETS = ['change_event', 'snapshot', 'rule'];
+// rsu_grant rows are shown in their own card above the table, not as a section of it
+const TARGETS = ['change_event', 'snapshot', 'rule', 'rsu_grant'];
+const TABLE_TARGETS = ['change_event', 'snapshot', 'rule'];
 const TARGET_TITLES = { change_event: 'Transactions', snapshot: 'Account balance', rule: 'Suggested recurring rules' };
 function emptyView() { const v = {}; for (const t of TARGETS) v[t] = { rows: [], total: 0, offset: 0 }; return v; }
 const SOURCES = { learned: 'your earlier choice', keyword: 'matched a rule', bank: 'bank\'s category', ai: 'AI suggestion ·', document: 'read from the document', user: 'your choice' };
@@ -713,7 +769,7 @@ function importPage() {
 
         // ── view helpers ──────────────────────────────────────────────
         countFilter(k) { return (((this.batch && this.batch.row_counts) || {}).filters || {})[k] || 0; },
-        sections() { return TARGETS.map(t => ({ target: t, title: TARGET_TITLES[t], ...this.view[t] })).filter(s => s.rows.length); },
+        sections() { return TABLE_TARGETS.map(t => ({ target: t, title: TARGET_TITLES[t], ...this.view[t] })).filter(s => s.rows.length); },
         hasExplicitAccount(r) { return r.target === 'change_event' && ((r.flags || []).includes('pick_account') || (r.account_id && r.account_id !== this.batch.account_id)); },
         categoriesFor(r) { return (this.batch.categories || []).filter(c => !(r.amount < 0 && c.type === 'income')); },
         catLabel(slug) { const c = ((this.batch && this.batch.categories) || []).find(x => x.slug === slug); return c ? c.label : slug; },
@@ -736,6 +792,7 @@ function importPage() {
             if (n('change_event')) parts.push(n('change_event') + ' transaction' + (n('change_event') === 1 ? '' : 's'));
             if (n('snapshot')) parts.push('1 account balance');
             if (n('rule')) parts.push(n('rule') + ' recurring rule' + (n('rule') === 1 ? '' : 's'));
+            if (n('rsu_grant')) parts.push(n('rsu_grant') + ' RSU grant' + (n('rsu_grant') === 1 ? '' : 's'));
             return parts.length ? 'Will add ' + parts.join(', ') : 'Nothing ticked';
         },
         committedText() {
@@ -772,6 +829,7 @@ function importPage() {
             return b.counts.rows + ' row' + (b.counts.rows === 1 ? '' : 's') + (b.counts.needs_review ? ' · ' + b.counts.needs_review + ' to check' : '');
         },
         when(iso) { if (!iso) return ''; const d = new Date(iso + 'Z'); return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); },
+        units(milli) { if (milli === null || milli === undefined) return '—'; const u = milli / 1000; return u.toLocaleString(undefined, { maximumFractionDigits: 3 }); },
         money(c) { return (c === null || c === undefined) ? '—' : formatCurrency(c); },
         dollars(c) { return (c === null || c === undefined) ? '' : (c / 100).toFixed(2); },
     };
