@@ -12,6 +12,7 @@ migrate = Migrate()
 # table, so they are added here for databases created before the column existed.
 _ADDED_COLUMNS = [
     ("settings", "tax_profile", "JSON"),
+    ("settings", "backup_config", "JSON"),
     ("rules", "tax_treatment", "VARCHAR(30)"),
     ("change_events", "tax_treatment", "VARCHAR(30)"),
 ]
@@ -59,6 +60,10 @@ def create_app(config=None):
 
     from pages import pages_bp
     app.register_blueprint(pages_bp)
+
+    # Regular cloud backups (no-op when testing)
+    from backup import start_scheduler
+    start_scheduler(app)
 
     # Shell context for flask shell
     @app.shell_context_processor

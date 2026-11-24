@@ -37,21 +37,10 @@ flask db upgrade
 
 This creates the SQLite database at `instance/finance.db` with all 11 tables.
 
-### Step 4: Load Sample Data (Optional)
+### Step 4: Set Up Cloud Backups (Optional)
 
-```bash
-# Option A: Via API (while app is running)
-curl -X POST http://localhost:5000/api/seed
-
-# Option B: Via Flask shell
-flask shell
->>> from api.settings import seed_sample_data
->>> from app import create_app
->>> app = create_app()
->>> with app.app_context():
-...     seed_sample_data()
->>> exit()
-```
+Run `gcloud auth application-default login` once, then add your Google Cloud Storage bucket under
+**Settings → Backups**. See README.md for details.
 
 ### Step 5: Run the App
 
@@ -72,11 +61,10 @@ Go to **http://localhost:5000** and start exploring!
 
 ## What You Can Do Right Away
 
-### If You Loaded Sample Data:
+### In the App:
 1. **Dashboard**: See net worth cards, monthly cash flow, and upcoming events
-2. **Transactions**: Browse the sample monthly salary transaction
-3. **Timeline**: View the 5-year projection (with sample salary data)
-4. **Settings**: Export data as JSON or load a fresh sample dataset
+2. **Timeline**: View the 5-year projection
+3. **Settings**: Export data as JSON, manage backups and restore points, or clear all data
 
 ### Via API (Use curl or Postman):
 
@@ -115,10 +103,9 @@ curl -X POST http://localhost:5000/api/transactions/one-time \
 
 ### Add Your Own Data
 
-1. Go to **Settings** → **Load Sample Data** to clear existing data first
-2. Go to **Accounts** → **Add Account** and add your bank accounts
-3. Go to **Transactions** → **Add Transaction** for your income/expenses
-4. Go to **Timeline** to see your 5-year projection
+1. Go to **Accounts** → **Add Account** and add your bank accounts
+2. Go to **Transactions** → **Add Transaction** for your income/expenses
+3. Go to **Timeline** to see your 5-year projection
 
 ### Export/Backup Data
 
@@ -230,8 +217,7 @@ All code is in Python—no build step, no Node.js, no additional tools needed.
 
 1. Check **README.md** for detailed API reference
 2. Review **docs/SRD.md** for architecture and data format
-3. Try the **POST /api/seed** endpoint to load sample data
-4. Use **GET /api/export** to download all data as JSON (for debugging)
+3. Use **GET /api/export** to download all data as JSON (for debugging)
 
 ---
 

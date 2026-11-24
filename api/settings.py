@@ -16,6 +16,7 @@ from models import (
     AccountSnapshot,
 )
 from schemas import SettingsSchema, CategorySchema
+from backup import BackupError, backup_if_configured
 
 bp = Blueprint("api_settings", __name__)
 
@@ -241,6 +242,11 @@ def import_data():
         return jsonify({"error": f"invalid JSON: {str(e)}"}), 400
 
     try:
+        backup_if_configured("before-import")
+    except BackupError as e:
+        return jsonify({"error": f"Nothing was imported because the cloud backup failed: {e}"}), 502
+
+    try:
         db.session.query(AccountSnapshot).delete()
         db.session.query(ESPPPlan).delete()
         db.session.query(RSUGrant).delete()
@@ -283,79 +289,3 @@ def import_data():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"import failed: {str(e)}"}), 422
-
-
-@bp.route("/seed", methods=["POST"])
-def seed_sample_data():
-    db.session.query(AccountSnapshot).delete()
-    db.session.query(ESPPPlan).delete()
-    db.session.query(RSUGrant).delete()
-    db.session.query(BlanketExpense).delete()
-    db.session.query(RecurringTxn).delete()
-    db.session.query(OneTimeTxn).delete()
-    db.session.query(Loan).delete()
-    db.session.query(Account).delete()
-    db.session.query(Category).delete()
-
-    default_categories = [
-        {"slug": "salary", "label": "Salary", "type": "income", "color": "#10b981"},
-        {"slug": "bonus", "label": "Bonus", "type": "income", "color": "#06b6d4"},
-        {"slug": "equity", "label": "Equity", "type": "income", "color": "#8b5cf6"},
-        {"slug": "rent", "label": "Rent", "type": "expense", "color": "#ef4444"},
-        {"slug": "utilities", "label": "Utilities", "type": "expense", "color": "#f59e0b"},
-        {"slug": "groceries", "label": "Groceries", "type": "expense", "color": "#f97316"},
-        {"slug": "misc", "label": "Misc", "type": "expense", "color": "#6b7280"},
-        {"slug": "debt", "label": "Debt", "type": "expense", "color": "#dc2626"},
-    ]
-
-    for cat_data in default_categories:
-        db.session.add(Category(**cat_data))
-
-    accounts = [
-        Account(
-            name="Chase Checking",
-            type="checking",
-            institution="Chase",
-            currency="USD",
-            current_balance=1240000,
-            last_updated_date="2026-05-10",
-        ),
-        Account(
-            name="Fidelity Brokerage",
-            type="brokerage",
-            institution="Fidelity",
-            currency="USD",
-            current_balance=14280000,
-            last_updated_date="2026-05-10",
-        ),
-        Account(
-            name="401k",
-            type="retirement_401k",
-            institution="Employer",
-            currency="USD",
-            current_balance=45000000,
-            last_updated_date="2026-05-10",
-        ),
-    ]
-
-    for acc in accounts:
-        db.session.add(acc)
-
-    db.session.commit()
-
-    salary_account = Account.query.filter_by(name="Chase Checking").first()
-    if salary_account:
-        salary_txn = RecurringTxn(
-            type="income",
-            amount=1000000,
-            frequency="monthly",
-            start_date="2026-01-01",
-            category="salary",
-            account_id=salary_account.id,
-            note="Monthly salary",
-        )
-        db.session.add(salary_txn)
-
-    db.session.commit()
-
-    return jsonify({"message": "sample data loaded"}), 201
