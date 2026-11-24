@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 
-{% block title %}Settings - Personal Finance Suite{% endblock %}
 {% block page_title %}Settings{% endblock %}
 
 {% block content %}
@@ -10,10 +9,11 @@
 
     <!-- Tabs -->
     <div x-show="!loading" class="border-b border-gray-200">
-        <nav class="flex space-x-8">
+        <nav class="flex space-x-8 overflow-x-auto whitespace-nowrap">
             <button @click="tab='general'" :class="tab==='general' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">General</button>
             <button @click="tab='categories'" :class="tab==='categories' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">Categories</button>
             <button @click="tab='data'" :class="tab==='data' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">Data</button>
+            <button @click="tab='ai'" :class="tab==='ai' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'" class="px-1 py-4 font-medium text-sm">AI assistant</button>
         </nav>
     </div>
 
@@ -61,6 +61,20 @@
                         <div class="flex items-center">
                             <input x-model.number="withholdingPct" type="number" min="0" max="100" step="0.1" class="w-full px-4 py-2 border rounded-lg text-sm">
                             <span class="ml-2 text-gray-500">%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="border-t pt-5">
+                    <h4 class="font-semibold text-gray-900 mb-1">When Insights speaks up</h4>
+                    <p class="text-sm text-gray-500 mb-4">Limits used on the Insights page and the Overview attention list.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2" for="staleDays">A balance is stale after (days)</label>
+                            <input id="staleDays" x-model.number="staleDays" type="number" min="1" max="365" step="1" class="w-full px-4 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2" for="divPct">Net worth is off plan beyond (%)</label>
+                            <input id="divPct" x-model.number="divergencePct" type="number" min="0.1" max="100" step="0.1" class="w-full px-4 py-2 border rounded-lg text-sm">
                         </div>
                     </div>
                 </div>
@@ -122,17 +136,23 @@
 
                     <div class="p-4 border rounded-lg">
                         <h4 class="font-semibold text-gray-900 mb-2">Export Data</h4>
-                        <p class="text-sm text-gray-500 mb-3">Download all your financial data as JSON</p>
+                        <p class="text-sm text-gray-500 mb-3">One JSON file with everything: balances and their history, plan rules, one-off entries, share prices, categories and settings.</p>
                         <a href="/api/export" class="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 inline-block">Export as JSON</a>
                     </div>
 
                     <div class="p-4 border rounded-lg">
                         <h4 class="font-semibold text-gray-900 mb-2">Import Data</h4>
-                        <p class="text-sm text-gray-500 mb-3">Restore from a previously exported JSON file</p>
+                        <p class="text-sm text-gray-500 mb-3">Restore from an exported file. This replaces everything currently in the app. Older export files are converted automatically.</p>
                         <label class="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer inline-block">
                             Import JSON
                             <input type="file" accept=".json" class="hidden" @change="importData($event)">
                         </label>
+                    </div>
+
+                    <div class="p-4 border rounded-lg bg-amber-50 border-amber-200" x-show="legacyTotal > 0">
+                        <h4 class="font-semibold text-amber-900 mb-2">Entries in the old format</h4>
+                        <p class="text-sm text-amber-800 mb-3"><span x-text="legacyTotal"></span> entries were made with screens that no longer exist (old transactions, RSU grants, ESPP plans, reconciliations). They are not used by the Forecast until converted into Plan rules, one-off entries and recorded balances.</p>
+                        <button @click="convertLegacy()" class="px-4 py-2 text-sm bg-amber-600 text-white rounded hover:bg-amber-700">Convert them</button>
                     </div>
 
                     <div class="p-4 border rounded-lg bg-red-50 border-red-200">
@@ -142,6 +162,37 @@
                     </div>
 
                 </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- AI assistant -->
+    <template x-if="!loading && tab==='ai'">
+        <div class="bg-white rounded-lg shadow p-6 space-y-4">
+            <div class="flex items-center justify-between gap-3">
+                <h3 class="text-lg font-semibold text-gray-900">AI assistant</h3>
+                <span class="role-chip ai">AI</span>
+            </div>
+            <p class="text-sm text-gray-600">Optional. One model serves Import (reading files), Insights (Ask and Explain), list filters in words and Plan drafts. The app works fully without it.</p>
+            <div class="p-4 border rounded-lg" :class="$store.app.ai.ok ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'">
+                <p class="text-sm font-medium" x-text="$store.app.ai.ok ? 'Ready' : ($store.app.ai.enabled ? 'Configured but not reachable' : 'Turned off')"></p>
+                <p class="text-sm text-gray-600 mt-1" x-show="$store.app.ai.error" x-text="$store.app.ai.error"></p>
+                <dl class="text-sm text-gray-700 mt-3 grid grid-cols-[auto,1fr] gap-x-4 gap-y-1">
+                    <dt class="text-gray-500">Provider</dt><dd x-text="$store.app.ai.provider || 'off'"></dd>
+                    <dt class="text-gray-500">Model</dt><dd x-text="$store.app.ai.model || '—'"></dd>
+                    <dt class="text-gray-500">Address</dt><dd x-text="$store.app.ai.base_url || '—'"></dd>
+                    <dt class="text-gray-500">Data leaves this computer</dt><dd x-text="$store.app.ai.remote_allowed ? 'Allowed (LLM_ALLOW_REMOTE=1)' : 'No'"></dd>
+                </dl>
+            </div>
+            <div class="text-sm text-gray-600 space-y-2">
+                <p class="font-medium text-gray-900">What it can and cannot do</p>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li>It chooses which lookup answers a question and words the reply. The figures come from the app's own calculations, and a reply containing any other number is discarded.</li>
+                    <li>It never saves or changes data. Drafts open a form for you to check and save.</li>
+                    <li>Anything it produced is marked with the AI chip.</li>
+                </ul>
+                <p class="font-medium text-gray-900 pt-2">Changing it</p>
+                <p>Set these environment variables before starting the app, then restart: <code>LLM_PROVIDER</code> (<code>ollama</code>, <code>openai</code> for any OpenAI-compatible server, or <code>off</code>), <code>LLM_BASE_URL</code>, <code>LLM_MODEL</code>, <code>LLM_API_KEY</code>. A non-local address is refused unless <code>LLM_ALLOW_REMOTE=1</code>, because that sends your financial data to that service.</p>
             </div>
         </div>
     </template>
@@ -192,6 +243,9 @@ function settingsPage() {
         editingCatSlug: null,
         catForm: {},
         withholdingPct: 22,
+        staleDays: 35,
+        divergencePct: 5,
+        legacyTotal: 0,
 
         async init() {
             try {
@@ -199,6 +253,12 @@ function settingsPage() {
                 this.settings = s;
                 this.categories = cats;
                 this.withholdingPct = (s.default_withholding_rate / 100).toFixed(1);
+                const t = s.divergence_thresholds || {};
+                this.staleDays = t.stale_days || 35;
+                this.divergencePct = (t.net_worth_bps || 500) / 100;
+                this.legacyTotal = (await API.get('/legacy').catch(() => ({ total: 0 }))).total;
+                const wanted = new URLSearchParams(location.search).get('tab');
+                if (['general', 'categories', 'data', 'ai'].includes(wanted)) this.tab = wanted;
             } catch (e) {
                 showAlert('Failed to load: ' + e.message, 'error');
             } finally {
@@ -213,6 +273,9 @@ function settingsPage() {
                     locale: this.settings.locale,
                     fiscal_year_start_month: parseInt(this.settings.fiscal_year_start_month),
                     default_withholding_rate: Math.round(parseFloat(this.withholdingPct) * 100),
+                    divergence_thresholds: { ...(this.settings.divergence_thresholds || {}),
+                        stale_days: Math.max(1, parseInt(this.staleDays) || 35),
+                        net_worth_bps: Math.max(1, Math.round((parseFloat(this.divergencePct) || 5) * 100)) },
                 });
                 showAlert('Settings saved', 'success');
             } catch (e) {
@@ -257,9 +320,20 @@ function settingsPage() {
             }
         },
 
+        async convertLegacy() {
+            if (!confirm('Convert ' + this.legacyTotal + ' old-format entries into Plan rules, one-off entries and recorded balances? Export a backup first if you have not already.')) return;
+            try {
+                const r = await API.post('/legacy/convert', {});
+                const c = r.converted;
+                showAlert('Converted: ' + c.rules + ' rules, ' + c.change_events + ' entries, ' + c.snapshots + ' recorded balances', 'success');
+                this.legacyTotal = 0;
+            } catch (e) { showAlert('Conversion failed: ' + e.message, 'error'); }
+        },
+
         async importData(event) {
             const file = event.target.files[0];
             if (!file) return;
+            if (!confirm('Importing replaces everything currently in the app with the contents of ' + file.name + '. Continue?')) { event.target.value = ''; return; }
             try {
                 const text = await file.text();
                 const data = JSON.parse(text);

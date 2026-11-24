@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% import "_icons.html" as ic %}
+
+{% block content %}
+<div x-data="insightsPage()" x-init="init()" class="space-y-6 max-w-5xl" x-cloak>
+
+    <!-- ── Ask (AI, optional) ──────────────────────────────────────────────── -->
+    <section class="card ai p-5" x-show="$store.app.ai.loaded">
+        <div class="section-head">
+            <div>
+                <h3>Ask about your numbers</h3>
+                <p x-show="$store.app.ai.ok">The model picks a lookup; the figures come from your own records. It cannot change anything.</p>
+                <p x-show="!$store.app.ai.ok" x-text="'The assistant is off or unreachable. ' + ($store.app.ai.error || '') + ' The rest of the app works without it.'"></p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="role-chip ai">AI</span>
+                <span class="text-xs text-gray-500" x-show="$store.app.ai.ok" x-text="$store.app.ai.model"></span>
+                <a class="btn btn-ghost btn-sm" href="/settings?tab=ai">Settings</a>
+            </div>
+        </div>
+        <div x-show="$store.app.ai.ok">
+            <div class="flex flex-wrap gap-2">
+                <input type="text" class="field" style="flex:1 1 280px;width:auto" x-model="question" @keydown.enter="ask()"
+                       placeholder="e.g. When does my net worth reach $1,000,000?" aria-label="Your question">
+                <button type="button" class="btn btn-ai" :disabled="asking || !question.trim()" @click="ask()" x-text="asking ? 'Looking it up…' : 'Ask'"></button>
+            </div>
+            <div class="flex flex-wrap gap-2 mt-2">
+                <template x-for="s in suggestions" :key="s">
+                    <button type="button" class="badge hover:bg-fuchsia-100" @click="question = s; ask()" x-text="s"></button>
+                </template>
+            </div>
+            <p class="text-sm text-red-600 mt-3" x-show="askError" x-text="askError"></p>
+            <div class="mt-4 bg-white rounded-lg border border-fuchsia-100 p-4" x-show="answer">
+                <p class="text-sm text-gray-900 whitespace-pre-line" x-text="answer ? answer.answer : ''"></p>
+                <p class="text-xs text-gray-500 mt-1" x-show="answer && !answer.worded_by_ai">Shown as raw figures: the model's own wording was not used.</p>
+                <details class="mt-3" x-show="answer && answer.worded_by_ai">
+                    <summary class="text-xs text-gray-500 cursor-pointer">Figures this answer is based on</summary>
+                    <ul class="mt-2 text-xs text-gray-600 space-y-0.5">
+                        <template x-for="f in (answer ? answer.facts : [])" :key="f.label"><li><span x-text="f.label"></span>: <strong x-text="f.value"></strong></li></template>
+                    </ul>
+                </details>
+                <a class="text-xs text-blue-600 hover:underline mt-3 inline-block" :href="answer ? answer.href : '#'">See it in the app →</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Insights ────────────────────────────────────────────────────────── -->
+    <section>
+        {% call ui.section("What stands out", "guidance", "Checked against your own inputs each time you open this page.") %}
+            <a class="btn btn-ghost btn-sm" href="/forecast">Try a what-if →</a>
+        {% endcall %}
+        {{ ui.toolbar("list", "insights", "shown", filters=[("severity", "levels"), ("source", "areas")], placeholder="Search insights", noun="insights") }}
+
+        <div x-show="loading" class="space-y-3 mt-3" aria-busy="true" aria-label="Checking your data"><template x-for="i in 3"><div class="card guidance p-4"><div class="skeleton sk-line" style="width:20%"></div><div class="skeleton sk-line mt-3" style="width:65%"></div><div class="skeleton sk-line mt-2" style="width:90%"></div></div></template></div>
+        <div class="space-y-3 mt-3">
+            <template x-for="i in shown" :key="i.id">
+                <article class="card guidance p-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div class="min-w-0" style="flex:1 1 320px">
+                            <p class="flex items-center gap-2">
+                                <span class="badge" :class="{attention:'stale', good:'fresh'}[i.severity] || ''" x-text="{attention:'Needs attention', info:'For your information', good:'All good'}[i.severity]"></span>
+                                <span class="text-xs text-gray-500" x-text="titleCase(i.source)"></span>
+                            </p>
+                            <h4 class="text-sm font-semibold text-gray-900 mt-1.5" x-text="i.title"></h4>
+                            <p class="text-sm text-gray-600 mt-0.5" x-text="i.detail"></p>
+                            <p class="text-xs text-gray-500 mt-1.5"><span class="font-medium">Based on:</span> <span x-text="i.basis"></span></p>
+                            <div class="mt-2 text-sm text-gray-700 bg-fuchsia-50 border border-dashed border-fuchsia-300 rounded-lg p-3" x-show="explained[i.id]">
+                                <span class="role-chip ai">AI</span> <span x-text="explained[i.id]"></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" class="btn btn-ai btn-sm" x-show="$store.app.ai.ok && !explained[i.id]" :disabled="explaining === i.id" @click="explain(i)"
+                                    x-text="explaining === i.id ? 'Explaining…' : 'Explain'"></button>
+                            <a class="btn btn-guidance btn-sm" :href="i.action.href" x-text="i.action.label"></a>
+                        </div>
+                    </div>
+                </article>
+            </template>
+            <div class="card p-8 text-center text-gray-500 text-sm" x-show="!loading && shown.length === 0"
+                 x-text="insights.length ? 'No insights match these filters.' : 'Nothing to report yet. Insights appear once you have balances and a plan.'"></div>
+        </div>
+        <p class="text-xs text-gray-500 mt-4">These are observations about your own entries, not financial advice. Limits for "stale" and "off plan" are set in <a class="text-blue-600 hover:underline" href="/settings">Settings</a>.</p>
+    </section>
+</div>
+
+<script>
+function insightsPage() {
+    return {
+        loading: true, insights: [], list: null,
+        question: '', asking: false, askError: '', answer: null,
+        explaining: null, explained: {},
+        suggestions: ['What is my net worth today?', 'How much do I plan to spend in the next 3 months?', 'When are my loans paid off?', 'What does next month look like?'],
+
+        get shown() { return this.list ? this.list.apply(this.insights) : []; },
+
+        async init() {
+            this.list = makeList({ search: i => [i.title, i.detail, i.basis].join(' '), filters: { severity: i => i.severity, source: i => i.source } });
+            this.list.read();
+            try { this.insights = (await API.get('/insights')).insights || []; }
+            catch (e) { showAlert('Could not load insights: ' + e.message, 'error'); }
+            this.loading = false;
+        },
+        async ask() {
+            if (!this.question.trim() || this.asking) return;
+            this.asking = true; this.askError = ''; this.answer = null;
+            try { this.answer = await API.post('/assistant/ask', { question: this.question }); }
+            catch (e) { this.askError = e.message; }
+            finally { this.asking = false; }
+        },
+        async explain(i) {
+            this.explaining = i.id;
+            try {
+                const r = await API.post('/assistant/explain', { title: i.title, detail: i.detail, basis: i.basis });
+                this.explained = { ...this.explained, [i.id]: r.explanation || r.error || 'No explanation available.' };
+            } catch (e) { showAlert(e.message, 'warning'); }
+            finally { this.explaining = null; }
+        },
+    };
+}
+</script>
+{% endblock %}

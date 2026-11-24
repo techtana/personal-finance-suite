@@ -1,0 +1,631 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% import "_icons.html" as ic %}
+
+{% block content %}
+<div x-data="balancesPage()" x-init="init()" class="space-y-6" x-cloak>
+
+    <!-- Tabs -->
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200">
+        <div class="flex gap-6" role="tablist">
+            <button type="button" role="tab" :aria-selected="tab==='balances'" @click="setTab('balances')" class="pb-3 text-sm font-medium"
+                    :class="tab==='balances' ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-500 hover:text-gray-800'">Accounts, assets and liabilities</button>
+            <button type="button" role="tab" :aria-selected="tab==='prices'" @click="setTab('prices')" class="pb-3 text-sm font-medium"
+                    :class="tab==='prices' ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-500 hover:text-gray-800'">
+                Share prices <span class="badge stale ml-1" x-show="missingPrices.length" x-text="missingPrices.length + ' missing'"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ══ Balances tab ═══════════════════════════════════════════════════════ -->
+    <div x-show="tab==='balances'" class="space-y-6">
+
+        <!-- Totals: computed from the rows below -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+<div class="card view kpi">
+    <div class="kpi-top"><p class="kpi-label">Cash</p><span class="kpi-icon">{{ ic.icon("cash") }}</span></div>
+    <p class="kpi-value" x-text="fmtWhole(totals.cash)"></p>
+    
+</div>
+<div class="card view kpi">
+    <div class="kpi-top"><p class="kpi-label">Assets</p><span class="kpi-icon">{{ ic.icon("asset") }}</span></div>
+    <p class="kpi-value" x-text="fmtWhole(totals.assets)"></p>
+    
+</div>
+<div class="card view kpi">
+    <div class="kpi-top"><p class="kpi-label">Liabilities</p><span class="kpi-icon">{{ ic.icon("liability") }}</span></div>
+    <p class="kpi-value text-red-600" x-text="fmtWhole(totals.liabilities)"></p>
+    
+</div>
+<div class="card view kpi">
+    <div class="kpi-top"><p class="kpi-label">Net worth</p><span class="kpi-icon">{{ ic.icon("net-worth") }}</span></div>
+    <p class="kpi-value" :class="totals.net_worth < 0 ? 'text-red-600' : ''" x-text="fmtWhole(totals.net_worth)"></p>
+    
+</div>
+        </div>
+
+        <!-- Monthly check-in prompt -->
+        <div class="card manage p-4 flex flex-wrap items-center justify-between gap-3" x-show="rows.length">
+            <div>
+                <p class="text-sm font-semibold text-gray-900"
+                   x-text="staleRows.length ? staleRows.length + ' of ' + rows.length + ' not updated in ' + staleDays + '+ days' : 'Everything was updated in the last ' + staleDays + ' days'"></p>
+                <p class="text-xs text-gray-500">The check-in walks through each one and asks for today's value. Takes a few minutes.</p>
+            </div>
+            <div class="flex gap-2">
+                <button type="button" class="btn btn-primary" x-show="staleRows.length" @click="startCheckin(staleRows)">Update the stale ones</button>
+                <button type="button" class="btn btn-soft" @click="startCheckin(rows)">Check in on all</button>
+            </div>
+        </div>
+
+        <section>
+            {% call ui.section("What you have and owe", "manage", "One row per account, asset or liability. Record a new value whenever it changes.") %}
+                <div class="relative" x-data="{open:false}" @click.outside="open=false">
+                    <button type="button" class="btn btn-primary" @click="open=!open" aria-haspopup="menu" :aria-expanded="open">+ Add</button>
+                    <div x-show="open" class="absolute right-0 mt-1 w-48 card p-1 z-20" role="menu">
+                        <button type="button" role="menuitem" class="btn btn-ghost w-full justify-start" @click="open=false; openEntity('cash')">Cash account</button>
+                        <button type="button" role="menuitem" class="btn btn-ghost w-full justify-start" @click="open=false; openEntity('asset')">Asset</button>
+                        <button type="button" role="menuitem" class="btn btn-ghost w-full justify-start" @click="open=false; openEntity('liability')">Liability</button>
+                    </div>
+                </div>
+            {% endcall %}
+            {{ ui.toolbar("list", "rows", "shown", filters=[("type", "types"), ("kind", "kinds"), ("freshness", "freshness")], amount=true, placeholder="Search by name or institution", noun="rows") }}
+
+            <div class="card manage mt-3 overflow-x-auto">
+                <div x-show="loading" class="p-4 space-y-3" aria-busy="true" aria-label="Loading balances"><template x-for="i in 4"><div class="flex items-center gap-4"><div class="skeleton sk-line" style="width:60px"></div><div class="skeleton sk-line flex-1"></div><div class="skeleton sk-line" style="width:90px"></div></div></template></div>
+                <table class="data stack" x-show="!loading">
+                    <thead><tr>
+                        {{ ui.th("list", "type", "Type") }}
+                        {{ ui.th("list", "name", "Name") }}
+                        {{ ui.th("list", "value", "Current value", num=true) }}
+                        {{ ui.th("list", "updated", "Last updated") }}
+                        <th scope="col">Trend</th>
+                        <th scope="col"><span class="sr-only">Actions</span></th>
+                    </tr></thead>
+                    <tbody>
+                        <template x-for="r in shown" :key="r.entity_type + r.id">
+                            <tr>
+                                <td data-label="Type"><span class="badge" :class="r.entity_type" x-text="typeLabel(r.entity_type)"></span></td>
+                                <td class="cell-title">
+                                    <p class="font-medium text-gray-900" x-text="r.name"></p>
+                                    <p class="text-xs text-gray-500" x-text="[r.institution, titleCase(r.kind)].filter(Boolean).join(' · ')"></p>
+                                </td>
+                                <td class="num" data-label="Current value">
+                                    <template x-if="editing !== r.entity_type + r.id">
+                                        <span class="font-semibold" :class="r.entity_type==='liability' ? 'text-red-600' : 'text-gray-900'"
+                                              x-text="(r.entity_type==='liability' ? '−' : '') + fmt(r.value)"></span>
+                                    </template>
+                                    <template x-if="editing === r.entity_type + r.id">
+                                        <span class="inline-flex flex-wrap justify-end items-center gap-1">
+                                            <input type="number" step="0.01" min="0" class="field" style="width:120px;text-align:right" x-model="editValue"
+                                                   :aria-label="'New value for ' + r.name" @keydown.enter="saveInline(r)" @keydown.escape="editing=null" x-init="$nextTick(() => $el.select())">
+                                            <input type="date" class="field" style="width:135px" x-model="editDate" :max="today" aria-label="As of date">
+                                        </span>
+                                    </template>
+                                </td>
+                                <td class="whitespace-nowrap" data-label="Last updated">
+                                    <span class="text-gray-500" x-text="r.last_updated || 'never'"></span>
+                                    <span class="badge ml-1" :class="r.stale ? 'stale' : 'fresh'" x-text="r.days_since === null ? 'never recorded' : (r.days_since === 0 ? 'today' : r.days_since + 'd ago')"></span>
+                                </td>
+                                <td class="cell-hide-sm">
+                                    <svg x-show="r.spark.length >= 2" width="90" height="24" viewBox="0 0 90 24" preserveAspectRatio="none" role="img" :aria-label="'Trend of ' + r.name">
+                                        <polyline :points="spark(r.spark)" fill="none" stroke="#64748b" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
+                                    </svg>
+                                </td>
+                                <td class="num whitespace-nowrap cell-actions">
+                                    <template x-if="editing !== r.entity_type + r.id">
+                                        <span>
+                                            <button type="button" class="btn btn-primary btn-sm" @click="startInline(r)">Update value</button>
+                                            <button type="button" class="btn btn-soft btn-sm" @click="openHistory(r)">History</button>
+                                            <button type="button" class="btn btn-soft btn-sm" @click="openEntity(r.entity_type, r)">Edit</button>
+                                            <button type="button" class="btn btn-soft btn-sm" x-show="r.entity_type==='asset'" @click="openEvents(r)">Events</button>
+                                            <button type="button" class="btn btn-danger btn-sm" @click="deleteEntity(r)">Delete</button>
+                                        </span>
+                                    </template>
+                                    <template x-if="editing === r.entity_type + r.id">
+                                        <span>
+                                            <button type="button" class="btn btn-primary btn-sm" :disabled="saving" @click="saveInline(r)">Save</button>
+                                            <button type="button" class="btn btn-ghost btn-sm" @click="editing=null">Cancel</button>
+                                        </span>
+                                    </template>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="!loading && shown.length === 0">
+                            <td colspan="6" class="text-center text-gray-500 py-8">
+                                <span x-show="rows.length">No rows match these filters.</span>
+                                <span x-show="!rows.length">Nothing here yet. Add your main bank account first, or
+                                    <button type="button" class="text-blue-600 hover:underline" @click="loadSample()">load sample data</button> to look around.</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot x-show="shown.length && list.active() > 0">
+                        <tr><td colspan="2" class="px-4 py-2 text-xs text-gray-500">Net of rows shown</td>
+                            <td class="num px-4 py-2 font-semibold" x-text="fmt(shown.reduce((s, r) => s + r.signed_value, 0))"></td><td colspan="3"></td></tr>
+                    </tfoot>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- ══ Share prices tab ═══════════════════════════════════════════════════ -->
+    <div x-show="tab==='prices'" class="space-y-6">
+        <section x-show="missingPrices.length">
+            {{ ui.section("Prices that are missing", "manage", "Needed to value vests and purchases on Then vs. Now. Until filled in, those values are estimated from the nearest price on file.") }}
+            <div class="card manage overflow-x-auto">
+                <table class="data stack">
+                    <thead><tr><th>Ticker</th><th>Date</th><th>Needed for</th><th class="num">Price ($ per share)</th></tr></thead>
+                    <tbody>
+                        <template x-for="(m, i) in missingPrices" :key="m.ticker + m.date">
+                            <tr>
+                                <td class="font-semibold cell-title" x-text="m.ticker"></td><td data-label="Date" x-text="m.date"></td><td class="text-gray-500" data-label="Needed for" x-text="m.reason"></td>
+                                <td class="num" data-label="Price ($)"><input type="number" step="0.01" min="0" class="field" style="width:130px;text-align:right" placeholder="0.00" x-model="m.input" :aria-label="'Price for ' + m.ticker + ' on ' + m.date"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <div class="p-3 text-right"><button type="button" class="btn btn-primary" @click="saveMissing()">Save prices</button></div>
+            </div>
+        </section>
+
+        <section>
+            {{ ui.section("Stored share prices", "manage", "Entered by hand. The latest price per ticker values future RSU vests in the Forecast.") }}
+            <div class="card manage p-4 mb-3 flex flex-wrap items-end gap-3">
+                <div><label class="field-label" for="npT">Ticker</label><input id="npT" class="field uppercase" style="width:110px" x-model="newPrice.ticker" placeholder="AAPL"></div>
+                <div><label class="field-label" for="npD">Date</label><input id="npD" type="date" class="field" x-model="newPrice.date" :max="today"></div>
+                <div><label class="field-label" for="npP">Price ($)</label><input id="npP" type="number" step="0.01" min="0" class="field" style="width:130px" x-model="newPrice.price" @keydown.enter="addPrice()"></div>
+                <button type="button" class="btn btn-primary" @click="addPrice()">Add price</button>
+            </div>
+            {{ ui.toolbar("priceList", "prices", "shownPrices", filters=[("ticker", "tickers")], date=true, placeholder="Search ticker", noun="prices") }}
+            <div class="card manage mt-3 overflow-x-auto">
+                <table class="data stack">
+                    <thead><tr>
+                        {{ ui.th("priceList", "ticker", "Ticker") }}
+                        {{ ui.th("priceList", "date", "Date") }}
+                        {{ ui.th("priceList", "price", "Price", num=true) }}
+                        <th><span class="sr-only">Actions</span></th>
+                    </tr></thead>
+                    <tbody>
+                        <template x-for="p in shownPrices" :key="p.id">
+                            <tr><td class="font-semibold cell-title" x-text="p.ticker"></td><td data-label="Date" x-text="p.date"></td><td class="num" data-label="Price" x-text="'$' + (p.price/100).toFixed(2)"></td>
+                                <td class="num cell-actions"><button type="button" class="btn btn-danger btn-sm" @click="deletePrice(p)">Delete</button></td></tr>
+                        </template>
+                        <tr x-show="shownPrices.length === 0"><td colspan="4" class="text-center text-gray-500 py-8" x-text="prices.length ? 'No prices match these filters.' : 'No prices stored yet.'"></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- ── Check-in ────────────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" x-show="checkin.open" @keydown.escape.window="checkin.open=false">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ciTitle">
+            <template x-if="checkin.open && checkin.i < checkin.queue.length">
+                <div>
+                    <p class="text-xs text-gray-500 mb-1" x-text="'Check-in · ' + (checkin.i + 1) + ' of ' + checkin.queue.length"></p>
+                    <div class="h-1.5 bg-gray-100 rounded-full mb-4"><div class="h-1.5 bg-blue-600 rounded-full" :style="'width:' + (checkin.i / checkin.queue.length * 100) + '%'"></div></div>
+                    <h3 id="ciTitle" x-text="ciRow.name"></h3>
+                    <p class="text-sm text-gray-500 -mt-2 mb-4">
+                        <span class="badge" :class="ciRow.entity_type" x-text="typeLabel(ciRow.entity_type)"></span>
+                        Last recorded <strong x-text="fmt(ciRow.value)"></strong> <span x-text="ciRow.last_updated ? 'on ' + ciRow.last_updated : '(never)'"></span>
+                    </p>
+                    <label class="field-label" for="ciVal" x-text="ciRow.entity_type==='liability' ? 'Amount owed today ($)' : 'Value today ($)'"></label>
+                    <input id="ciVal" type="number" step="0.01" min="0" class="field" style="font-size:18px;padding:10px 12px" x-model="checkin.value"
+                           @keydown.enter="ciSave()" x-effect="checkin.i; $nextTick(() => $el.select())">
+                    <div class="modal-actions" style="justify-content:space-between">
+                        <button type="button" class="btn btn-ghost" @click="checkin.open=false">Stop here</button>
+                        <span class="flex gap-2">
+                            <button type="button" class="btn btn-ghost" @click="ciNext()">Skip</button>
+                            <button type="button" class="btn btn-soft" :disabled="saving" @click="checkin.value=(ciRow.value/100).toFixed(2); ciSave()">Unchanged</button>
+                            <button type="button" class="btn btn-primary" :disabled="saving" @click="ciSave()">Save and next</button>
+                        </span>
+                    </div>
+                </div>
+            </template>
+            <template x-if="checkin.open && checkin.i >= checkin.queue.length">
+                <div>
+                    <h3 id="ciTitle">Check-in done</h3>
+                    <p class="text-sm text-gray-600" x-text="checkin.saved + ' updated, ' + (checkin.queue.length - checkin.saved) + ' skipped. Net worth is now ' + fmt(totals.net_worth) + '.'"></p>
+                    <div class="modal-actions">
+                        <a class="btn btn-ghost" href="/insights">See insights</a>
+                        <button type="button" class="btn btn-primary" @click="checkin.open=false">Close</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- ── Add / edit entity ───────────────────────────────────────────────── -->
+    <div class="modal-backdrop" x-show="form.open" @click.self="form.open=false" @keydown.escape.window="form.open=false">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="entTitle">
+            <h3 id="entTitle" x-text="(form.id ? 'Edit ' : 'Add ') + typeLabel(form.type).toLowerCase()"></h3>
+            <div class="space-y-3">
+                <div><label class="field-label" for="eName">Name</label><input id="eName" class="field" x-model="form.d.name" :placeholder="{cash:'e.g. Everyday Checking', asset:'e.g. Index Fund', liability:'e.g. Mortgage'}[form.type]"></div>
+
+                <template x-if="form.type==='cash'">
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="field-label">Type</label>
+                                <select class="field" x-model="form.d.type">
+                                    <template x-for="o in [['checking','Checking'],['savings','Savings'],['brokerage','Brokerage'],['retirement_401k','401(k)'],['retirement_ira','IRA'],['credit_card','Credit card'],['other','Other']]" :key="o[0]"><option :value="o[0]" :selected="o[0]===form.d.type" x-text="o[1]"></option></template>
+                                </select></div>
+                            <div><label class="field-label">Institution</label><input class="field" x-model="form.d.institution" placeholder="e.g. Example Bank"></div>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="form.type==='asset'">
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="field-label">Category</label>
+                                <select class="field" x-model="form.d.category">
+                                    <optgroup label="Investments"><template x-for="o in ['stock','etf','bond','treasury','reit','private_equity']" :key="o"><option :value="o" :selected="o===form.d.category" x-text="titleCase(o)"></option></template></optgroup>
+                                    <optgroup label="Real estate"><option value="property" :selected="form.d.category==='property'">Property</option></optgroup>
+                                    <optgroup label="Tangible"><template x-for="o in ['vehicle','crypto','collectible','art','jewelry','other']" :key="o"><option :value="o" :selected="o===form.d.category" x-text="titleCase(o)"></option></template></optgroup>
+                                </select></div>
+                            <div><label class="field-label">Ticker (optional)</label><input class="field uppercase" x-model="form.d.ticker" placeholder="AAPL"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="field-label">Quantity / units (optional)</label><input type="number" step="0.0001" class="field" x-model="form.d.quantity"></div>
+                            <div><label class="field-label">Cost basis ($, optional)</label><input type="number" step="0.01" class="field" x-model="form.d.cost_basis_dollars"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="field-label">Acquired date (optional)</label><input type="date" class="field" x-model="form.d.acquired_date"></div>
+                            <div><label class="field-label">Decided date (optional)</label><input type="date" class="field" x-model="form.d.decided_date">
+                                <p class="field-hint">The day you agreed to buy, if earlier. Used by Then vs. Now.</p></div>
+                        </div>
+                        <div x-show="form.d.category==='property'" class="grid grid-cols-2 gap-3">
+                            <div><label class="field-label">Address (optional)</label><input class="field" x-model="form.d.address"></div>
+                            <div><label class="field-label">Linked liability (optional)</label>
+                                <select class="field" x-model="form.d.linked_loan_id"><option value="">None</option>
+                                    <template x-for="l in rows.filter(r => r.entity_type==='liability')" :key="l.id"><option :value="l.id" :selected="l.id===form.d.linked_loan_id" x-text="l.name"></option></template>
+                                </select></div>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="form.type==='liability'">
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="field-label">Type</label>
+                                <select class="field" x-model="form.d.type"><template x-for="o in ['mortgage','auto','student','personal','heloc','other']" :key="o"><option :value="o" :selected="o===form.d.type" x-text="o==='heloc' ? 'HELOC' : titleCase(o)"></option></template></select></div>
+                            <div><label class="field-label">Lender</label><input class="field" x-model="form.d.institution"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="field-label">Original balance ($)</label><input type="number" step="0.01" min="0" class="field" x-model="form.d.original_balance_dollars"></div>
+                            <div><label class="field-label">Interest rate (%)</label><input type="number" step="0.001" min="0" class="field" x-model="form.d.rate_pct" placeholder="6.875"></div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div><label class="field-label">Monthly payment ($)</label><input type="number" step="0.01" min="0" class="field" x-model="form.d.monthly_payment_dollars"></div>
+                            <div><label class="field-label">Start date</label><input type="date" class="field" x-model="form.d.start_date"></div>
+                            <div><label class="field-label">Payoff date</label><input type="date" class="field" x-model="form.d.payoff_date"></div>
+                        </div>
+                        <p class="field-hint">The monthly payment appears in the Forecast as an expense until the payoff date.</p>
+                    </div>
+                </template>
+
+                <div x-show="!form.id">
+                    <label class="field-label" for="eVal" x-text="form.type==='liability' ? 'Amount owed today ($)' : 'Value today ($)'"></label>
+                    <input id="eVal" type="number" step="0.01" min="0" class="field" x-model="form.d.value_dollars" placeholder="0.00">
+                </div>
+                <p class="field-hint" x-show="form.id">To change the current value, close this and use “Update value” so the change is kept in its history.</p>
+                <div><label class="field-label">Note (optional)</label><input class="field" x-model="form.d.note"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" @click="form.open=false">Cancel</button>
+                <button type="button" class="btn btn-primary" :disabled="saving" @click="saveEntity()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── History ─────────────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" x-show="hist.open" @click.self="closeHistory()" @keydown.escape.window="closeHistory()">
+        <div class="modal" style="max-width:640px" role="dialog" aria-modal="true" aria-labelledby="histTitle">
+            <h3 id="histTitle" x-text="'Recorded values · ' + (hist.row ? hist.row.name : '')"></h3>
+            <div x-show="hist.snaps.length >= 2" class="chart-box short mb-4"><canvas id="histChart" role="img" :aria-label="'Recorded values of ' + (hist.row ? hist.row.name : '')"></canvas></div>
+            <div class="card manage p-3 mb-3 flex flex-wrap items-end gap-3">
+                <div><label class="field-label" for="hD">Date</label><input id="hD" type="date" class="field" x-model="hist.date" :max="today"></div>
+                <div><label class="field-label" for="hV">Value ($)</label><input id="hV" type="number" step="0.01" min="0" class="field" style="width:140px" x-model="hist.value" @keydown.enter="saveHistory()"></div>
+                <div style="flex:1 1 120px"><label class="field-label" for="hN">Note (optional)</label><input id="hN" class="field" x-model="hist.note"></div>
+                <button type="button" class="btn btn-primary" :disabled="saving" @click="saveHistory()" x-text="hist.editId ? 'Save change' : 'Add record'"></button>
+                <button type="button" class="btn btn-ghost" x-show="hist.editId" @click="resetHistForm()">Cancel</button>
+            </div>
+            <div class="sm:overflow-y-auto sm:max-h-[260px]">
+                <table class="data stack">
+                    <thead><tr><th>Date</th><th class="num">Value</th><th class="num">Change</th><th>Note</th><th></th></tr></thead>
+                    <tbody>
+                        <template x-for="(s, i) in hist.snaps" :key="s.id">
+                            <tr>
+                                <td class="cell-title" x-text="s.date"></td><td class="num font-medium" data-label="Value" x-text="fmt(s.value)"></td>
+                                <td class="num text-gray-500" data-label="Change" x-text="i < hist.snaps.length - 1 ? fmtSigned(s.value - hist.snaps[i+1].value) : '—'"></td>
+                                <td class="text-gray-500 text-xs" data-label="Note" x-text="s.note || '—'"></td>
+                                <td class="num whitespace-nowrap cell-actions">
+                                    <button type="button" class="btn btn-soft btn-sm" @click="editSnap(s)">Edit</button>
+                                    <button type="button" class="btn btn-danger btn-sm" @click="deleteSnap(s)">Delete</button>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="hist.snaps.length === 0"><td colspan="5" class="text-center text-gray-500 py-6">No values recorded yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-actions"><button type="button" class="btn btn-ghost" @click="closeHistory()">Close</button></div>
+        </div>
+    </div>
+
+    <!-- ── Scheduled asset events ──────────────────────────────────────────── -->
+    <div class="modal-backdrop" x-show="ev.open" @click.self="ev.open=false" @keydown.escape.window="ev.open=false">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="evTitle">
+            <h3 id="evTitle" x-text="'Planned buys and sells · ' + (ev.asset ? ev.asset.name : '')"></h3>
+            <p class="text-xs text-gray-500 -mt-2 mb-3">Future purchases or sales of this asset. Sales feed the Taxes estimate.</p>
+            <div class="card manage p-3 mb-3 space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="field-label">Date</label><input type="date" class="field" x-model="ev.f.date"></div>
+                    <div><label class="field-label">Event</label><select class="field" x-model="ev.f.type"><option value="acquire">Buy or receive</option><option value="dispose">Sell</option></select></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="field-label">Value ($)</label><input type="number" step="0.01" min="0" class="field" x-model="ev.f.value_dollars"></div>
+                    <div x-show="ev.f.type==='acquire'"><label class="field-label">Paid with</label><select class="field" x-model="ev.f.funding"><option value="cash">Cash</option><option value="liability">New liability</option><option value="free">Received free</option></select></div>
+                </div>
+                <div class="flex items-end gap-3">
+                    <div style="flex:1"><label class="field-label">Note (optional)</label><input class="field" x-model="ev.f.note"></div>
+                    <button type="button" class="btn btn-primary" @click="saveEvent()">Add event</button>
+                </div>
+            </div>
+            <table class="data stack">
+                <tbody>
+                    <template x-for="e in ((ev.asset && ev.asset.scheduled_events) || []).slice().sort((a,b) => a.date.localeCompare(b.date))" :key="e.id">
+                        <tr><td class="cell-title" x-text="e.date"></td>
+                            <td data-label="Event"><span class="badge" :class="e.type==='dispose' ? 'expense' : 'income'" x-text="e.type==='dispose' ? 'sell' : 'buy'"></span></td>
+                            <td class="num" data-label="Value" x-text="fmt(e.value)"></td><td class="text-xs text-gray-500" data-label="Details" x-text="[e.type==='acquire' ? 'via ' + e.funding : '', e.note].filter(Boolean).join(' · ')"></td>
+                            <td class="num cell-actions"><button type="button" class="btn btn-danger btn-sm" @click="deleteEvent(e)">Delete</button></td></tr>
+                    </template>
+                    <tr x-show="!((ev.asset && ev.asset.scheduled_events) || []).length"><td colspan="5" class="text-center text-gray-500 py-6">No planned events.</td></tr>
+                </tbody>
+            </table>
+            <div class="modal-actions"><button type="button" class="btn btn-ghost" @click="ev.open=false">Close</button></div>
+        </div>
+    </div>
+</div>
+
+<script>
+function balancesPage() {
+    const API_PATH = { cash: '/accounts', asset: '/assets', liability: '/loans' };
+    const VALUE_FIELD = { cash: 'current_balance', asset: 'current_value', liability: 'current_balance' };
+    const cents = v => Math.round(parseFloat(v || 0) * 100);
+    return {
+        tab: 'balances', rows: [], totals: { cash: 0, assets: 0, liabilities: 0, net_worth: 0 }, staleDays: 35, loading: true, saving: false,
+        today: todayISO(), list: null, priceList: null,
+        editing: null, editValue: '', editDate: '',
+        checkin: { open: false, queue: [], i: 0, value: '', saved: 0 },
+        form: { open: false, type: 'cash', id: null, d: {} },
+        hist: { open: false, row: null, snaps: [], date: '', value: '', note: '', editId: null, chart: null },
+        ev: { open: false, asset: null, f: {} },
+        prices: [], missingPrices: [], newPrice: { ticker: '', date: todayISO(), price: '' },
+
+        get shown() { return this.list ? this.list.apply(this.rows) : []; },
+        get shownPrices() { return this.priceList ? this.priceList.apply(this.prices) : []; },
+        get staleRows() { return this.rows.filter(r => r.stale); },
+        get ciRow() { return this.checkin.queue[this.checkin.i] || {}; },
+
+        fmt(c) { return formatCurrency(c || 0); },
+        typeLabel(t) { return { cash: 'Cash', asset: 'Asset', liability: 'Liability' }[t] || t; },
+        spark(values) {
+            if (!values || values.length < 2) return '';
+            const min = Math.min(...values), max = Math.max(...values), span = max - min || 1;
+            return values.map((v, i) => (i * 90 / (values.length - 1)).toFixed(1) + ',' + (22 - (v - min) / span * 20).toFixed(1)).join(' ');
+        },
+        setTab(t) {
+            this.tab = t;
+            const p = new URLSearchParams(location.search);
+            if (t === 'prices') p.set('tab', 'prices'); else p.delete('tab');
+            history.replaceState(null, '', location.pathname + (p.toString() ? '?' + p : ''));
+        },
+
+        async init() {
+            this.list = makeList({
+                sort: 'type',
+                search: r => [r.name, r.institution, r.kind, r.note].join(' '),
+                filters: { type: r => r.entity_type, kind: r => r.kind, freshness: r => r.stale ? 'stale' : 'up to date' },
+                amount: r => r.value,
+                sorts: { type: r => ({ cash: 0, asset: 1, liability: 2 })[r.entity_type], name: r => r.name.toLowerCase(), value: r => r.value,
+                         updated: r => r.last_updated || '' },
+            });
+            this.priceList = makeList({ key: 'p', sort: 'date', dir: 'desc', search: p => p.ticker, filters: { ticker: p => p.ticker }, date: p => p.date,
+                                        sorts: { ticker: p => p.ticker, date: p => p.date, price: p => p.price } });
+            this.list.read(); this.priceList.read();
+            const p = new URLSearchParams(location.search);
+            if (p.get('stale') === '1') this.list.f.freshness = 'stale';
+            if (p.get('tab') === 'prices') this.tab = 'prices';
+            await Promise.all([this.load(), this.loadPrices()]);
+            if (p.get('checkin') === '1' && this.rows.length) this.startCheckin(this.staleRows.length ? this.staleRows : this.rows);
+        },
+        async load() {
+            try {
+                const r = await API.get('/balances');
+                this.rows = r.rows; this.totals = r.totals; this.staleDays = r.stale_days;
+            } catch (e) { showAlert('Could not load balances: ' + e.message, 'error'); }
+            finally { this.loading = false; }
+            Alpine.store('app').refreshAttention();
+        },
+        async record(row, valueCents, date, note) {
+            await API.post('/balances/record', { entity_type: row.entity_type, entity_id: row.id, value: valueCents, date: date || this.today, note: note || null });
+        },
+        async loadSample() {
+            if (!confirm('Load sample data? This replaces everything currently in the app.')) return;
+            try { await API.post('/seed', {}); showAlert('Sample data loaded', 'success'); await this.load(); await this.loadPrices(); }
+            catch (e) { showAlert('Could not load sample data: ' + e.message, 'error'); }
+        },
+
+        // ── Inline update ─────────────────────────────────────────────────
+        startInline(r) { this.editing = r.entity_type + r.id; this.editValue = (r.value / 100).toFixed(2); this.editDate = this.today; },
+        async saveInline(r) {
+            const v = parseFloat(this.editValue);
+            if (isNaN(v) || v < 0) return showAlert('Enter a value of zero or more', 'warning');
+            this.saving = true;
+            try { await this.record(r, Math.round(v * 100), this.editDate); this.editing = null; showAlert(r.name + ' updated', 'success'); await this.load(); }
+            catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
+            finally { this.saving = false; }
+        },
+
+        // ── Check-in ──────────────────────────────────────────────────────
+        startCheckin(rows) {
+            const queue = rows.slice().sort((a, b) => (b.days_since ?? 1e9) - (a.days_since ?? 1e9));
+            this.checkin = { open: true, queue, i: 0, value: queue.length ? (queue[0].value / 100).toFixed(2) : '', saved: 0 };
+        },
+        ciNext() {
+            this.checkin.i += 1;
+            const next = this.checkin.queue[this.checkin.i];
+            this.checkin.value = next ? (next.value / 100).toFixed(2) : '';
+            if (!next) this.load();
+        },
+        async ciSave() {
+            const v = parseFloat(this.checkin.value);
+            if (isNaN(v) || v < 0) return showAlert('Enter a value of zero or more', 'warning');
+            this.saving = true;
+            try { await this.record(this.ciRow, Math.round(v * 100)); this.checkin.saved += 1; this.ciNext(); }
+            catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
+            finally { this.saving = false; }
+        },
+
+        // ── Add / edit / delete ───────────────────────────────────────────
+        openEntity(type, row) {
+            const e = row ? row.entity : null;
+            let d;
+            if (type === 'cash') d = { name: e ? e.name : '', type: e ? e.type : 'checking', institution: e ? e.institution : '', note: e ? e.note || '' : '' };
+            else if (type === 'asset') d = { name: e ? e.name : '', category: e ? e.category : 'stock', ticker: e ? e.ticker || '' : '', quantity: e && e.quantity != null ? e.quantity : '',
+                cost_basis_dollars: e && e.cost_basis != null ? (e.cost_basis / 100).toFixed(2) : '', acquired_date: e ? e.acquired_date || '' : '', decided_date: e ? e.decided_date || '' : '',
+                address: e ? e.address || '' : '', linked_loan_id: e ? e.linked_loan_id || '' : '', note: e ? e.note || '' : '' };
+            else d = { name: e ? e.name : '', type: e ? e.type : 'mortgage', institution: e ? e.institution : '',
+                original_balance_dollars: e ? (e.original_balance / 100).toFixed(2) : '', rate_pct: e ? (e.interest_rate / 100).toFixed(3) : '',
+                monthly_payment_dollars: e ? (e.monthly_payment / 100).toFixed(2) : '', start_date: e ? e.start_date : '', payoff_date: e ? e.payoff_date : '', note: e ? e.note || '' : '' };
+            d.value_dollars = '';
+            this.form = { open: true, type, id: row ? row.id : null, d };
+        },
+        async saveEntity() {
+            const { type, id, d } = this.form;
+            if (!d.name.trim()) return showAlert('Give it a name', 'warning');
+            let p;
+            if (type === 'cash') p = { name: d.name.trim(), type: d.type, institution: d.institution || '', note: d.note || null };
+            else if (type === 'asset') p = { name: d.name.trim(), category: d.category, ticker: (d.ticker || '').trim().toUpperCase() || null, quantity: d.quantity !== '' ? parseFloat(d.quantity) : null,
+                cost_basis: d.cost_basis_dollars !== '' ? cents(d.cost_basis_dollars) : null, acquired_date: d.acquired_date || null, decided_date: d.decided_date || null,
+                address: d.address || null, linked_loan_id: d.linked_loan_id || null, note: d.note || null };
+            else {
+                if (!d.start_date || !d.payoff_date) return showAlert('A liability needs a start date and a payoff date', 'warning');
+                p = { name: d.name.trim(), type: d.type, institution: d.institution || '', original_balance: cents(d.original_balance_dollars), interest_rate: Math.round(parseFloat(d.rate_pct || 0) * 100),
+                      monthly_payment: cents(d.monthly_payment_dollars), start_date: d.start_date, payoff_date: d.payoff_date, note: d.note || null };
+            }
+            this.saving = true;
+            try {
+                if (id) await API.patch(API_PATH[type] + '/' + id, p);
+                else {
+                    const value = cents(d.value_dollars);
+                    p[VALUE_FIELD[type]] = value; p.last_updated_date = this.today;
+                    if (type === 'liability' && !p.original_balance) p.original_balance = value;
+                    const created = await API.post(API_PATH[type], p);
+                    await this.record({ entity_type: type, id: created.id }, value);
+                }
+                this.form.open = false; showAlert('Saved', 'success'); await this.load();
+            } catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
+            finally { this.saving = false; }
+        },
+        async deleteEntity(r) {
+            if (!confirm('Delete "' + r.name + '" and its ' + r.snapshot_count + ' recorded values? This cannot be undone.')) return;
+            try {
+                const snaps = await API.get('/snapshots?entity_type=' + r.entity_type + '&entity_id=' + r.id);
+                await API.delete(API_PATH[r.entity_type] + '/' + r.id);
+                await Promise.all(snaps.map(s => API.delete('/snapshots/' + s.id).catch(() => {})));
+                showAlert('Deleted', 'success'); await this.load();
+            } catch (e) { showAlert('Could not delete: ' + e.message, 'error'); }
+        },
+
+        // ── History ───────────────────────────────────────────────────────
+        async openHistory(r) {
+            this.hist = { open: true, row: r, snaps: [], date: this.today, value: '', note: '', editId: null, chart: this.hist.chart };
+            await this.loadHistory();
+        },
+        async loadHistory() {
+            const r = this.hist.row;
+            try { this.hist.snaps = await API.get('/snapshots?entity_type=' + r.entity_type + '&entity_id=' + r.id); } catch (e) { this.hist.snaps = []; }
+            await this.$nextTick(); this.drawHistory();
+        },
+        drawHistory() {
+            if (this.hist.chart) { this.hist.chart.destroy(); this.hist.chart = null; }
+            const canvas = document.getElementById('histChart');
+            const pts = this.hist.snaps.slice().reverse();
+            if (!canvas || pts.length < 2) return;
+            this.hist.chart = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: { labels: pts.map(s => s.date), datasets: [{ label: this.hist.row.name, data: pts.map(s => s.value / 100), borderColor: CHART.series[0], backgroundColor: 'rgba(42, 120, 214, .10)', fill: true, pointRadius: 3, pointBorderColor: CHART.surface, pointBorderWidth: 1.5 }] },
+                options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: chartTooltipMoney } } },
+                           scales: { y: { ticks: { callback: chartMoneyTick } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 5, maxRotation: 0 } } } },
+            });
+        },
+        resetHistForm() { this.hist.editId = null; this.hist.date = this.today; this.hist.value = ''; this.hist.note = ''; },
+        editSnap(s) { this.hist.editId = s.id; this.hist.date = s.date; this.hist.value = (s.value / 100).toFixed(2); this.hist.note = s.note || ''; },
+        async saveHistory() {
+            const v = parseFloat(this.hist.value);
+            if (isNaN(v) || v < 0 || !this.hist.date) return showAlert('Enter a date and a value of zero or more', 'warning');
+            this.saving = true;
+            try {
+                if (this.hist.editId) await API.patch('/snapshots/' + this.hist.editId, { date: this.hist.date, value: Math.round(v * 100), note: this.hist.note || null });
+                await this.record(this.hist.row, Math.round(v * 100), this.hist.date, this.hist.note);
+                this.resetHistForm(); await this.loadHistory(); await this.load();
+            } catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
+            finally { this.saving = false; }
+        },
+        async deleteSnap(s) {
+            if (!confirm('Delete the value recorded on ' + s.date + '?')) return;
+            try { await API.delete('/snapshots/' + s.id); await this.loadHistory(); await this.load(); }
+            catch (e) { showAlert('Could not delete: ' + e.message, 'error'); }
+        },
+        closeHistory() { this.hist.open = false; if (this.hist.chart) { this.hist.chart.destroy(); this.hist.chart = null; } },
+
+        // ── Asset events ──────────────────────────────────────────────────
+        openEvents(r) { this.ev = { open: true, asset: r.entity, f: { date: this.today, type: 'acquire', value_dollars: '', funding: 'cash', note: '' } }; },
+        async saveEvent() {
+            const f = this.ev.f;
+            if (!f.date || !parseFloat(f.value_dollars)) return showAlert('Enter a date and a value', 'warning');
+            try {
+                this.ev.asset = await API.post('/assets/' + this.ev.asset.id + '/events', { date: f.date, type: f.type, value: cents(f.value_dollars), funding: f.type === 'dispose' ? 'cash' : f.funding, note: f.note || '' });
+                this.ev.f.value_dollars = ''; this.ev.f.note = ''; await this.load();
+            } catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
+        },
+        async deleteEvent(e) {
+            if (!confirm('Delete this planned event?')) return;
+            try {
+                await API.delete('/assets/' + this.ev.asset.id + '/events/' + e.id);
+                await this.load();
+                const row = this.rows.find(r => r.entity_type === 'asset' && r.id === this.ev.asset.id);
+                this.ev.asset = row ? row.entity : null;
+            } catch (err) { showAlert('Could not delete: ' + err.message, 'error'); }
+        },
+
+        // ── Share prices ──────────────────────────────────────────────────
+        async loadPrices() {
+            try { this.prices = await API.get('/prices'); } catch (e) { this.prices = []; }
+            try { this.missingPrices = ((await API.get('/then-vs-now')).missing_prices || []).map(m => ({ ...m, input: '' })); } catch (e) { this.missingPrices = []; }
+        },
+        async postPrices(rows) {
+            for (const r of rows) await API.post('/prices', r);
+            showAlert(rows.length + (rows.length === 1 ? ' price saved' : ' prices saved'), 'success');
+            await this.loadPrices(); Alpine.store('app').refreshAttention();
+        },
+        async saveMissing() {
+            const rows = this.missingPrices.filter(m => parseFloat(m.input) > 0).map(m => ({ ticker: m.ticker, date: m.date, price: cents(m.input) }));
+            if (!rows.length) return showAlert('Enter at least one price first', 'warning');
+            try { await this.postPrices(rows); } catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
+        },
+        async addPrice() {
+            const n = this.newPrice, t = n.ticker.trim().toUpperCase();
+            if (!t || !n.date || !(parseFloat(n.price) > 0)) return showAlert('Enter a ticker, a date and a price', 'warning');
+            try { await this.postPrices([{ ticker: t, date: n.date, price: cents(n.price) }]); this.newPrice.price = ''; }
+            catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
+        },
+        async deletePrice(p) {
+            if (!confirm('Delete the ' + p.ticker + ' price for ' + p.date + '?')) return;
+            try { await API.delete('/prices/' + p.id); await this.loadPrices(); } catch (e) { showAlert('Could not delete: ' + e.message, 'error'); }
+        },
+    };
+}
+</script>
+{% endblock %}

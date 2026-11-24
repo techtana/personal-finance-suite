@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 
-{% block title %}Then vs. Now - Personal Finance Suite{% endblock %}
 {% block page_title %}Then vs. Now{% endblock %}
 
 {% block content %}
@@ -109,8 +108,8 @@
       <div class="d-name" style="margin-top:0">Nothing to compare yet</div>
       <p class="sub" style="margin-top:6px;font-size:13px">This page shows what each decision was worth on the day you made it and what it is worth today. It fills in from:</p>
       <ul class="sub" style="margin:8px 0 0 18px;list-style:disc;font-size:13px;line-height:1.8">
-        <li>RSU grants and ESPP plans, added as rules on the <a class="text-blue-600 hover:underline" href="/timeline">Cash Flow</a> page</li>
-        <li>Assets with a cost basis and an acquired date, on the <a class="text-blue-600 hover:underline" href="/equity">Assets</a> page</li>
+        <li>RSU grants and ESPP plans, added as rules on the <a class="text-blue-600 hover:underline" href="/plan">Plan</a> page</li>
+        <li>Assets with a cost basis and an acquired date, on the <a class="text-blue-600 hover:underline" href="/balances?type=asset">Balances</a> page</li>
         <li>Share prices, entered at the bottom of this page</li>
       </ul>
     </div>
@@ -174,33 +173,15 @@
     <div id="skippedList"></div>
   </div>
 
-  <!-- Share prices: fill the gaps, see what is stored -->
+  <!-- Share prices are an input: they are entered on Balances. This view only says what is missing. -->
   <div class="panel" id="pricesPanel" hidden>
     <div class="panel-hdr">
       <div>
         <div class="panel-title">Share prices</div>
-        <div class="sub" style="margin-top:2px">Entered by hand. Vest-day, purchase-day and today's values come from these.</div>
+        <div class="sub" style="margin-top:2px" id="pricesNote"></div>
       </div>
+      <a class="btn btn-primary" href="/balances?tab=prices">Enter share prices</a>
     </div>
-    <div id="missingBox" hidden>
-      <div class="d-body" style="padding-bottom:8px">
-        <div class="sub" style="font-size:13px;color:#92400e"><b id="missingCount"></b> Until they are filled in, those values are estimated from the nearest prices on file.</div>
-      </div>
-      <table id="missingTbl"></table>
-      <div class="d-body" style="padding-top:12px"><button class="btn" id="saveMissing" type="button">Save prices</button></div>
-    </div>
-    <details class="tbl-view" id="allPrices">
-      <summary>All stored prices and add one</summary>
-      <div class="d-body" style="padding-top:4px;padding-bottom:12px">
-        <div class="flex items-center gap-2 flex-wrap">
-          <input class="fi uppercase" id="npTicker" placeholder="Ticker" aria-label="Ticker" style="width:100px">
-          <input class="fi" id="npDate" type="date" aria-label="Date">
-          <input class="fi" id="npPrice" type="number" step="0.01" min="0" placeholder="Price $" aria-label="Price in dollars" style="width:120px">
-          <button class="btn" id="npAdd" type="button">Add price</button>
-        </div>
-      </div>
-      <div style="max-height:320px;overflow-y:auto"><table id="priceTbl"></table></div>
-    </details>
   </div>
 </div>
 
@@ -540,48 +521,12 @@
   function renderPrices() {
     var miss = DATA.missing_prices || [];
     $('pricesPanel').hidden = !(miss.length || PRICES.length || INST.length || (DATA.skipped || []).length);
-    $('missingBox').hidden = !miss.length;
-    $('missingCount').textContent = miss.length + ' share price' + (miss.length === 1 ? ' is' : 's are') + ' missing.';
-    $('missingTbl').innerHTML = '<thead><tr><th>Ticker</th><th>Date</th><th>Needed for</th><th>Price ($ per share)</th></tr></thead><tbody>' +
-      miss.map(function (m, i) {
-        return '<tr><td><b>' + esc(m.ticker) + '</b></td><td>' + fmtDate(m.date) + '</td><td class="sub" style="font-size:13px">' + esc(m.reason) + '</td>' +
-          '<td><input class="fi miss-in" type="number" step="0.01" min="0" data-i="' + i + '" placeholder="0.00" aria-label="Price for ' + esc(m.ticker) + ' on ' + fmtDate(m.date) + '" style="width:130px"></td></tr>';
-      }).join('') + '</tbody>';
-    $('priceTbl').innerHTML = PRICES.length
-      ? '<thead><tr><th>Ticker</th><th>Date</th><th class="td-r">Price</th><th></th></tr></thead><tbody>' + PRICES.map(function (p) {
-          return '<tr><td><b>' + esc(p.ticker) + '</b></td><td>' + fmtDate(p.date) + '</td><td class="td-r">$' + (p.price / 100).toFixed(2) + '</td><td class="td-r"><button class="btn-link" type="button" data-del="' + esc(p.id) + '">Delete</button></td></tr>';
-        }).join('') + '</tbody>'
-      : '<tbody><tr><td class="sub" style="font-size:13px">No prices stored yet.</td></tr></tbody>';
-    if (miss.length || !PRICES.length) $('allPrices').open = !miss.length;
+    $('pricesNote').textContent = miss.length
+      ? miss.length + ' share price' + (miss.length === 1 ? ' is' : 's are') + ' missing (' +
+        miss.slice(0, 3).map(function (m) { return m.ticker + ' on ' + fmtDate(m.date); }).join(', ') + (miss.length > 3 ? ', …' : '') +
+        '). Until they are filled in, those values are estimated from the nearest prices on file.'
+      : PRICES.length + ' stored. Vest-day, purchase-day and today\u2019s values come from these.';
   }
-
-  async function savePrices(rows) {
-    if (!rows.length) { showAlert('Enter at least one price first', 'warning'); return; }
-    try {
-      await API.post('/prices', { prices: rows });
-      showAlert('Prices saved', 'success');
-      await load();
-    } catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
-  }
-
-  $('saveMissing').addEventListener('click', function () {
-    var rows = [];
-    [].forEach.call(document.querySelectorAll('.miss-in'), function (inp) {
-      var v = parseFloat(inp.value), m = DATA.missing_prices[+inp.dataset.i];
-      if (v > 0) rows.push({ ticker: m.ticker, date: m.date, price: Math.round(v * 100) });
-    });
-    savePrices(rows);
-  });
-  $('npAdd').addEventListener('click', function () {
-    var t = $('npTicker').value.trim().toUpperCase(), d = $('npDate').value, v = parseFloat($('npPrice').value);
-    if (!t || !d || !(v > 0)) { showAlert('A ticker, a date and a price are all needed', 'warning'); return; }
-    savePrices([{ ticker: t, date: d, price: Math.round(v * 100) }]).then(function () { $('npPrice').value = ''; });
-  });
-  $('priceTbl').addEventListener('click', async function (e) {
-    var id = e.target.dataset && e.target.dataset.del;
-    if (!id || !confirm('Delete this price?')) return;
-    try { await API.delete('/prices/' + id); await load(); } catch (err) { showAlert('Could not delete: ' + err.message, 'error'); }
-  });
 
   // ── Load + render ─────────────────────────────────────────────────────────
   function renderAll() {

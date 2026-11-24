@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% import "_icons.html" as ic %}
+
+{% block content %}
+<div x-data="overviewPage()" x-init="init()" class="space-y-6" x-cloak>
+
+    <div x-show="loading" class="space-y-6" aria-busy="true" aria-label="Loading">
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        <template x-for="i in 5"><div class="card kpi"><div class="skeleton sk-line" style="width:45%"></div><div class="skeleton sk-value"></div></div></template>
+    </div>
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4"><div class="card p-5"><div class="skeleton sk-line mb-4" style="width:30%"></div><div class="skeleton" style="height:220px"></div></div><div class="card p-5 hidden xl:block"><div class="skeleton sk-line mb-4" style="width:30%"></div><div class="skeleton" style="height:220px"></div></div></div>
+    </div>
+
+    <!-- First run -->
+    <template x-if="!loading && rows.length === 0">
+        <div class="card p-8 max-w-3xl">
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">Three steps to a first picture</h3>
+            <p class="text-sm text-gray-500 mb-5">Everything on this page is computed from what you enter on the two input pages.</p>
+            <ol class="space-y-3">
+                <li class="card manage p-4 flex items-center justify-between gap-4">
+                    <div><p class="font-medium text-gray-900">1. Record what you have and owe</p><p class="text-xs text-gray-500">Bank accounts, investments, property, loans, with today's values.</p></div>
+                    <a class="btn btn-primary" href="/balances">Open Balances</a>
+                </li>
+                <li class="card manage p-4 flex items-center justify-between gap-4">
+                    <div><p class="font-medium text-gray-900">2. Describe what repeats</p><p class="text-xs text-gray-500">Salary, rent, regular bills, equity grants.</p></div>
+                    <a class="btn btn-soft" href="/plan">Open Plan</a>
+                </li>
+                <li class="card view p-4 flex items-center justify-between gap-4">
+                    <div><p class="font-medium text-gray-900">3. Come back here</p><p class="text-xs text-gray-500">Net worth, a forecast and anything that needs attention appear on their own.</p></div>
+                </li>
+            </ol>
+            <p class="text-sm text-gray-500 mt-5">Just looking around? <button type="button" class="text-blue-600 hover:underline" @click="loadSample()">Load sample data</button> (fictional, replaceable any time).</p>
+        </div>
+    </template>
+
+    <template x-if="!loading && rows.length > 0">
+        <div class="space-y-6">
+
+            <!-- KPIs -->
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+<div class="card view kpi col-span-2 lg:col-span-1">
+    <div class="kpi-top"><p class="kpi-label">Net worth</p><span class="kpi-icon">{{ ic.icon("net-worth") }}</span></div>
+    <p class="kpi-value" :class="totals.net_worth < 0 ? 'text-red-600' : ''" x-text="fmtWhole(totals.net_worth)"></p>
+    <p class="kpi-sub" x-show="change30 !== null"><span class="delta" :class="change30 >= 0 ? 'up' : 'down'" x-text="(change30 >= 0 ? '▲ ' : '▼ ') + fmtWhole(Math.abs(change30))"></span> since <span x-text="change30From"></span></p>
+</div>
+<a class="card view kpi" href="/balances?type=cash">
+    <div class="kpi-top"><p class="kpi-label">Cash</p><span class="kpi-icon">{{ ic.icon("cash") }}</span></div>
+    <p class="kpi-value" x-text="fmtWhole(totals.cash)"></p>
+    <p class="kpi-sub" x-text="plural(count('cash'), 'account')"></p>
+</a>
+<a class="card view kpi" href="/balances?type=asset">
+    <div class="kpi-top"><p class="kpi-label">Assets</p><span class="kpi-icon">{{ ic.icon("asset") }}</span></div>
+    <p class="kpi-value" x-text="fmtWhole(totals.assets)"></p>
+    <p class="kpi-sub" x-text="plural(count('asset'), 'asset')"></p>
+</a>
+<a class="card view kpi" href="/balances?type=liability">
+    <div class="kpi-top"><p class="kpi-label">Liabilities</p><span class="kpi-icon">{{ ic.icon("liability") }}</span></div>
+    <p class="kpi-value text-red-600" x-text="fmtWhole(totals.liabilities)"></p>
+    <p class="kpi-sub" x-text="plural(count('liability'), 'loan')"></p>
+</a>
+<a class="card view kpi" :href="'/forecast?month=' + thisMonth">
+    <div class="kpi-top"><p class="kpi-label">This month, planned</p><span class="kpi-icon">{{ ic.icon("calendar") }}</span></div>
+    <p class="kpi-value" :class="monthNet >= 0 ? 'text-emerald-700' : 'text-red-600'" x-text="(monthNet >= 0 ? '+' : '−') + fmtWhole(Math.abs(monthNet))"></p>
+    <p class="kpi-sub">income minus expenses</p>
+</a>
+            </div>
+
+            <!-- Needs attention -->
+            <section class="card guidance p-5">
+                <div class="section-head">
+                    <div><h3 x-text="attention.length ? 'Needs your attention' : 'Nothing needs your attention'"></h3>
+                        <p x-text="attention.length ? 'Each item links to the page where you can act on it.' : 'Balances are fresh and nothing in your plan stands out.'"></p></div>
+                    <div class="flex items-center gap-2"><span class="role-chip guidance">Guidance</span><a class="btn btn-ghost btn-sm" href="/insights">All insights →</a></div>
+                </div>
+                <ul class="divide-y divide-violet-100">
+                    <template x-for="i in attention.slice(0, 4)" :key="i.id">
+                        <li class="py-2.5 flex flex-wrap items-center justify-between gap-3">
+                            <div class="min-w-0"><p class="text-sm font-medium text-gray-900" x-text="i.title"></p><p class="text-xs text-gray-500" x-text="i.detail"></p></div>
+                            <a class="btn btn-guidance btn-sm" :href="i.action.href" x-text="i.action.label"></a>
+                        </li>
+                    </template>
+                </ul>
+            </section>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div class="card view p-5">
+                    <div class="section-head">
+                        <div><h3>What you have and owe, over time</h3><p>Month-end recorded values. Updated on <a class="text-blue-600 hover:underline" href="/balances">Balances</a>.</p></div>
+                        <span class="role-chip view">View only</span>
+                    </div>
+                    <div class="toolbar mb-3">
+                        <template x-for="t in [['cash','Cash'],['asset','Assets'],['liability','Liabilities']]" :key="t[0]">
+                            <label class="flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer"><input type="checkbox" class="rounded" :checked="histTypes.includes(t[0])" @change="toggleType(t[0])"> <span x-text="t[1]"></span></label>
+                        </template>
+                        <label class="ml-auto">Period
+                            <select class="field" x-model="histMonths" @change="loadHistory()"><option value="12">12 months</option><option value="24">2 years</option><option value="60">5 years</option></select></label>
+                    </div>
+                    <div class="chart-box"><canvas id="histChart" role="img" aria-label="Recorded cash, assets and liabilities by month"></canvas></div>
+                    <p class="text-xs text-gray-500 mt-2" x-show="histPartial">Early months leave out anything that had no recorded value yet.</p>
+                </div>
+                <div class="card view p-5">
+                    <div class="section-head">
+                        <div><h3>Next 12 months</h3><p>Forecast net worth from your <a class="text-blue-600 hover:underline" href="/plan">Plan</a>.
+                            <span x-show="buckets.length" :class="gain >= 0 ? 'text-green-700' : 'text-red-600'" x-text="fmtSigned(gain) + ' by ' + (buckets.length ? buckets[buckets.length-1].month : '')"></span></p></div>
+                        <div class="flex items-center gap-2"><span class="role-chip view">View only</span><a class="btn btn-ghost btn-sm" href="/forecast">Open forecast →</a></div>
+                    </div>
+                    <div class="chart-box"><canvas id="fcChart" role="img" aria-label="Forecast net worth for the next 12 months"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Upcoming -->
+            <section>
+                {{ ui.section("Coming up in the next 30 days", "view", "Planned events from your rules, entries and loans.") }}
+                {{ ui.toolbar("list", "upcoming", "shown", filters=[("type", "types"), ("source", "sources")], amount=true, placeholder="Search upcoming events", noun="events") }}
+                <div class="card view mt-3 overflow-x-auto">
+                    <table class="data stack compact">
+                        <thead><tr>{{ ui.th("list", "date", "Date") }}{{ ui.th("list", "label", "What") }}{{ ui.th("list", "amount", "Amount", num=true) }}{{ ui.th("list", "source", "From") }}</tr></thead>
+                        <tbody>
+                            <template x-for="e in shown" :key="e.key">
+                                <tr><td class="text-gray-500 whitespace-nowrap cell-meta" data-label="Date" x-text="e.date"></td><td class="font-medium text-gray-900 cell-title" x-text="e.label || '—'"></td>
+                                    <td class="num cell-amount" data-label="Amount" :class="e.signed >= 0 ? 'text-green-700' : 'text-red-600'" x-text="fmtSigned(e.signed)"></td>
+                                    <td class="cell-meta" data-label="From"><span class="badge" :class="e.source_type" x-text="e.source"></span></td></tr>
+                            </template>
+                            <tr x-show="shown.length === 0"><td colspan="4" class="text-center text-gray-500 py-6" x-text="upcoming.length ? 'No events match these filters.' : 'Nothing planned in the next 30 days.'"></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </template>
+</div>
+
+<script>
+function overviewPage() {
+    const SOURCE = { rule: 'recurring', change: 'one-off', rsu: 'RSU', espp: 'ESPP', loan_payment: 'loan payment' };
+    let histChart = null, fcChart = null;
+    return {
+        loading: true, rows: [], totals: { cash: 0, assets: 0, liabilities: 0, net_worth: 0 }, insights: [], buckets: [], upcoming: [],
+        history: [], histTypes: ['cash', 'asset', 'liability'], histMonths: '12', histPartial: false, list: null, thisMonth: todayISO().slice(0, 7),
+
+        get attention() { return this.insights.filter(i => i.severity === 'attention'); },
+        get shown() { return this.list ? this.list.apply(this.upcoming) : []; },
+        get monthNet() { const b = this.buckets.find(b => b.month === this.thisMonth); return b ? b.net_cash_flow : 0; },
+        get gain() { return this.buckets.length ? this.buckets[this.buckets.length - 1].cumulative_net_worth - this.totals.net_worth : 0; },
+        get change30() { const h = this.fullHistory; return h.length >= 2 ? h[h.length - 1].net_worth - h[h.length - 2].net_worth : null; },
+        get change30From() { const h = this.fullHistory; return h.length >= 2 ? h[h.length - 2].date : ''; },
+        fullHistory: [],
+
+        fmt(c) { return formatCurrency(c || 0); },
+        count(t) { return this.rows.filter(r => r.entity_type === t).length; },
+        plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); },
+
+        async init() {
+            this.list = makeList({ sort: 'date', search: e => [e.label, e.source].join(' '), filters: { type: e => e.type, source: e => e.source }, amount: e => e.amount,
+                                   sorts: { date: e => e.date, label: e => (e.label || '').toLowerCase(), amount: e => e.signed, source: e => e.source } });
+            this.list.read();
+            await this.load();
+        },
+        async load() {
+            try {
+                const b = await API.get('/balances');
+                this.rows = b.rows; this.totals = b.totals;
+            } catch (e) { showAlert('Could not load: ' + e.message, 'error'); }
+            this.loading = false;
+            if (!this.rows.length) return;
+            const soon = addMonthsISO(1), today = todayISO();
+            const [ins, proj, hist] = await Promise.all([
+                API.get('/insights').catch(() => ({ insights: [] })),
+                API.get('/projection?from=' + today + '&to=' + addMonthsISO(12)).catch(() => ({ buckets: [], events: [] })),
+                API.get('/net-worth/history?months=12').catch(() => ({ series: [] })),
+            ]);
+            this.insights = ins.insights || []; this.buckets = proj.buckets || []; this.fullHistory = hist.series || [];
+            this.upcoming = (proj.events || []).filter(e => e.date <= soon).map((e, i) => ({ ...e, key: e.source_id + e.date + i, signed: e.type === 'income' ? e.amount : -e.amount, source: SOURCE[e.source_type] || e.source_type }));
+            await this.loadHistory();
+            await this.$nextTick(); this.drawForecast();
+        },
+        toggleType(t) {
+            this.histTypes = this.histTypes.includes(t) ? this.histTypes.filter(x => x !== t) : [...this.histTypes, t];
+            this.loadHistory();
+        },
+        async loadHistory() {
+            try {
+                const r = await API.get('/net-worth/history?months=' + this.histMonths + (this.histTypes.length < 3 ? '&types=' + (this.histTypes.join(',') || 'none') : ''));
+                this.history = r.series || [];
+            } catch (e) { this.history = []; }
+            this.histPartial = this.history.some(p => p.partial);
+            await this.$nextTick(); this.drawHistory();
+        },
+        drawHistory() {
+            const canvas = document.getElementById('histChart'); if (!canvas) return;
+            if (histChart) histChart.destroy();
+            const on = t => this.histTypes.includes(t), h = this.history;
+            const datasets = [];
+            if (on('cash')) datasets.push({ type: 'bar', label: 'Cash', data: h.map(p => p.cash / 100), backgroundColor: CHART.series[0], borderColor: CHART.surface, borderWidth: 1.5, stack: 's', borderRadius: 3 });
+            if (on('asset')) datasets.push({ type: 'bar', label: 'Assets', data: h.map(p => p.assets / 100), backgroundColor: CHART.series[1], borderColor: CHART.surface, borderWidth: 1.5, stack: 's', borderRadius: 3 });
+            if (on('liability')) datasets.push({ type: 'bar', label: 'Liabilities', data: h.map(p => -p.liabilities / 100), backgroundColor: CHART.series[2], borderColor: CHART.surface, borderWidth: 1.5, stack: 's', borderRadius: 3 });
+            datasets.unshift({ type: 'line', label: 'Net of selection', data: h.map(p => p.net_worth / 100), borderColor: CHART.ink, backgroundColor: CHART.ink, pointRadius: 3, pointBorderColor: CHART.surface, pointBorderWidth: 1.5 });
+            histChart = new Chart(canvas.getContext('2d'), {
+                data: { labels: h.map(p => p.month), datasets },
+                options: { plugins: { tooltip: { callbacks: { label: chartTooltipMoney } } },
+                    scales: { y: { stacked: true, ticks: { callback: chartMoneyTick } }, x: { stacked: true, grid: { display: false }, ticks: { maxTicksLimit: 7, maxRotation: 0 } } } },
+            });
+        },
+        drawForecast() {
+            const canvas = document.getElementById('fcChart'); if (!canvas || !this.buckets.length) return;
+            if (fcChart) fcChart.destroy();
+            fcChart = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: { labels: this.buckets.map(b => b.month), datasets: [{ label: 'Forecast net worth', data: this.buckets.map(b => b.cumulative_net_worth / 100), borderColor: CHART.series[0], backgroundColor: 'rgba(42, 120, 214, .10)', fill: true }] },
+                options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: chartTooltipMoney } } },
+                    scales: { y: { ticks: { callback: chartMoneyTick } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 7, maxRotation: 0 } } } },
+            });
+        },
+        async loadSample() {
+            if (!confirm('Load sample data? This replaces everything currently in the app.')) return;
+            try { await API.post('/seed', {}); location.reload(); } catch (e) { showAlert('Could not load sample data: ' + e.message, 'error'); }
+        },
+    };
+}
+</script>
+{% endblock %}

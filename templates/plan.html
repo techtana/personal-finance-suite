@@ -1,0 +1,558 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% import "_icons.html" as ic %}
+
+{% block content %}
+<div x-data="planPage()" x-init="init()" class="space-y-8" x-cloak>
+
+    <!-- ── AI draft (optional) ─────────────────────────────────────────────── -->
+    <div class="card ai p-4" x-show="$store.app.ai.ok">
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="role-chip ai">AI</span>
+            <input type="text" class="field" style="flex:1 1 260px;width:auto" x-model="draftText" @keydown.enter="draft()"
+                   placeholder='Describe an entry, e.g. "gym $120 monthly from January" or "new laptop $1800 on March 3"'
+                   aria-label="Describe an entry in words">
+            <button type="button" class="btn btn-ai" :disabled="draftBusy || !draftText.trim()" @click="draft()"
+                    x-text="draftBusy ? 'Drafting…' : 'Draft entry'"></button>
+        </div>
+        <p class="text-xs text-gray-500 mt-2">Opens a pre-filled form for you to check. Nothing is saved until you press Save.</p>
+        <p class="text-xs text-red-600 mt-1" x-show="draftError" x-text="draftError"></p>
+    </div>
+
+    <!-- ── Rules ───────────────────────────────────────────────────────────── -->
+    <section>
+        {% call ui.section("Recurring rules", "manage", "Income, expenses and equity schedules that repeat. Each one adds events to the Forecast.") %}
+            <button type="button" class="btn btn-primary" @click="openAddRule()">+ Add rule</button>
+        {% endcall %}
+        {{ ui.toolbar("rulesList", "rules", "shownRules", filters=[("type", "types"), ("frequency", "frequencies"), ("account", "accounts")], amount=true, placeholder="Search rules", noun="rules") }}
+        <div class="card manage mt-3 overflow-x-auto">
+            <table class="data stack">
+                <thead><tr>
+                    {{ ui.th("rulesList", "name", "Name") }}
+                    {{ ui.th("rulesList", "type", "Type") }}
+                    {{ ui.th("rulesList", "amount", "Amount", num=true) }}
+                    {{ ui.th("rulesList", "monthly", "Per month", num=true) }}
+                    {{ ui.th("rulesList", "start", "Runs") }}
+                    {{ ui.th("rulesList", "account", "Account") }}
+                    <th scope="col">Tax treatment</th>
+                    <th scope="col"><span class="sr-only">Actions</span></th>
+                </tr></thead>
+                <tbody>
+                    <template x-for="r in shownRules" :key="r.id">
+                        <tr>
+                            <td class="font-medium text-gray-900 cell-title" x-text="r.name"></td>
+                            <td data-label="Type"><span class="badge" :class="r.rule_type" x-text="typeLabel(r.rule_type)"></span></td>
+                            <td class="num" data-label="Amount" :class="r.rule_type==='expense' ? 'text-red-600' : 'text-green-700'" x-text="amountText(r)"></td>
+                            <td class="num text-gray-500" data-label="Per month" x-text="monthly(r) ? fmt(monthly(r)) : '—'"></td>
+                            <td class="text-gray-500" data-label="Runs" x-text="r.start_date + (r.end_date ? ' → ' + r.end_date : ' → ongoing')"></td>
+                            <td class="text-gray-500" data-label="Account" x-text="acctName(r.account_id) || '—'"></td>
+                            <td class="text-gray-500 text-xs" data-label="Tax" x-text="treatmentLabel(r)"></td>
+                            <td class="num whitespace-nowrap cell-actions">
+                                <button type="button" class="btn btn-soft btn-sm" @click="openEditRule(r)">Edit</button>
+                                <button type="button" class="btn btn-danger btn-sm" @click="deleteRule(r)">Delete</button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="!rulesLoading && shownRules.length === 0">
+                        <td colspan="8" class="text-center text-gray-500 py-8"
+                            x-text="rules.length ? 'No rules match these filters.' : 'No rules yet. Start with your salary and your largest regular bills.'"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="text-xs text-gray-500 mt-2" x-show="rules.length">
+            Planned per month from the rules shown: <strong class="text-green-700" x-text="'+' + fmt(shownMonthlyIn)"></strong> in,
+            <strong class="text-red-600" x-text="'−' + fmt(shownMonthlyOut)"></strong> out.
+            Equity rules are valued on the <a class="text-blue-600 hover:underline" href="/forecast">Forecast</a>.
+        </p>
+    </section>
+
+    <!-- ── One-off entries ─────────────────────────────────────────────────── -->
+    <section>
+        {% call ui.section("One-off entries", "manage", "Single dated amounts: a planned purchase, a bonus, a correction, or history brought in by Import.") %}
+            <button type="button" class="btn btn-primary" @click="openAddChange()">+ Add entry</button>
+        {% endcall %}
+        {{ ui.toolbar("changesList", "changes", "shownChanges", filters=[("when", "dates"), ("source", "sources"), ("category", "categories"), ("account", "accounts")], date=true, amount=true, placeholder="Search entries", noun="entries") }}
+        <div class="card manage mt-3 overflow-x-auto">
+            <table class="data stack">
+                <thead><tr>
+                    {{ ui.th("changesList", "date", "Date") }}
+                    {{ ui.th("changesList", "description", "Description") }}
+                    {{ ui.th("changesList", "amount", "Amount", num=true) }}
+                    {{ ui.th("changesList", "source", "Source") }}
+                    {{ ui.th("changesList", "category", "Category") }}
+                    {{ ui.th("changesList", "account", "Account") }}
+                    <th scope="col"><span class="sr-only">Actions</span></th>
+                </tr></thead>
+                <tbody>
+                    <template x-for="c in pagedChanges" :key="c.id">
+                        <tr>
+                            <td class="whitespace-nowrap text-gray-500" data-label="Date">
+                                <span x-text="c.date"></span>
+                                <span class="badge ml-1" x-show="c.date > today">planned</span>
+                            </td>
+                            <td class="font-medium text-gray-900 cell-title" x-text="c.description"></td>
+                            <td class="num" data-label="Amount" :class="c.amount >= 0 ? 'text-green-700' : 'text-red-600'" x-text="fmtSigned(c.amount)"></td>
+                            <td data-label="Source"><span class="badge" :class="c.change_type" x-text="c.change_type"></span></td>
+                            <td class="text-gray-500" data-label="Category" x-text="titleCase(c.category) || '—'"></td>
+                            <td class="text-gray-500" data-label="Account" x-text="acctName(c.account_id) || '—'"></td>
+                            <td class="num whitespace-nowrap cell-actions">
+                                <button type="button" class="btn btn-soft btn-sm" @click="openEditChange(c)">Edit</button>
+                                <button type="button" class="btn btn-danger btn-sm" @click="deleteChange(c)">Delete</button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="!changesLoading && shownChanges.length === 0">
+                        <td colspan="7" class="text-center text-gray-500 py-8"
+                            x-text="changes.length ? 'No entries match these filters.' : 'No one-off entries yet.'"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="flex items-center justify-between mt-2 text-xs text-gray-500" x-show="shownChanges.length > pageSize">
+            <span x-text="'Showing ' + pagedChanges.length + ' of ' + shownChanges.length"></span>
+            <button type="button" class="btn btn-ghost btn-sm" @click="pageSize += 50">Show 50 more</button>
+        </div>
+    </section>
+
+    <p class="text-xs text-gray-500">
+        Looking for accounts, assets, loans or share prices? Those are on <a class="text-blue-600 hover:underline" href="/balances">Balances</a>.
+        Tax profile is on <a class="text-blue-600 hover:underline" href="/taxes">Taxes</a>.
+    </p>
+
+    <!-- ── Entry modal ─────────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" x-show="showChangeModal" @click.self="showChangeModal=false" @keydown.escape.window="showChangeModal=false">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="changeTitle">
+            <h3 id="changeTitle" x-text="changeEditId ? 'Edit entry' : 'Add one-off entry'"></h3>
+            <p class="text-xs mb-3" x-show="fromDraft"><span class="role-chip ai">AI</span> <span class="text-gray-500">Drafted from your words. Check every field before saving.</span></p>
+            <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="field-label" for="cDate">Date</label><input id="cDate" x-model="changeForm.date" type="date" class="field"></div>
+                    <div>
+                        <label class="field-label" for="cType">Kind</label>
+                        <select id="cType" x-model="changeForm.change_type" class="field">
+                            <option value="manual">Income or expense</option>
+                            <option value="adjustment">Adjustment (fixes a balance gap)</option>
+                            <option value="imported" x-show="changeForm.change_type==='imported'">Imported</option>
+                        </select>
+                    </div>
+                </div>
+                <div><label class="field-label" for="cDesc">Description</label><input id="cDesc" x-model="changeForm.description" type="text" class="field" placeholder="e.g. Bonus, Car repair"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="field-label" for="cAmt">Amount ($)</label>
+                        <input id="cAmt" x-model="changeForm.amount_dollars" type="number" step="0.01" class="field" placeholder="1500 or -250">
+                        <p class="field-hint">Positive for money in, negative for money out.</p>
+                    </div>
+                    <div>
+                        <label class="field-label" for="cAcct">Account (optional)</label>
+                        <select id="cAcct" x-model="changeForm.account_id" class="field">
+                            <option value="">Any</option>
+                            <template x-for="a in accounts" :key="a.id"><option :value="a.id" :selected="a.id===changeForm.account_id" x-text="a.name"></option></template>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="field-label" for="cCat">Category (optional)</label>
+                    <select id="cCat" x-model="changeForm.category" class="field">
+                        <option value="">None</option>
+                        <template x-for="c in categories" :key="c.slug"><option :value="c.slug" :selected="c.slug===changeForm.category" x-text="c.label"></option></template>
+                    </select>
+                </div>
+                <div x-show="changeForm.change_type==='manual'">
+                    <label class="field-label" for="cTax">Tax treatment (optional)</label>
+                    <select id="cTax" x-model="changeForm.tax_treatment" class="field">
+                        <option value="">Default: taxable income if positive, personal spending if negative</option>
+                        <template x-for="t in changeTreatments" :key="t.key"><option :value="t.key" :selected="t.key===changeForm.tax_treatment" x-text="t.label"></option></template>
+                    </select>
+                    <p class="field-hint" x-text="treatmentHint(changeForm.tax_treatment) || 'Options follow the sign of the amount.'"></p>
+                </div>
+                <div><label class="field-label" for="cNote">Note (optional)</label><input id="cNote" x-model="changeForm.note" type="text" class="field"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" @click="showChangeModal=false">Cancel</button>
+                <button type="button" class="btn btn-primary" @click="saveChange()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Rule modal ──────────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" x-show="showRuleModal" @click.self="showRuleModal=false" @keydown.escape.window="showRuleModal=false">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ruleTitle">
+            <h3 id="ruleTitle" x-text="ruleEditId ? 'Edit rule' : 'Add rule'"></h3>
+            <p class="text-xs mb-3" x-show="fromDraft"><span class="role-chip ai">AI</span> <span class="text-gray-500">Drafted from your words. Check every field before saving.</span></p>
+
+            <div class="mb-3" x-show="!ruleEditId">
+                <label class="field-label" for="rType">Rule type</label>
+                <select id="rType" x-model="ruleForm.rule_type" @change="ruleForm.tax_treatment=''" class="field">
+                    <option value="income">Income (salary, dividend, interest…)</option>
+                    <option value="expense">Expense (rent, bill, subscription…)</option>
+                    <option value="rsu">RSU grant</option>
+                    <option value="espp">ESPP plan</option>
+                </select>
+            </div>
+            <div class="mb-3"><label class="field-label" for="rName">Name</label><input id="rName" x-model="ruleForm.name" type="text" class="field" placeholder="e.g. Salary"></div>
+
+            <!-- Income / expense -->
+            <template x-if="ruleForm.rule_type==='income' || ruleForm.rule_type==='expense'">
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="field-label">Amount ($ per period)</label><input x-model="ruleForm.amount_dollars" type="number" step="0.01" min="0" class="field"></div>
+                        <div>
+                            <label class="field-label">Frequency</label>
+                            <select x-model="ruleForm.frequency" class="field">
+                                <template x-for="f in ['weekly','biweekly','monthly','quarterly','annually']" :key="f"><option :value="f" :selected="f===ruleForm.frequency" x-text="titleCase(f)"></option></template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="field-label">Start date</label><input x-model="ruleForm.start_date" type="date" class="field"></div>
+                        <div><label class="field-label">End date (optional)</label><input x-model="ruleForm.end_date" type="date" class="field"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="field-label">Account</label>
+                            <select x-model="ruleForm.account_id" class="field">
+                                <option value="">Any</option>
+                                <template x-for="a in accounts" :key="a.id"><option :value="a.id" :selected="a.id===ruleForm.account_id" x-text="a.name"></option></template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label">Category (optional)</label>
+                            <select x-model="ruleForm.category" class="field">
+                                <option value="">None</option>
+                                <template x-for="c in categories" :key="c.slug"><option :value="c.slug" :selected="c.slug===ruleForm.category" x-text="c.label"></option></template>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="field-label">Tax treatment (optional)</label>
+                        <select x-model="ruleForm.tax_treatment" class="field">
+                            <option value="" x-text="ruleForm.rule_type==='income' ? 'Default: W-2 wages, entered before tax' : 'Default: not deductible'"></option>
+                            <template x-for="t in (treatments[ruleForm.rule_type]||[])" :key="t.key"><option :value="t.key" :selected="t.key===ruleForm.tax_treatment" x-text="t.label"></option></template>
+                        </select>
+                        <p class="field-hint" x-text="treatmentHint(ruleForm.tax_treatment) || 'Used by the Taxes page. Leave on default if unsure.'"></p>
+                        <p class="text-xs text-amber-700 mt-1" x-show="isTransfer(ruleForm.tax_treatment)">Goes into your own account, so the Forecast does not count it as spending.</p>
+                    </div>
+                    <div><label class="field-label">Note (optional)</label><input x-model="ruleForm.note" type="text" class="field"></div>
+                </div>
+            </template>
+
+            <!-- RSU -->
+            <template x-if="ruleForm.rule_type==='rsu'">
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="field-label">Ticker</label><input x-model="ruleForm.cfg.ticker" type="text" placeholder="AAPL" class="field uppercase"></div>
+                        <div><label class="field-label">Total shares</label><input x-model="ruleForm.cfg.shares" type="number" step="1" class="field"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="field-label">Grant date</label><input x-model="ruleForm.cfg.grant_date" type="date" class="field"></div>
+                        <div><label class="field-label">Price at grant ($/share, optional)</label><input x-model="ruleForm.cfg.price" type="number" step="0.01" class="field"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="field-label">Withholding %</label><input x-model="ruleForm.cfg.withholding" type="number" step="0.01" class="field"></div>
+                        <div>
+                            <label class="field-label">Account (brokerage)</label>
+                            <select x-model="ruleForm.account_id" class="field">
+                                <option value="">Any</option>
+                                <template x-for="a in accounts" :key="a.id"><option :value="a.id" :selected="a.id===ruleForm.account_id" x-text="a.name"></option></template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg space-y-2">
+                        <p class="text-xs font-medium text-gray-600">Vesting schedule</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="field-label">Cliff (months)</label><input x-model="ruleForm.cfg.cliff_months" type="number" step="1" class="field"></div>
+                            <div><label class="field-label">Cliff % vested</label><input x-model="ruleForm.cfg.cliff_pct" type="number" step="0.01" class="field"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="field-label">Then every</label>
+                                <select x-model="ruleForm.cfg.sub_freq" class="field"><option value="monthly">Month</option><option value="quarterly">Quarter</option></select>
+                            </div>
+                            <div><label class="field-label">% per vest</label><input x-model="ruleForm.cfg.sub_pct" type="number" step="0.0001" class="field"></div>
+                        </div>
+                        <button @click="previewRsuSchedule()" type="button" class="btn btn-soft btn-sm">Preview schedule</button>
+                    </div>
+                    <template x-if="rsuSchedulePreview.length > 0">
+                        <div class="border rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                            <table class="data">
+                                <thead><tr><th>Date</th><th class="num">Shares</th></tr></thead>
+                                <tbody><template x-for="v in rsuSchedulePreview" :key="v.date"><tr><td x-text="v.date"></td><td class="num" x-text="(v.shares/1000).toFixed(4)"></td></tr></template></tbody>
+                            </table>
+                        </div>
+                    </template>
+                    <p class="field-hint">Vests are valued with the latest share price stored on <a class="text-blue-600 hover:underline" href="/balances?tab=prices">Balances → Share prices</a>.</p>
+                    <div><label class="field-label">Note (optional)</label><input x-model="ruleForm.note" type="text" class="field"></div>
+                </div>
+            </template>
+
+            <!-- ESPP -->
+            <template x-if="ruleForm.rule_type==='espp'">
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="field-label">Offering start</label><input x-model="ruleForm.cfg.offer_start" type="date" class="field"></div>
+                        <div><label class="field-label">Offering end</label><input x-model="ruleForm.cfg.offer_end" type="date" class="field"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="field-label">Contribution</label>
+                            <select x-model="ruleForm.cfg.contrib_mode" class="field"><option value="percent">% of salary</option><option value="fixed">Fixed $ per period</option></select>
+                        </div>
+                        <div><label class="field-label" x-text="ruleForm.cfg.contrib_mode==='percent' ? 'Contribution %' : 'Amount ($ per period)'"></label><input x-model="ruleForm.cfg.contrib_value" type="number" step="0.01" class="field"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div x-show="ruleForm.cfg.contrib_mode==='percent'"><label class="field-label">Base salary ($ per year)</label><input x-model="ruleForm.cfg.base_salary" type="number" step="0.01" class="field"></div>
+                        <div>
+                            <label class="field-label">Ticker (optional)</label>
+                            <input x-model="ruleForm.cfg.espp_ticker" type="text" placeholder="AAPL" class="field uppercase">
+                            <p class="field-hint">Lets Then vs. Now value these shares today.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="field-label">Discount %</label><input x-model="ruleForm.cfg.discount" type="number" step="0.01" class="field"></div>
+                        <label class="flex items-end gap-2 text-sm text-gray-700 pb-2 cursor-pointer"><input x-model="ruleForm.cfg.lookback" type="checkbox" class="rounded"> Has lookback</label>
+                    </div>
+                    <div>
+                        <label class="field-label">Account (brokerage)</label>
+                        <select x-model="ruleForm.account_id" class="field">
+                            <option value="">Any</option>
+                            <template x-for="a in accounts" :key="a.id"><option :value="a.id" :selected="a.id===ruleForm.account_id" x-text="a.name"></option></template>
+                        </select>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="field-label" style="margin:0">Purchase periods</span>
+                            <button @click="ruleForm.espp_periods.push({start_date:'',end_date:'',amount_dollars:''})" type="button" class="btn btn-soft btn-sm">+ Add period</button>
+                        </div>
+                        <div class="space-y-2">
+                            <template x-for="(p, i) in ruleForm.espp_periods" :key="i">
+                                <div class="flex flex-wrap items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                                    <input x-model="p.start_date" type="date" class="field flex-1 min-w-[130px]" aria-label="Period start">
+                                    <span class="text-xs text-gray-500">→</span>
+                                    <input x-model="p.end_date" type="date" class="field flex-1 min-w-[130px]" aria-label="Period end">
+                                    <input x-model="p.amount_dollars" type="number" step="0.01" placeholder="Est. $" class="field" style="width:110px" aria-label="Estimated purchase value in dollars">
+                                    <button @click="ruleForm.espp_periods.splice(i,1)" type="button" class="btn btn-danger btn-sm" aria-label="Remove period">×</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <div><label class="field-label">Note (optional)</label><input x-model="ruleForm.note" type="text" class="field"></div>
+                </div>
+            </template>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" @click="showRuleModal=false">Cancel</button>
+                <button type="button" class="btn btn-primary" @click="saveRule()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function planPage() {
+    const PER_MONTH = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, quarterly: 1 / 3, annually: 1 / 12 };
+    const acct = (self, id) => (self.accounts.find(a => a.id === id) || {}).name || '';
+    return {
+        rules: [], changes: [], accounts: [], categories: [], treatments: { income: [], expense: [] },
+        rulesLoading: true, changesLoading: true, pageSize: 50, today: todayISO(),
+        showChangeModal: false, changeEditId: null, changeForm: {},
+        showRuleModal: false, ruleEditId: null, ruleForm: { cfg: {}, espp_periods: [] }, rsuSchedulePreview: [],
+        draftText: '', draftBusy: false, draftError: '', fromDraft: false,
+        rulesList: null, changesList: null,
+
+        get shownRules() { return this.rulesList ? this.rulesList.apply(this.rules) : []; },
+        get shownChanges() { return this.changesList ? this.changesList.apply(this.changes) : []; },
+        get pagedChanges() { return this.shownChanges.slice(0, this.pageSize); },
+        get shownMonthlyIn() { return this.shownRules.filter(r => r.rule_type === 'income').reduce((s, r) => s + this.monthly(r), 0); },
+        get shownMonthlyOut() { return this.shownRules.filter(r => r.rule_type === 'expense').reduce((s, r) => s + this.monthly(r), 0); },
+        get changeTreatments() {
+            const amt = parseFloat(this.changeForm.amount_dollars);
+            if (amt > 0) return this.treatments.income;
+            if (amt < 0) return this.treatments.expense;
+            return [...this.treatments.income, ...this.treatments.expense];
+        },
+
+        fmt(c) { return formatCurrency(c); },
+        acctName(id) { return acct(this, id); },
+        typeLabel(t) { return { income: 'Income', expense: 'Expense', rsu: 'RSU', espp: 'ESPP' }[t] || t; },
+        monthly(r) { return r.amount && PER_MONTH[r.frequency] ? Math.round(r.amount * PER_MONTH[r.frequency]) : 0; },
+        amountText(r) {
+            if (r.rule_type === 'rsu') return ((r.config || {}).ticker || '') + ' · ' + ((r.schedule || []).length) + ' vests';
+            if (r.rule_type === 'espp') return ((r.schedule || []).length) + ' purchase periods';
+            return (r.rule_type === 'expense' ? '−' : '+') + formatCurrency(r.amount || 0) + ' / ' + (r.frequency || '—');
+        },
+        findTreatment(key) { return [...this.treatments.income, ...this.treatments.expense].find(t => t.key === key); },
+        treatmentHint(key) { return (this.findTreatment(key) || {}).hint || ''; },
+        isTransfer(key) { return !!(this.findTreatment(key) || {}).transfer; },
+        treatmentLabel(r) {
+            if (r.rule_type === 'rsu' || r.rule_type === 'espp') return 'Equity';
+            if (r.tax_treatment) return (this.findTreatment(r.tax_treatment) || {}).label || r.tax_treatment;
+            return r.rule_type === 'income' ? 'Wages (default)' : 'Not deductible (default)';
+        },
+
+        async init() {
+            const self = this;
+            this.rulesList = makeList({
+                key: 'r', sort: 'type',
+                search: r => [r.name, r.note, r.category, (r.config || {}).ticker].join(' '),
+                filters: { type: r => r.rule_type, frequency: r => r.frequency, account: r => acct(self, r.account_id) },
+                amount: r => r.amount,
+                sorts: { name: r => r.name.toLowerCase(), type: r => r.rule_type, amount: r => r.amount || 0, monthly: r => self.monthly(r),
+                         start: r => r.start_date, account: r => acct(self, r.account_id) },
+            });
+            this.changesList = makeList({
+                key: 'c', sort: 'date', dir: 'desc',
+                search: c => [c.description, c.note, c.category].join(' '),
+                filters: { when: c => c.date > self.today ? 'planned' : 'past', source: c => c.change_type, category: c => c.category,
+                           account: c => acct(self, c.account_id) },
+                date: c => c.date, amount: c => c.amount,
+                sorts: { date: c => c.date, description: c => c.description.toLowerCase(), amount: c => c.amount, source: c => c.change_type,
+                         category: c => c.category || '', account: c => acct(self, c.account_id) },
+            });
+            this.rulesList.read(); this.changesList.read();
+            await Promise.all([this.loadRules(), this.loadChanges(), this.loadLookups()]);
+            const p = new URLSearchParams(location.search);
+            if (p.get('new') === 'rule') this.openAddRule();
+            if (p.get('new') === 'entry') this.openAddChange();
+            if (p.get('edit')) { const r = this.rules.find(x => x.id === p.get('edit')); if (r) this.openEditRule(r); }
+        },
+        async loadLookups() {
+            try { this.accounts = await API.get('/accounts'); } catch (e) {}
+            try { this.categories = await API.get('/categories'); } catch (e) {}
+            try { const t = await API.get('/taxes/treatments'); this.treatments = { income: t.income, expense: t.expense }; } catch (e) {}
+        },
+        async loadRules() {
+            this.rulesLoading = true;
+            try { this.rules = await API.get('/rules'); } catch (e) { showAlert('Could not load rules: ' + e.message, 'error'); }
+            finally { this.rulesLoading = false; }
+        },
+        async loadChanges() {
+            this.changesLoading = true;
+            try { this.changes = await API.get('/changes'); } catch (e) { showAlert('Could not load entries: ' + e.message, 'error'); }
+            finally { this.changesLoading = false; }
+        },
+
+        // ── AI draft ──────────────────────────────────────────────────────
+        async draft() {
+            this.draftBusy = true; this.draftError = '';
+            try {
+                const d = (await API.post('/assistant/draft', { text: this.draftText, today: this.today })).draft;
+                if (d.kind === 'rule') {
+                    this.openAddRule();
+                    Object.assign(this.ruleForm, { rule_type: d.rule_type, name: d.name, amount_dollars: d.amount_dollars, frequency: d.frequency, start_date: d.start_date, end_date: d.end_date });
+                } else {
+                    this.openAddChange();
+                    Object.assign(this.changeForm, { description: d.description, amount_dollars: d.amount_dollars, date: d.date });
+                }
+                this.fromDraft = true; this.draftText = '';
+            } catch (e) { this.draftError = e.message; }
+            finally { this.draftBusy = false; }
+        },
+
+        // ── One-off entries ───────────────────────────────────────────────
+        openAddChange() {
+            this.changeEditId = null; this.fromDraft = false;
+            this.changeForm = { date: this.today, description: '', amount_dollars: '', account_id: '', category: '', change_type: 'manual', tax_treatment: '', note: '' };
+            this.showChangeModal = true;
+        },
+        openEditChange(c) {
+            this.changeEditId = c.id; this.fromDraft = false;
+            this.changeForm = { date: c.date, description: c.description, amount_dollars: (c.amount / 100).toFixed(2), account_id: c.account_id || '', category: c.category || '', change_type: c.change_type, tax_treatment: c.tax_treatment || '', note: c.note || '' };
+            this.showChangeModal = true;
+        },
+        async saveChange() {
+            const f = this.changeForm;
+            const amount = Math.round(parseFloat(f.amount_dollars || 0) * 100);
+            if (!f.description.trim()) return showAlert('Add a description', 'warning');
+            if (!f.date) return showAlert('Pick a date', 'warning');
+            if (!amount) return showAlert('Enter an amount other than zero', 'warning');
+            const p = { date: f.date, description: f.description.trim(), amount, account_id: f.account_id || null, category: f.category || null,
+                        change_type: f.change_type, tax_treatment: f.change_type === 'manual' ? (f.tax_treatment || null) : null, note: f.note || null };
+            try {
+                if (this.changeEditId) await API.patch('/changes/' + this.changeEditId, p); else await API.post('/changes', p);
+                showAlert('Saved', 'success'); this.showChangeModal = false;
+                await this.loadChanges(); Alpine.store('app').refreshAttention();
+            } catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
+        },
+        async deleteChange(c) {
+            if (!confirm('Delete "' + c.description + '" (' + fmtSigned(c.amount) + ')? This cannot be undone.')) return;
+            try { await API.delete('/changes/' + c.id); showAlert('Deleted', 'success'); await this.loadChanges(); }
+            catch (e) { showAlert('Could not delete: ' + e.message, 'error'); }
+        },
+
+        // ── Rules ─────────────────────────────────────────────────────────
+        _defaultCfg() { return { ticker: '', shares: '', grant_date: '', price: '', withholding: '22', cliff_months: 12, cliff_pct: '25', sub_freq: 'monthly', sub_pct: '2.0833', espp_ticker: '', offer_start: '', offer_end: '', contrib_mode: 'percent', contrib_value: '10', base_salary: '', discount: '15', lookback: true }; },
+        openAddRule() {
+            this.ruleEditId = null; this.rsuSchedulePreview = []; this.fromDraft = false;
+            this.ruleForm = { rule_type: 'income', name: '', amount_dollars: '', frequency: 'monthly', start_date: this.today, end_date: '', account_id: '', category: '', tax_treatment: '', note: '', cfg: this._defaultCfg(), espp_periods: [] };
+            this.showRuleModal = true;
+        },
+        openEditRule(r) {
+            this.ruleEditId = r.id; this.rsuSchedulePreview = []; this.fromDraft = false;
+            const cfg = this._defaultCfg(), c = r.config || {};
+            if (r.rule_type === 'rsu') {
+                cfg.ticker = c.ticker || '';
+                cfg.shares = c.total_shares ? (c.total_shares / 1000).toString() : '';
+                cfg.grant_date = c.grant_date || r.start_date;
+                cfg.price = c.price_at_grant ? (c.price_at_grant / 100).toFixed(2) : '';
+                cfg.withholding = c.withholding_rate ? (c.withholding_rate / 100).toFixed(2) : '22';
+                cfg.cliff_months = c.cliff_months || 12;
+                cfg.cliff_pct = c.cliff_percent ? (c.cliff_percent / 100).toFixed(4) : '25';
+                cfg.sub_freq = c.subsequent_frequency || 'monthly';
+                cfg.sub_pct = c.subsequent_percent ? (c.subsequent_percent / 100).toFixed(4) : '2.0833';
+            } else if (r.rule_type === 'espp') {
+                cfg.espp_ticker = c.ticker || '';
+                cfg.offer_start = c.offering_start_date || ''; cfg.offer_end = c.offering_end_date || '';
+                cfg.contrib_mode = c.contribution_mode || 'percent';
+                cfg.contrib_value = c.contribution_value ? (c.contribution_value / 100).toFixed(2) : '';
+                cfg.base_salary = c.base_salary ? (c.base_salary / 100).toFixed(2) : '';
+                cfg.discount = c.discount_rate ? (c.discount_rate / 100).toFixed(2) : '15';
+                cfg.lookback = c.has_lookback !== false;
+            }
+            const espp_periods = r.rule_type === 'espp' ? (r.schedule || []).map(p => ({ start_date: p.start_date || '', end_date: p.end_date || '', amount_dollars: p.estimated_purchase_amount ? (p.estimated_purchase_amount / 100).toFixed(2) : '' })) : [];
+            this.ruleForm = { rule_type: r.rule_type, name: r.name, amount_dollars: r.amount ? (r.amount / 100).toFixed(2) : '', frequency: r.frequency || 'monthly', start_date: r.start_date, end_date: r.end_date || '', account_id: r.account_id || '', category: r.category || '', tax_treatment: r.tax_treatment || '', note: r.note || '', cfg, espp_periods };
+            this.showRuleModal = true;
+        },
+        async previewRsuSchedule() {
+            const c = this.ruleForm.cfg;
+            const config = { ticker: c.ticker, total_shares: Math.round(parseFloat(c.shares || 0) * 1000), grant_date: c.grant_date || this.ruleForm.start_date, cliff_months: parseInt(c.cliff_months), cliff_percent: Math.round(parseFloat(c.cliff_pct || 0) * 100), subsequent_frequency: c.sub_freq, subsequent_percent: Math.round(parseFloat(c.sub_pct || 0) * 100) };
+            try { this.rsuSchedulePreview = (await API.post('/rules/rsu-preview', { config })).schedule || []; }
+            catch (e) { showAlert('Preview failed: ' + e.message, 'error'); }
+        },
+        async saveRule() {
+            const f = this.ruleForm;
+            if (!f.name.trim()) return showAlert('Give the rule a name', 'warning');
+            const payload = { name: f.name.trim(), rule_type: f.rule_type, account_id: f.account_id || null, start_date: f.start_date, end_date: f.end_date || null, note: f.note || null };
+            if (f.rule_type === 'income' || f.rule_type === 'expense') {
+                payload.amount = Math.round(Math.abs(parseFloat(f.amount_dollars || 0)) * 100);
+                if (!payload.amount) return showAlert('Enter an amount', 'warning');
+                if (!f.start_date) return showAlert('Pick a start date', 'warning');
+                payload.frequency = f.frequency; payload.category = f.category || null; payload.tax_treatment = f.tax_treatment || null;
+            } else if (f.rule_type === 'rsu') {
+                const c = f.cfg;
+                if (!c.ticker.trim() || !parseFloat(c.shares)) return showAlert('Enter a ticker and the number of shares', 'warning');
+                payload.start_date = c.grant_date || f.start_date;
+                payload.config = { ticker: c.ticker.trim().toUpperCase(), total_shares: Math.round(parseFloat(c.shares || 0) * 1000), grant_date: c.grant_date || f.start_date, price_at_grant: Math.round(parseFloat(c.price || 0) * 100), withholding_rate: Math.round(parseFloat(c.withholding || 0) * 100), cliff_months: parseInt(c.cliff_months), cliff_percent: Math.round(parseFloat(c.cliff_pct || 0) * 100), subsequent_frequency: c.sub_freq, subsequent_percent: Math.round(parseFloat(c.sub_pct || 0) * 100) };
+            } else {
+                const c = f.cfg;
+                if (!c.offer_start) return showAlert('Pick the offering start date', 'warning');
+                payload.start_date = c.offer_start; payload.end_date = c.offer_end || null;
+                payload.config = { ticker: (c.espp_ticker || '').trim().toUpperCase() || null, offering_start_date: c.offer_start, offering_end_date: c.offer_end, contribution_mode: c.contrib_mode, contribution_value: Math.round(parseFloat(c.contrib_value || 0) * 100), base_salary: Math.round(parseFloat(c.base_salary || 0) * 100), discount_rate: Math.round(parseFloat(c.discount || 0) * 100), has_lookback: c.lookback };
+                payload.schedule = f.espp_periods.map(p => ({ start_date: p.start_date, end_date: p.end_date, estimated_purchase_amount: Math.round(parseFloat(p.amount_dollars || 0) * 100) }));
+            }
+            try {
+                if (this.ruleEditId) await API.patch('/rules/' + this.ruleEditId, payload); else await API.post('/rules', payload);
+                showAlert('Saved', 'success'); this.showRuleModal = false;
+                await this.loadRules(); Alpine.store('app').refreshAttention();
+            } catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
+        },
+        async deleteRule(r) {
+            if (!confirm('Delete the rule "' + r.name + '"? Its future events leave the Forecast. This cannot be undone.')) return;
+            try { await API.delete('/rules/' + r.id); showAlert('Deleted', 'success'); await this.loadRules(); }
+            catch (e) { showAlert('Could not delete: ' + e.message, 'error'); }
+        },
+    };
+}
+</script>
+{% endblock %}

@@ -73,10 +73,12 @@ Go to **http://localhost:5000** and start exploring!
 ## What You Can Do Right Away
 
 ### If You Loaded Sample Data:
-1. **Dashboard**: See net worth cards, monthly cash flow, and upcoming events
-2. **Transactions**: Browse the sample monthly salary transaction
-3. **Timeline**: View the 5-year projection (with sample salary data)
-4. **Settings**: Export data as JSON or load a fresh sample dataset
+1. **Overview**: Net worth, this month's planned cash flow and what needs attention
+2. **Balances**: Update a value inline, or run the check-in for the stale ones
+3. **Plan**: Browse the sample rules and one-off entries; search, filter and sort them
+4. **Forecast**: See the projection and untick a rule under "What if…"
+5. **Insights**: See what the app noticed, each with its basis
+6. **Settings**: Export everything as JSON or load a fresh sample data set
 
 ### Via API (Use curl or Postman):
 
@@ -201,7 +203,7 @@ The app is organized into clean layers:
 ```
 Browser (Jinja2 Templates + Alpine.js)
     ↓
-Flask Page Routes (/dashboard, /transactions, etc.)
+Flask Page Routes (/overview, /plan, /balances, /forecast, /insights, etc.)
     ↓
 REST API Endpoints (/api/accounts, /api/projection, etc.)
     ↓

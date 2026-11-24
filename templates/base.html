@@ -1,72 +1,169 @@
 <!DOCTYPE html>
 <html lang="en">
+{% import "_icons.html" as ic %}
+{# Navigation is grouped by what the user does there, not by kind of data.
+   role: view = computed, read-only · manage = the user's own inputs · guidance = the app pointing things out #}
+{% set nav = [
+    ("Your picture", "view", [
+        ("/overview", "Overview", "overview"), ("/forecast", "Forecast", "forecast"),
+        ("/then-vs-now", "Then vs. Now", "then-vs-now"), ("/taxes", "Taxes", "taxes")]),
+    ("Your inputs", "manage", [
+        ("/plan", "Plan", "plan"), ("/balances", "Balances", "balances"), ("/import", "Import", "import")]),
+    ("Guidance", "guidance", [
+        ("/insights", "Insights", "insights")]),
+    ("App", "app", [
+        ("/settings", "Settings", "settings")]),
+] %}
+{# The five pages a phone reaches with one tap; everything else is in the menu. #}
+{% set tabs = [("/overview", "Overview", "overview"), ("/forecast", "Forecast", "forecast"), ("/plan", "Plan", "plan"),
+               ("/balances", "Balances", "balances"), ("/insights", "Insights", "insights")] %}
+{% set role_labels = {"view": "View only", "manage": "You manage", "guidance": "Guidance", "mixed": "View + inputs"} %}
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Personal Finance Suite{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        [x-cloak] { display: none !important; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>{% block title %}{{ page_title }} · Finance{% endblock %}</title>
+    <meta name="description" content="Your plan, balances and forecast, kept on your own computer.">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="{{ asset('icons/favicon.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ asset('icons/favicon-32.png') }}" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="{{ asset('icons/apple-touch-icon.png') }}">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Finance">
+    <link rel="stylesheet" href="{{ asset('build/tailwind.css') }}">
+    <link rel="stylesheet" href="{{ asset('app.css') }}">
+    <script src="{{ asset('pwa.js') }}"></script>
+    <script src="{{ asset('app.js') }}"></script>
+    <script src="{{ asset('list.js') }}"></script>
+    <script src="{{ asset('vendor/chart.umd.min.js') }}" defer></script>
+    <script src="{{ asset('vendor/alpine.min.js') }}" defer></script>
 </head>
-<body class="bg-gray-50">
-    <div class="min-h-screen flex">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-slate-900 text-white shadow-lg">
-            <div class="p-6">
-                <h1 class="text-2xl font-bold">Finance</h1>
-                <p class="text-sm text-gray-400">Personal Suite</p>
+<body class="app-body">
+<a href="#main" class="skip-link">Skip to content</a>
+<div class="app-shell" x-data x-init="$watch('$store.ui.menu', open => { document.body.classList.toggle('no-scroll', open); if (open) $nextTick(() => $refs.menuClose.focus()); })">
+
+    <!-- ── Sidebar (wide screens) ──────────────────────────────────────────── -->
+    <aside class="sidebar" aria-label="App">
+        <a href="/overview" class="brand">
+            {{ ic.logo(34) }}
+            <span><span class="brand-name">Finance</span><span class="brand-sub">Personal Suite</span></span>
+        </a>
+        <nav aria-label="Main" class="sidebar-nav">
+            {% for group, role, links in nav %}
+            <div class="nav-group nav-{{ role }}">{{ group }}</div>
+            {% for href, label, icon in links %}
+            <a href="{{ href }}" class="nav-link nav-{{ role }}{% if request.path == href %} active{% endif %}"
+               {% if request.path == href %}aria-current="page"{% endif %}>
+                {{ ic.icon(icon) }}<span class="flex-1">{{ label }}</span>
+                {% if href == "/insights" %}
+                <span class="nav-count" x-show="$store.app.attention > 0" x-text="$store.app.attention" x-cloak
+                      :aria-label="$store.app.attention + ' items need attention'"></span>
+                {% endif %}
+            </a>
+            {% endfor %}
+            {% endfor %}
+        </nav>
+        <div class="sidebar-foot">
+            <button type="button" class="install-btn" x-show="$store.pwa.showInstall" x-cloak @click="$store.pwa.install()">
+                {{ ic.icon("install") }} <span>Install app</span>
+            </button>
+            <a href="/settings?tab=ai" class="ai-status" x-cloak x-show="$store.app.ai.loaded">
+                <span class="dot" :class="$store.app.ai.ok ? 'on' : ''"></span>
+                <span x-text="$store.app.ai.ok ? 'AI ready · ' + $store.app.ai.model : 'AI assistant off'"></span>
+            </a>
+            <dl class="legend">
+                <div><dt class="role-chip view">View only</dt><dd>computed for you</dd></div>
+                <div><dt class="role-chip manage">You manage</dt><dd>your entries</dd></div>
+                <div><dt class="role-chip guidance">Guidance</dt><dd>what stands out</dd></div>
+                <div><dt class="role-chip ai">AI</dt><dd>worded by a model</dd></div>
+            </dl>
+        </div>
+    </aside>
+
+    <div class="app-column">
+        <!-- ── Top bar (phones and tablets) ────────────────────────────────── -->
+        <header class="topbar">
+            <a href="/overview" class="topbar-logo" aria-label="Overview">{{ ic.logo(30) }}</a>
+            <div class="topbar-title" aria-hidden="true">{{ page_title }}</div>
+            {% if role %}<span class="role-chip {{ 'view' if role == 'mixed' else role }}">{{ role_labels[role] }}</span>{% endif %}
+            <button type="button" class="icon-btn" @click="$store.ui.menu = true" aria-label="Open menu" aria-haspopup="dialog"
+                    :aria-expanded="$store.ui.menu.toString()">{{ ic.icon("menu") }}</button>
+        </header>
+
+        <div class="offline-bar" x-show="$store.pwa.offline" x-cloak role="status">
+            {{ ic.icon("wifi-off", "icon icon-sm") }} You're offline. Figures can't load or save until the connection is back.
+        </div>
+
+        <header class="page-head">
+            <div class="page-head-row">
+                <h1 class="page-title">{% block page_title %}{{ page_title }}{% endblock %}</h1>
+                {% if role %}<span class="role-chip {{ 'view' if role == 'mixed' else role }}">{{ role_labels[role] }}</span>{% endif %}
             </div>
+            {% if role_note %}<p class="page-note">{{ role_note }}</p>{% endif %}
+        </header>
 
-            <nav class="mt-10">
-                <a href="/dashboard" class="{% if request.path == '/dashboard' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
-                    📊 Dashboard
-                </a>
-                <a href="/timeline" class="{% if request.path in ['/timeline', '/transactions'] %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
-                    📅 Cash Flow
-                </a>
-                <a href="/taxes" class="{% if request.path == '/taxes' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
-                    🧾 Taxes
-                </a>
-                <a href="/then-vs-now" class="{% if request.path == '/then-vs-now' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
-                    ⇄ Then vs. Now
-                </a>
-                <a href="/import" class="{% if request.path == '/import' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
-                    📥 Import
-                </a>
-                <a href="/equity" class="{% if request.path == '/equity' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
-                    📈 Assets
-                </a>
-                <a href="/accounts" class="{% if request.path == '/accounts' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
-                    💰 Cash
-                </a>
-                <a href="/loans" class="{% if request.path == '/loans' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
-                    ⚠️ Liabilities
-                </a>
-                <a href="/settings" class="{% if request.path == '/settings' %}bg-slate-700{% endif %} block px-6 py-3 hover:bg-slate-700 transition">
-                    ⚙️ Settings
-                </a>
-            </nav>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="flex-1">
-            <!-- Header -->
-            <header class="bg-white border-b border-gray-200 shadow-sm">
-                <div class="px-8 py-4">
-                    <h2 class="text-xl font-semibold text-gray-900">{% block page_title %}{% endblock %}</h2>
-                </div>
-            </header>
-
-            <!-- Content -->
-            <div class="p-8">
-                {% block content %}{% endblock %}
-            </div>
+        <main id="main" class="app-main" tabindex="-1">
+            {% block content %}{% endblock %}
         </main>
     </div>
 
-    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <!-- ── Bottom tab bar (phones and tablets) ─────────────────────────────── -->
+    <nav class="tabbar" aria-label="Main pages">
+        {% for href, label, icon in tabs %}
+        <a href="{{ href }}" class="tab{% if request.path == href %} active{% endif %}" {% if request.path == href %}aria-current="page"{% endif %}>
+            <span class="tab-icon">{{ ic.icon(icon) }}{% if href == "/insights" %}<span class="tab-badge" x-show="$store.app.attention > 0" x-text="$store.app.attention" x-cloak></span>{% endif %}</span>
+            <span class="tab-label">{{ label }}</span>
+        </a>
+        {% endfor %}
+    </nav>
+
+    <!-- ── Menu sheet (phones and tablets) ─────────────────────────────────── -->
+    <div class="sheet-backdrop" x-show="$store.ui.menu" x-cloak x-transition.opacity @click="$store.ui.menu = false"></div>
+    <div class="sheet" x-show="$store.ui.menu" x-cloak role="dialog" aria-modal="true" aria-label="Menu"
+         x-transition:enter="sheet-enter" x-transition:leave="sheet-leave" @keydown.escape.window="$store.ui.menu = false">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <div class="flex items-center justify-between mb-1">
+            <span class="brand brand-light">{{ ic.logo(28) }} <span class="brand-name">Finance</span></span>
+            <button type="button" class="icon-btn" x-ref="menuClose" @click="$store.ui.menu = false" aria-label="Close menu">{{ ic.icon("close") }}</button>
+        </div>
+        {% for group, role, links in nav %}
+        <div class="sheet-group nav-{{ role }}">{{ group }}</div>
+        <div class="sheet-links">
+            {% for href, label, icon in links %}
+            <a href="{{ href }}" class="sheet-link nav-{{ role }}{% if request.path == href %} active{% endif %}"
+               {% if request.path == href %}aria-current="page"{% endif %}>{{ ic.icon(icon) }}<span>{{ label }}</span></a>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        <div class="install-card" x-show="$store.pwa.showInstall">
+            <div class="flex items-center gap-3">
+                <img src="{{ asset('icons/icon-96.png') }}" width="40" height="40" alt="" class="rounded-xl">
+                <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-slate-900">Install Finance</p>
+                    <p class="text-xs text-slate-500">Opens full screen from your home screen, like an app.</p>
+                </div>
+                <button type="button" class="btn btn-primary" @click="$store.pwa.install()">Install</button>
+            </div>
+            <ol class="ios-steps" x-show="$store.pwa.iosHelp">
+                <li>Tap {{ ic.icon("share", "icon icon-sm icon-inline") }} <strong>Share</strong> in Safari's toolbar.</li>
+                <li>Choose <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
+            </ol>
+        </div>
+        <dl class="legend legend-light">
+            <div><dt class="role-chip view">View only</dt><dd>computed for you</dd></div>
+            <div><dt class="role-chip manage">You manage</dt><dd>your entries</dd></div>
+            <div><dt class="role-chip guidance">Guidance</dt><dd>what stands out</dd></div>
+            <div><dt class="role-chip ai">AI</dt><dd>worded by a model</dd></div>
+        </dl>
+    </div>
+
+    <!-- ── New version ready ────────────────────────────────────────────────── -->
+    <div class="update-bar" x-show="$store.pwa.updateReady" x-cloak role="status">
+        {{ ic.icon("refresh", "icon icon-sm") }}<span>A new version is ready.</span>
+        <button type="button" class="btn btn-primary btn-sm" @click="$store.pwa.applyUpdate()">Reload</button>
+    </div>
+</div>
 </body>
 </html>
