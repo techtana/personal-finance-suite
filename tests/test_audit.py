@@ -122,3 +122,12 @@ def test_only_listed_people_get_in_and_the_health_check_stays_open(tailnet_app):
     assert client.get("/overview", headers={"Tailscale-User-Login": "guest@example.com"}).status_code == 403
     assert client.get("/api/rules").status_code == 403           # a tagged machine has no login at all
     assert client.get("/healthz").get_json() == {"ok": True}
+
+
+def test_the_import_workers_progress_is_not_activity(client, accounts):
+    from tests.conftest import upload
+    upload(client, "checking-activity.csv")
+    kinds = [(e["who"], e["action"]) for e in client.get("/api/activity").get_json()["entries"]
+             if e["kind"] == "Imported file"]
+    # The upload itself (create, then the stored file's path); none of the reading progress.
+    assert kinds[-1] == ("local", "create") and len(kinds) <= 2 and all(who == "local" for who, _ in kinds)

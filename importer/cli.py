@@ -31,7 +31,7 @@ def status_cmd():
 @imports_cli.command("read")
 @click.argument("path", type=click.Path(exists=True, dir_okay=False))
 @click.option("--account", "account_id", default=None, help="Account id the file belongs to.")
-@click.option("--type", "doc_type", type=click.Choice(["statement", "receipt", "payslip"]), default=None)
+@click.option("--type", "doc_type", type=click.Choice(["statement", "receipt", "payslip", "equity"]), default=None)
 @click.option("--commit", "do_commit", is_flag=True, help="Commit the rows that are ticked by default.")
 def read_cmd(path, account_id, doc_type, do_commit):
     """Read one file and print what would be imported."""
