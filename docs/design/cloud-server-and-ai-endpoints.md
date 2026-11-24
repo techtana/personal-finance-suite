@@ -1,7 +1,7 @@
 # One server in the cloud, many devices, AI wherever it can run
 
-Decided 2026-11-23. Status: built and tested on this branch; **not deployed** (the owner runs
-the deploy, see [deploy/README.md](../../deploy/README.md)).
+Decided 2026-11-23. Status: deployed 2026-11-24 with `deploy/deploy.sh` (see
+[deploy/README.md](../../deploy/README.md)). The private cloud AI endpoint is not deployed.
 
 ## The shape
 
@@ -128,8 +128,10 @@ phone keyboard's own microphone key remains the owner's choice.
 
 ## Not done
 
-- Nothing is deployed. `deploy/deploy.sh` and `deploy/startup.sh` follow the Logseq server's
-  scripts but have not been run. `deploy/ai-endpoint/` has never been run at all.
+- `deploy/deploy.sh` and `deploy/startup.sh` have run once, for the first deploy (2026-11-24),
+  from Git Bash on Windows. The re-deploy path (an existing VM) has not been exercised.
+  `deploy/ai-endpoint/` has never been run at all.
+- The weekly restore drill is installed on the VM but its first result has not been looked at.
 - One household, one database. There are no per-person permissions: anyone the tailnet rule
   (and `ALLOWED_LOGINS`) lets in can see and change everything.
 - A per-person check for the most sensitive actions (restore, clear all data) is not built;

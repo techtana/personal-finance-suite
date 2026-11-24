@@ -32,7 +32,10 @@ REPO=ai; IMAGE="${REGION}-docker.pkg.dev/${AI_PROJECT_ID}/${REPO}/ollama-${MODEL
 say()    { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 exists() { "$@" >/dev/null 2>&1; }
 
-gcloud config set project "$AI_PROJECT_ID" >/dev/null
+# For this run only: the default project of whoever runs the script is left alone.
+# Never stop to ask (a hidden "enable this API?" question would hang the script).
+export CLOUDSDK_CORE_DISABLE_PROMPTS=1
+export CLOUDSDK_CORE_PROJECT="$AI_PROJECT_ID"
 
 say "Enabling APIs"
 gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com

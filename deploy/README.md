@@ -1,8 +1,8 @@
 # Deploying the finance server
 
 A private server on Google Cloud that only your Tailscale devices can reach. You run every
-step here yourself: the scripts create billable resources and need a Tailscale key, and none
-of it has been run yet. Design and reasons: [docs/design/cloud-server-and-ai-endpoints.md](../docs/design/cloud-server-and-ai-endpoints.md).
+step here yourself: the scripts create billable resources and need a Tailscale key. The first
+deploy has been done once with these scripts; re-deploying over an existing VM has not. Design and reasons: [docs/design/cloud-server-and-ai-endpoints.md](../docs/design/cloud-server-and-ai-endpoints.md).
 
 **What it costs.** A small VM, a 10 GB disk with snapshots, Cloud NAT and a storage bucket,
 running all month. Google's free tier covers one e2-micro VM per billing account; if the Logseq
@@ -14,7 +14,8 @@ server already uses it, this VM is billed. Check current prices before you start
    - *DNS*: MagicDNS and HTTPS Certificates are on (already true if the Logseq server works).
    - *Access controls*: merge the lines from [policy-reference.hujson](policy-reference.hujson)
      into the live policy: the `tag:finance` owner line and the one grant. Do not add any rule
-     that starts from `tag:finance`.
+     that starts from `tag:finance`. The grant's `src` must be a group your policy really
+     defines; if it has no `group:owner`, use what your other rules use, e.g. `autogroup:member`.
    - *Settings → Keys*: generate an auth key: **not reusable, pre-approved, tag `tag:finance`**.
 2. **Google Cloud**: a project with billing, and you signed in to `gcloud` as its owner.
 3. **This repository**: a checkout of the branch to deploy, with the stylesheet built
@@ -22,14 +23,18 @@ server already uses it, this VM is billed. Check current prices before you start
 
 ## Deploy
 
-From the repository root, in Cloud Shell or any shell with `gcloud`:
+From the repository root, in Cloud Shell or any bash with `gcloud` signed in (Git Bash on
+Windows works). The script sets the project for its own run only; your default `gcloud`
+project is not changed.
 
 ```bash
 PROJECT_ID=your-project-id ALLOWED_LOGINS=you@example.com ./deploy/deploy.sh
 ```
 
-Paste the Tailscale key when asked (the input is hidden). The script prints the app's address
-when the server is up, usually after 3 to 6 minutes on the first run.
+Paste the Tailscale key once when asked and press Enter. The input is hidden, so nothing
+appears; don't paste again, or the key ends up on your command line when the script finishes.
+The script prints the app's address when the server is up, about 10 minutes in all on the
+first run.
 
 - `ALLOWED_LOGINS` is a comma-separated list of Tailscale logins. Leave it out to let in
   everyone the tailnet rule allows.
@@ -99,7 +104,8 @@ after every endpoint you own. Its key goes in `extra.env` as its own variable, n
 
 | Symptom | Look at |
 |---|---|
-| The address doesn't load on a tailnet device | Is the device connected to Tailscale? Is the `tag:finance` grant in the live policy? |
+| The address doesn't load, and `tailscale status` doesn't list `finance` | Tailscale hides devices you have no rule to reach: the `tag:finance` grant is missing from the live policy, or its `src` doesn't include you |
+| The address doesn't load, but `finance` is listed | Is this device connected to Tailscale? The first request can take a few seconds while the certificate is issued |
 | "This Tailscale account isn't allowed" | `ALLOWED_LOGINS` doesn't include that login. Re-run the deploy with the right list |
 | Backups fail with a permission error | The bucket's IAM should give the VM account `objectCreator` and `objectViewer`, nothing more |
 | A save is refused, asking to reload | Another device changed that entry first. Reload and repeat the change |

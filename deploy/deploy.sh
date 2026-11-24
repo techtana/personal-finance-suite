@@ -44,7 +44,10 @@ exists() { "$@" >/dev/null 2>&1; }
 [[ -s static/build/tailwind.css ]] || {
   echo "static/build/tailwind.css is missing. Run: python scripts/build_css.py" >&2; exit 1; }
 
-gcloud config set project "$PROJECT_ID" >/dev/null
+# For this run only: the default project of whoever runs the script is left alone.
+# Never stop to ask (a hidden "enable this API?" question would hang the script).
+export CLOUDSDK_CORE_DISABLE_PROMPTS=1
+export CLOUDSDK_CORE_PROJECT="$PROJECT_ID"
 VM_EXISTS=0; exists gcloud compute instances describe "$NAME" --zone "$ZONE" && VM_EXISTS=1
 
 if [[ "$VM_EXISTS" == 0 ]]; then
