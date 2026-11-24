@@ -21,7 +21,8 @@ SKIP_FLAGS = {
 # Flags that put a row in the "Needs review" filter.
 REVIEW_FLAGS = {
     "low_confidence", "uncategorized", "ai_extracted", "doesnt_add_up", "ai_disagrees", "direction_unknown",
-    "ambiguous_date", "possible_duplicate", "pick_account", "from_photo", "sign_guessed",
+    "ambiguous_date", "possible_duplicate", "pick_account", "from_photo", "sign_guessed", "check_vests", "from_ai",
+    "missing_date",
 }
 
 

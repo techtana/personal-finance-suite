@@ -259,7 +259,16 @@
                             </select>
                         </div>
                     </div>
-                    <div class="p-3 bg-gray-50 rounded-lg space-y-2">
+                    <template x-if="ruleForm.cfg.schedule_source === 'document'">
+                        <div class="p-3 bg-gray-50 rounded-lg space-y-2">
+                            <p class="text-xs font-medium text-gray-600">Vesting schedule, from the grant document</p>
+                            <table class="data"><thead><tr><th>Date</th><th class="num">Shares</th></tr></thead>
+                                <tbody><template x-for="v in ruleForm.cfg.document_vests" :key="v.date"><tr><td x-text="v.date"></td><td class="num" x-text="(v.shares/1000).toLocaleString()"></td></tr></template></tbody>
+                            </table>
+                            <p class="field-hint">These dates came from the imported grant notice and are kept as they are.</p>
+                        </div>
+                    </template>
+                    <div class="p-3 bg-gray-50 rounded-lg space-y-2" x-show="ruleForm.cfg.schedule_source !== 'document'">
                         <p class="text-xs font-medium text-gray-600">Vesting schedule</p>
                         <div class="grid grid-cols-2 gap-3">
                             <div><label class="field-label">Cliff (months)</label><input x-model="ruleForm.cfg.cliff_months" type="number" step="1" class="field"></div>
@@ -501,6 +510,8 @@ function planPage() {
                 cfg.cliff_pct = c.cliff_percent ? (c.cliff_percent / 100).toFixed(4) : '25';
                 cfg.sub_freq = c.subsequent_frequency || 'monthly';
                 cfg.sub_pct = c.subsequent_percent ? (c.subsequent_percent / 100).toFixed(4) : '2.0833';
+                cfg.schedule_source = c.schedule_source || '';
+                cfg.document_vests = c.schedule_source === 'document' ? (r.schedule || []) : [];
             } else if (r.rule_type === 'espp') {
                 cfg.espp_ticker = c.ticker || '';
                 cfg.offer_start = c.offering_start_date || ''; cfg.offer_end = c.offering_end_date || '';
@@ -534,6 +545,7 @@ function planPage() {
                 if (!c.ticker.trim() || !parseFloat(c.shares)) return showAlert('Enter a ticker and the number of shares', 'warning');
                 payload.start_date = c.grant_date || f.start_date;
                 payload.config = { ticker: c.ticker.trim().toUpperCase(), total_shares: Math.round(parseFloat(c.shares || 0) * 1000), grant_date: c.grant_date || f.start_date, price_at_grant: Math.round(parseFloat(c.price || 0) * 100), withholding_rate: Math.round(parseFloat(c.withholding || 0) * 100), cliff_months: parseInt(c.cliff_months), cliff_percent: Math.round(parseFloat(c.cliff_pct || 0) * 100), subsequent_frequency: c.sub_freq, subsequent_percent: Math.round(parseFloat(c.sub_pct || 0) * 100) };
+                if (c.schedule_source === 'document') payload.config.schedule_source = 'document';
             } else {
                 const c = f.cfg;
                 if (!c.offer_start) return showAlert('Pick the offering start date', 'warning');

@@ -1,0 +1,21 @@
+Example Corp Confidential
+                                                         Form of RSU Agreement (2024 EIP)
+                                   EXAMPLE CORPORATION, INC.
+                                  2024 EQUITY INCENTIVE PLAN
+                              RESTRICTED STOCK UNIT AGREEMENT
+                           NOTICE OF RESTRICTED STOCK UNIT GRANT
+        Unless otherwise defined herein, the terms defined in the Example Corporation, Inc. 2024 Equity
+  Incentive Plan (the "Plan") will have the same defined meanings in this Restricted Stock Unit
+  Agreement which includes the Notice of Restricted Stock Unit Grant (the "Notice of Grant").
+        Participant Name:                               Sample Employee
+        The undersigned Participant has been granted the right to receive a Restricted Stock Unit Award,
+  subject to the terms and conditions of the Plan and this Award Agreement, as follows:
+        Grant Number:                                                US00012345
+        Date of Grant:                                                 15-Sep-2025
+        Total Number of Shares Subject to
+        Restricted Stock Units:                                   40
+        Vest Date:                                                       15-Sep-2026
+        Vest Quantity:                                                 40
+        Vesting Schedule:
+        Subject to any acceleration provisions contained in the Plan or set forth below, the Restricted
+  Stock Units will be scheduled to vest as referenced above.

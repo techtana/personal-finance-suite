@@ -47,7 +47,7 @@ _EQUITY_SIGNALS = [
     r"\bshares? (?:withheld|sold|issued|traded|deposited|purchased|granted)\b|\bnet shares\b|\bsell to cover\b",
     r"\bstock options?\b|\bexercise price\b|\bstrike price\b|\bpurchase period\b|\boffering period\b",
 ]
-EQUITY_MESSAGE = (
+EQUITY_MESSAGE = (  # kept for older callers; importer/equity.py decides what stock-plan files can be read
     "This looks like a stock-plan document (an RSU, ESPP or option statement). Import reads statements, "
     "receipts and pay stubs; it can't read stock-plan documents yet. Add or update the grant by hand under "
     "Plan (New entry, type RSU grant or ESPP). If this is really a statement, a receipt or a pay stub, pick "
