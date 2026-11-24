@@ -291,9 +291,12 @@ The SQLite database file is located at `instance/finance.db`. Back it up by:
 ### Import
 
 - `POST /api/imports` — Upload files (multipart `files`, optional `account_id`, `doc_type`)
-- `GET /api/imports`, `GET /api/imports/<id>` — List; one import with its rows
+- `GET /api/imports`, `GET /api/imports/<id>` — List; one import with its rows (`?rows=0` leaves the rows out)
+- `GET /api/imports/<id>/rows` — One page of rows: `filter`, `q` (search), `target`, `offset`, `limit` (at most 200)
 - `PATCH /api/imports/<id>` — Change account; or re-read with `doc_type`, `mapping`, `flip_signs`
 - `PATCH /api/imports/<id>/rows/<row_id>` — Edit a row (action, date, amount, description, category)
+- `POST /api/imports/<id>/rows/bulk` — Change many rows: `ids`, or every row matching `filter` / `q` / `target`;
+  `set` holds `action`, `category`, `account_id`, `date` or `flip_sign`
 - `POST /api/imports/<id>/commit`, `POST /api/imports/<id>/undo`, `DELETE /api/imports/<id>`
 - `GET /api/imports/ai-status` — Is the local AI reachable
 
