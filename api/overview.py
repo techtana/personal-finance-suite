@@ -1,6 +1,6 @@
 """Read models for the role-based pages: unified balances, net-worth history, insights."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from flask import Blueprint, jsonify, request
 
@@ -25,6 +25,7 @@ def balances():
     limits = _data.thresholds()
     snaps = _data.snapshot_history()
     entities = _data.load_entities(snaps, today=today)
+    checks = _data.balance_checks(today)
     full = {}
     for etype, (model, _, schema) in MODELS.items():
         q = model.query.filter_by(is_active=True) if etype == "cash" else model.query
@@ -44,12 +45,19 @@ def balances():
             "note": e["note"], "entity": full.get((e["type"], e["id"])),
         }
         if e["type"] == "cash":
+            mine = checks.get(e["id"], [])
             row.update({"recorded": e["recorded"], "recorded_date": e["recorded_date"],
                         "since_count": e["since_count"], "since_flow": e["since_flow"], "txn_count": e["txn_count"],
-                        "needs_start": e["txn_count"] > 0 and not e["has_snapshots"]})
+                        "needs_start": e["txn_count"] > 0 and not e["has_snapshots"],
+                        "check": _summary(mine),
+                        "gaps_open": sum(1 for c in mine if c["status"] in ledger.NEEDS_LOOK),
+                        "gaps_signed": sum(1 for c in mine if c["status"] == "signed_off")})
         rows.append(row)
+    every = sorted((c for cs in checks.values() for c in cs), key=lambda c: c["date"], reverse=True)
     return jsonify({"rows": rows, "totals": _data.totals(entities), "stale_days": limits["stale_days"],
-                    "stale_count": sum(1 for r in rows if r["stale"]), "today": today})
+                    "stale_count": sum(1 for r in rows if r["stale"]), "today": today,
+                    "gaps": [c for c in every if c["status"] in ledger.NEEDS_LOOK],
+                    "signed_off": [c for c in every if c["status"] == "signed_off"]})
 
 
 def _spark(entity, history, today, points=12):
@@ -89,10 +97,6 @@ def record_balance():
         return jsonify({"error": "date must be YYYY-MM-DD"}), 422
 
     snap = Snapshot.query.filter_by(entity_type=etype, entity_id=eid, date=when).first()
-    if snap and snap.value != value:
-        _drop_adjustments(snap.id)  # the old difference no longer applies
-        db.session.flush()
-    check = _reconcile_check(obj, when, value) if etype == "cash" else None
     if snap:
         snap.value = value
         if "note" in data:
@@ -111,31 +115,23 @@ def record_balance():
         setattr(obj, field, value)
         obj.last_updated_date = when
     db.session.commit()
+    check = _check_for(obj.id, when) if etype == "cash" else None
     return jsonify({"id": snap.id, "entity_type": etype, "entity_id": eid, "date": when, "value": value,
                     "check": check}), 201
 
 
-_account_points = _data.account_points
+def _check_for(account_id, when, today=None):
+    """The balance check of one account's record on one date, or None when there is nothing to check."""
+    checks = _data.balance_checks(_data.today_iso(today), account_ids=[account_id]).get(account_id, [])
+    return next((c for c in checks if c["date"] == when), None)
 
 
-def _reconcile_check(account, when, value):
-    """How a newly recorded balance compares with the previous record plus the transactions since.
-
-    None when there is no earlier record or no transaction in between: then there is nothing to compare.
-    """
-    owed = ledger.is_owed(account.type)
-    txns = _data.balance_txns(when).get(account.id, [])
-    got = ledger.expected_at(_account_points(account, before=when), txns, when, owed)
-    if not got or not got[2]:
+def _summary(checks):
+    """The check a row shows: the newest one that needs a look, else the newest one."""
+    if not checks:
         return None
-    expected, anchor_date, count = got
-    return {"expected": expected, "actual": value, "gap": value - expected, "since_date": anchor_date,
-            "count": count, "owed": owed}
-
-
-def _drop_adjustments(snapshot_id):
-    for c in ChangeEvent.query.filter_by(snapshot_id=snapshot_id, change_type="adjustment").all():
-        db.session.delete(c)
+    look = [c for c in checks if c["status"] in ledger.NEEDS_LOOK]
+    return (look or checks)[-1]
 
 
 @bp.route("/balances/<account_id>/ledger", methods=["GET"])
@@ -169,8 +165,12 @@ def account_ledger(account_id):
     newest = max(snaps, key=lambda s: s["date"]) if snaps else {"value": 0, "date": None}
     now = ledger.current(newest["value"], newest["date"],
                          [(e["date"], e["amount"]) for e in entries if e["kind"] == "txn"], today, owed)
+    checks = {c["date"]: c for c in _data.balance_checks(today, account_ids=[account.id]).get(account.id, [])}
+    for e in entries:
+        if e["kind"] == "recorded":
+            e["check"] = checks.get(e["date"])
     entries.reverse()
-    gaps = sum(1 for e in entries if e["kind"] == "recorded" and e.get("gap"))
+    gaps = sum(1 for c in checks.values() if c["status"] in ledger.NEEDS_LOOK)
     return jsonify({"account": {"id": account.id, "name": account.name, "type": account.type, "owed": owed},
                     "current": now["value"], "as_of": now["as_of"], "since_count": now["since_count"],
                     "total": len(entries), "open_gaps": gaps,
@@ -187,36 +187,49 @@ def _import_files(change_ids):
     return {cid: fn for cid, fn in q}
 
 
-@bp.route("/balances/reconcile", methods=["POST"])
-def reconcile():
-    """Log what a recorded balance's transactions leave unexplained as one adjustment entry.
+@bp.route("/balances/signoff", methods=["POST"])
+def sign_off():
+    """Accept a recorded balance's difference from the transactions: "it's fine, leave it".
 
-    {snapshot_id}. The adjustment is dated on the record's day, so it explains the
-    gap in the ledger without moving the balance, which the record already sets.
+    {snapshot_id, note} or, for the value typed in with the account, {account_id, date, note}.
+    The difference is kept with the record. Later imports can only shrink it while it
+    stays accepted; if it grows or flips, it asks for a look again (status "changed").
     """
     data = request.get_json() or {}
-    snap = db.session.get(Snapshot, data.get("snapshot_id") or "")
+    snap = db.session.get(Snapshot, data.get("snapshot_id") or "") if data.get("snapshot_id") else None
+    if snap is None and data.get("account_id"):
+        account = db.session.get(Account, data["account_id"])
+        if account and data.get("date") and data["date"] == account.last_updated_date:
+            snap = Snapshot.query.filter_by(entity_type="cash", entity_id=account.id, date=data["date"]).first()
+            if snap is None:
+                snap = Snapshot(entity_type="cash", entity_id=account.id, date=data["date"],
+                                value=account.current_balance or 0, note="Value entered with the account")
+                db.session.add(snap)
+                db.session.flush()
     if not snap or snap.entity_type != "cash":
         return jsonify({"error": "not found"}), 404
-    account = db.session.get(Account, snap.entity_id)
-    if not account:
-        return jsonify({"error": "not found"}), 404
-    owed = ledger.is_owed(account.type)
-    txns = _data.balance_txns(snap.date).get(account.id, [])
-    got = ledger.expected_at(_account_points(account, before=snap.date), txns, snap.date, owed)
-    if not got:
+    check = _check_for(snap.entity_id, snap.date)
+    if not check:
+        db.session.rollback()
         return jsonify({"error": "There is no earlier balance to compare this one with."}), 409
-    expected, anchor_date, _ = got
-    gap = snap.value - expected
-    if gap == 0:
-        return jsonify({"created": None, "gap": 0})
-    change = ChangeEvent(date=snap.date, description="Unexplained difference", amount=ledger.sign(owed) * gap,
-                         account_id=account.id, category=None, change_type="adjustment", snapshot_id=snap.id,
-                         note=f"Recorded {snap.value / 100:,.2f} on {snap.date}; the record before it "
-                              f"({anchor_date}) plus the transactions since add up to {expected / 100:,.2f}.")
-    db.session.add(change)
+    if check["status"] == "matches":
+        db.session.rollback()
+        return jsonify({"check": check, "signed_off": False})
+    snap.gap_ok = check["gap"]
+    snap.gap_ok_at = datetime.now().isoformat(timespec="seconds")
+    snap.gap_note = (data.get("note") or "").strip()[:500] or None
     db.session.commit()
-    return jsonify({"created": change.id, "gap": gap, "amount": change.amount}), 201
+    return jsonify({"check": _check_for(snap.entity_id, snap.date), "signed_off": True}), 201
+
+
+@bp.route("/balances/signoff/<snapshot_id>", methods=["DELETE"])
+def undo_sign_off(snapshot_id):
+    snap = db.session.get(Snapshot, snapshot_id)
+    if not snap or snap.entity_type != "cash":
+        return jsonify({"error": "not found"}), 404
+    snap.gap_ok = snap.gap_ok_at = snap.gap_note = None
+    db.session.commit()
+    return jsonify({"check": _check_for(snap.entity_id, snap.date)})
 
 
 @bp.route("/net-worth/history", methods=["GET"])
@@ -267,8 +280,10 @@ def plan_vs_actual():
 
 def _plan_vs_actual(today: str, count: int) -> dict:
     labels = {c.slug: c.label for c in Category.query.all()}
+    checks = [c for cs in _data.balance_checks(today).values() for c in cs]
     return plan_actual.plan_vs_actual(_data.rule_dicts(), _data.change_dicts(), _data.loan_dicts(),
-                                      _data.latest_prices(today), plan_actual.recent_months(today, count), labels)
+                                      _data.latest_prices(today), plan_actual.recent_months(today, count), labels,
+                                      unexplained=ledger.unexplained_flows(checks))
 
 
 def collect_insights(today: str) -> list[dict]:
@@ -289,6 +304,7 @@ def collect_insights(today: str) -> list[dict]:
         net_worth_bps=limits["net_worth_bps"],
         pending_imports=ImportBatch.query.filter_by(status="review").count(),
         tax_insights=tax_insights, tax_year=year, plan_actual=_plan_vs_actual(today, 2),
+        balance_checks=[c for cs in _data.balance_checks(today).values() for c in cs],
     )
 
 

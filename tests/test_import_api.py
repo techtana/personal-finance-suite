@@ -37,7 +37,7 @@ def test_statement_csv_full_cycle(client, accounts):
     res = client.post(f"/api/imports/{b['id']}/commit", json={})
     assert res.status_code == 200, res.get_json()
     created = res.get_json()["created"]
-    assert len(created["change_events"]) == 15 and len(created["snapshots"]) == 1 and len(created["rules"]) == 1
+    assert len(created["change_events"]) == 15 and len(created["snapshots"]) == 2 and len(created["rules"]) == 1
     assert ChangeEvent.query.filter_by(change_type="imported").count() == 15
     assert ChangeEvent.query.filter_by(description="ONLINE TRANSFER TO SAV XXXXXX5678 REF #IB0QWE").one().category == "transfer"
     assert ChangeEvent.query.filter_by(description="ZELLE TO JORDAN SAMPLE").one().category == "gifts"
@@ -46,7 +46,7 @@ def test_statement_csv_full_cycle(client, accounts):
     assert ImportProfile.query.count() == 1
     rule = Rule.query.one()
     assert (rule.rule_type, rule.amount, rule.frequency, rule.start_date) == ("income", 325000, "biweekly", "2026-11-28")
-    assert Snapshot.query.one().value == 412055
+    assert {(s.date, s.value) for s in Snapshot.query.all()} == {("2026-11-20", 412055), ("2026-10-02", 109275)}
 
     # the same file again: everything is a duplicate and the saved layout is used
     b2 = upload(client, "checking-activity.csv")
@@ -58,7 +58,7 @@ def test_statement_csv_full_cycle(client, accounts):
 
     # undo the first import
     res = client.post(f"/api/imports/{b['id']}/undo")
-    assert res.status_code == 200 and res.get_json()["removed"] == 17
+    assert res.status_code == 200 and res.get_json()["removed"] == 18
     assert ChangeEvent.query.count() == 0 and Rule.query.count() == 0 and Snapshot.query.count() == 0
     assert res.get_json()["import"]["status"] == "review"
 

@@ -591,9 +591,6 @@ def undo_batch(batch) -> dict:
     for r in batch.rows:
         if r.created_id and r.target in kinds:
             obj = m.db.session.get(kinds[r.target], r.created_id)
-            if obj is not None and r.target == "snapshot":
-                for adj in m.ChangeEvent.query.filter_by(snapshot_id=obj.id, change_type="adjustment").all():
-                    m.db.session.delete(adj)  # a reconcile of this balance goes with it
             if obj is not None:
                 m.db.session.delete(obj)
                 removed += 1
@@ -664,32 +661,39 @@ def batch_detail(b, with_rows: bool = True) -> dict:
         "is_image": b.file_kind == "image",
         "doc_type_forced": b.doc_type_forced,
         "balance_check": balance_check(b),
+        "gap_effect": gap_effect(b),
     })
     return out
 
 
 def balance_check(b) -> dict | None:
-    """Does the statement's closing balance match the account's earlier balance plus the transactions since?
+    """Does the statement's closing balance match the balance before it plus the transactions since?
 
-    The transactions are the ones already in your data and the ones ticked in this
-    import. None when the file has no closing balance or no account is chosen.
+    The balance before it is the statement's own opening balance when it has one,
+    else the account's latest earlier record. The transactions are the ones
+    already in your data and the ones ticked in this import. None when the file has
+    no closing balance or no account is chosen.
     status: first (no earlier balance to start from) | ok | gap
     """
-    from api._data import account_points
+    from api._data import account_points, thresholds
     from engine import ledger
 
     m = _models()
-    close = next((r for r in b.rows if r.target == "snapshot" and r.action == "import" and r.date
-                  and r.amount is not None), None)
+    mine_snaps = sorted((r for r in b.rows if r.target == "snapshot" and r.action == "import" and r.date
+                         and r.amount is not None), key=lambda r: r.date)
     account = m.db.session.get(m.Account, b.account_id) if b.account_id else None
-    if close is None or account is None:
+    if not mine_snaps or account is None:
         return None
+    close = mine_snaps[-1]
     owed = ledger.is_owed(account.type)
     out = {"date": close.date, "actual": close.amount, "owed": owed, "account": account.name}
-    points = account_points(account, before=close.date)
-    if not points:
+    by_date = dict(account_points(account, before=close.date))
+    opening = {r.date: r.amount for r in mine_snaps[:-1]}
+    by_date.update(opening)
+    if not by_date:
         return {**out, "status": "first"}
-    since_date, since_value = points[-1]
+    since_date = max(by_date)
+    since_value = by_date[since_date]
     mine_ids = {r.created_id for r in b.rows if r.created_id}
     existing = [c for c in m.ChangeEvent.query.filter(
         m.ChangeEvent.account_id == account.id, m.ChangeEvent.date > since_date, m.ChangeEvent.date <= close.date).all()
@@ -699,6 +703,40 @@ def balance_check(b) -> dict | None:
     flow = sum(c.amount for c in existing) + sum(r.amount for r in mine)
     expected = since_value + ledger.sign(owed) * flow
     gap = close.amount - expected
-    return {**out, "status": "ok" if gap == 0 else "gap", "expected": expected, "gap": gap,
-            "since_date": since_date, "since_value": since_value,
+    limits = thresholds()
+    ok = abs(gap) <= ledger.tolerance(close.amount, limits["gap_abs_cents"], limits["gap_bps"])
+    return {**out, "status": "ok" if ok else "gap", "expected": expected, "gap": gap,
+            "since_date": since_date, "since_value": since_value, "since_opening": since_date in opening,
             "count_existing": len(existing), "count_here": len(mine)}
+
+
+def gap_effect(b) -> list[dict] | None:
+    """What a committed import did to the accounts' balance checks: the differences it shrank, grew or added.
+
+    Each item is a balance check (engine.ledger.balance_checks) plus before_gap and
+    before_status: the same record's check without this import (None for a balance
+    this import recorded). Newest first, at most 8.
+    """
+    if b.status != "committed":
+        return None
+    from api._data import balance_checks
+
+    accounts = {r.account_id or b.account_id for r in b.rows if r.created_id and r.target in ("change_event", "snapshot")}
+    accounts.discard(None)
+    if not accounts:
+        return None
+    after = balance_checks(account_ids=accounts)
+    before = balance_checks(account_ids=accounts, exclude_batch=b.id)
+    out = []
+    for acct, checks in after.items():
+        prior = {c["date"]: c for c in before.get(acct, [])}
+        for c in checks:
+            p = prior.get(c["date"])
+            if p and p["gap"] == c["gap"] and p["status"] == c["status"]:
+                continue
+            if c["status"] == "untracked" and (p is None or p["status"] == "untracked"):
+                continue
+            out.append({**c, "before_gap": p["gap"] if p else None, "before_status": p["status"] if p else None})
+    out.sort(key=lambda c: c["date"], reverse=True)
+    return out[:8]
+

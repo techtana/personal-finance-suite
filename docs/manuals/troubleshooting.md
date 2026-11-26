@@ -43,7 +43,7 @@ gcloud compute ssh finance --zone us-central1-a --tunnel-through-iap
 |---|---|---|
 | "... was changed by ... after this page loaded it. Reload to see the latest version, then make your change again." | Another device saved the same thing first | Reload, then make your change again |
 | `database is locked` | Two processes use the same database file | Stop the extra one and restart the app. Run only one app process per database |
-| A balance doesn't match the bank | Transactions are missing between two recorded balances, or a transaction was typed on Plan instead of imported | Open **Transactions** on that account. Import the missing ones, or click **Log the difference** |
+| A balance doesn't match the bank | Transactions are missing between two recorded balances, or a transaction was typed on Plan instead of imported | The card at the top of Balances names the dates nothing was imported for. Import that period, or click **Sign off…** if the rest is fine |
 | `ModuleNotFoundError` | The Python environment isn't active | Activate `.venv` and run `pip install -r requirements.txt` |
 | The guide you followed says `flask db upgrade` and it fails | There is no migrations folder | Skip it. The app creates the database when it starts |
 

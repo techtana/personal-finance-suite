@@ -81,7 +81,7 @@ def divergence(entities, snaps, rules, changes, loans, prices, today: str, min_d
 
 def build_insights(*, entities, snaps, rules, changes, loans, prices, today: str, stale_days: int,
                    net_worth_bps: int, pending_imports: int = 0, tax_insights=None, tax_year=None,
-                   plan_actual=None) -> list[dict]:
+                   plan_actual=None, balance_checks=None) -> list[dict]:
     out = []
 
     # ── Balances: stale records ───────────────────────────────────────────
@@ -101,6 +101,24 @@ def build_insights(*, entities, snaps, rules, changes, loans, prices, today: str
             "balances-fresh", "balances", "good", "All balances are up to date",
             f"Every account, asset and liability was recorded within the last {stale_days} days.",
             "Last-updated dates on the Balances page.", "/balances", "View balances"))
+
+    # ── Balances vs. imports: differences no one has looked at ────────────
+    look = sorted((c for c in balance_checks or [] if c["status"] in ("open", "changed")),
+                  key=lambda c: c["date"], reverse=True)
+    if look:
+        c = look[0]
+        n = len(look)
+        detail = (f"{c['account']} on {c['date']}: {_usd(abs(c['gap']))} isn't explained by the transactions "
+                  f"since {c['since_date']}.")
+        if c["missing"]:
+            a, b, _ = c["missing"][0]
+            detail += f" Nothing was imported for {a} to {b}."
+        detail += " Import what's missing, or sign it off: some details are always missing, and that's fine."
+        out.append(_insight(
+            "balance-gaps", "balances", "info",
+            f"{n} recorded balance{'s' if n != 1 else ''} {'differ' if n != 1 else 'differs'} from your imports",
+            detail, "Each recorded balance against the balance before it plus the imported transactions in between.",
+            "/balances?gaps=1", "Review the differences", value=c["gap"]))
 
     # ── Balances vs. plan: divergence ─────────────────────────────────────
     div = divergence(entities, snaps, rules, changes, loans, prices, today)

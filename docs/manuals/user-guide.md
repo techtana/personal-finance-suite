@@ -94,7 +94,9 @@ What you have and owe today.
 
 - A cash account's balance is its latest recorded balance plus the transactions imported since. The row says how the value was reached. Entries typed on Plan never change a balance; they are the plan.
 - **Update value** on a row records today's value. **History** shows and edits the recorded values.
-- **Transactions** lists an account's recorded balances and imported transactions, newest first, with a running balance. If a recorded balance isn't explained by the transactions before it, the row shows the gap. Click **Log the difference** to add it as one adjustment entry, or **Leave it**, or **Import missing transactions**.
+- **Transactions** lists an account's recorded balances and imported transactions, newest first, with a running balance. Statement balances are marked as such.
+- **Balances vs. your imports**: each recorded balance is checked against the balance before it plus the imported transactions in between. A row shows **Matches your imports**, or the difference (for example **−$18.35 vs. imports**). When something differs, a card at the top of the page lists it with the dates nothing was imported for. Click **Import** to bring in that period, and the difference shrinks by itself; or click **Sign off…**, optionally pick a reason, and **Sign off** to accept it. Missing small details is expected. A signed-off difference stays quiet while later imports shrink it, and comes back if it grows. Small differences (under $5 or 0.1% of the balance; Settings) count as a match.
+- After an import, the Import page lists which differences the file shrank, grew or added.
 - **Check-in**: the card says how many balances haven't been updated recently. Click **Update the stale ones** or **Check in on all**. For each one, enter the value and click **Save and next**, or **Unchanged** or **Skip**.
 - A **Credit card** account holds what you owe: spending raises it, a payment lowers it, and net worth subtracts it.
 - For a liability, enter the lender, original balance, interest rate, monthly payment and dates. The forecast uses the payment.

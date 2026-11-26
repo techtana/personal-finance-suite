@@ -157,6 +157,19 @@
                      x-text="balanceCheckText(batch.balance_check)"></div>
             </template>
 
+            <!-- After the commit: what this file did to the recorded balances' differences -->
+            <template x-if="batch.status === 'committed' && (batch.gap_effect || []).length">
+                <div class="text-sm rounded-lg px-3 py-2 border bg-white border-gray-200" role="status">
+                    <p class="font-medium text-gray-900 mb-1">What this import changed in your balance checks</p>
+                    <ul class="space-y-0.5 text-gray-700">
+                        <template x-for="c in batch.gap_effect" :key="c.account_id + c.date">
+                            <li x-text="gapEffectText(c)"></li>
+                        </template>
+                    </ul>
+                    <a class="text-xs text-blue-700 underline" href="/balances?gaps=1">See all differences on Balances</a>
+                </div>
+            </template>
+
             <!-- Notes -->
             <template x-if="(batch.warnings || []).length">
                 <ul class="space-y-1">
@@ -529,7 +542,7 @@ const FLAGS = {
     pick_account:       { label: 'Choose account', cls: 'bg-amber-100 text-amber-800', title: 'Choose the account this belongs to.' },
     suggestion:         { label: 'Suggested', cls: 'bg-blue-100 text-blue-800', title: 'Tick to add this as a recurring rule that drives your projection.' },
     rule_exists:        { label: 'Rule exists', cls: 'bg-gray-200 text-gray-700', title: 'You already have a similar rule.' },
-    older_snapshot:     { label: 'Older balance', cls: 'bg-gray-200 text-gray-700', title: 'You already have a newer balance for this account.' },
+    older_snapshot:     { label: 'Earlier balance', cls: 'bg-gray-200 text-gray-700', title: 'You already have a newer balance for this account. This one adds a checkpoint before it, which narrows down where any difference from the transactions is.' },
     negative_balance:   { label: 'Negative', cls: 'bg-gray-200 text-gray-700', title: 'A negative cash balance can\'t be recorded as a snapshot.' },
     card_balance:       { label: 'Card balance', cls: 'bg-gray-200 text-gray-700', title: 'This is an amount owed on a card. Set the account\'s type to Credit card on the Balances page (Edit), then it is recorded as what you owe.' },
     from_photo:         { label: 'From photo', cls: 'bg-purple-100 text-purple-800', title: 'Read from a photo by the local AI. Compare with the picture.' },
@@ -583,10 +596,18 @@ function importPage() {
                 return 'No earlier balance for ' + c.account + ', so this statement\'s ' + what + ' (' + money(c.actual) + ' on ' + c.date +
                        ') becomes its starting point. Later transactions move it from there.';
             const n = c.count_here + c.count_existing;
-            let t = 'Statement ' + what + ': ' + money(c.actual) + ' on ' + c.date + '. The ' + c.since_date + ' balance of ' + money(c.since_value) +
+            let t = 'Statement ' + what + ': ' + money(c.actual) + ' on ' + c.date + '. The ' + (c.since_opening ? 'statement\'s opening balance' : c.since_date + ' balance') + ' of ' + money(c.since_value) +
                     ' plus ' + n + ' transaction' + (n === 1 ? '' : 's') + ' (' + c.count_here + ' ticked here, ' + c.count_existing + ' already in your data) reach ' + money(c.expected) + '.';
             if (c.status === 'ok') return t + ' It adds up.';
-            return t + ' ' + money(Math.abs(c.gap)) + ' isn\'t explained: look for unticked or missing rows. After importing, you can log what\'s left as an adjustment from the account\'s Transactions on Balances.';
+            return t + ' ' + money(Math.abs(c.gap)) + ' isn\'t explained: look for unticked or missing rows. It\'s fine to import anyway: what\'s left shows on Balances, where you can sign it off or import more to close it.';
+        },
+        gapEffectText(c) {
+            const where = c.account + ' · ' + c.date + ': ';
+            const now = c.status === 'matches' ? 'matches the transactions' : (c.status === 'untracked' ? 'nothing to check it with' : fmtSigned(c.gap) + ' not explained');
+            if (c.before_gap === null || c.before_gap === undefined) return where + 'balance from this file, ' + now + '.';
+            const was = c.before_status === 'untracked' ? 'nothing to check it with' : fmtSigned(c.before_gap) + ' not explained';
+            const tail = c.status === 'signed_off' ? ' (still signed off)' : (c.status === 'changed' ? ' (grew past your sign-off)' : '');
+            return where + 'was ' + was + ', now ' + now + tail + '.';
         },
         async loadBatches() { try { this.batches = await API.get('/imports'); } catch (e) { showAlert('Couldn\'t load imports: ' + e.message, 'error'); } },
         async loadLearned() { try { this.learned = await API.get('/imports/merchant-rules'); } catch {} },

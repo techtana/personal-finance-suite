@@ -8,11 +8,13 @@ One rule, used by every page that shows a balance or net worth:
 A recorded balance (a snapshot, or the value typed in when the account was added)
 is the truth on its date; it is taken as the end-of-day balance, so transactions
 on that same day are already in it. Between two recorded balances, transactions
-explain the movement, and whatever they don't explain is the gap a reconcile
-shows.
+explain the movement, and whatever they don't explain is the record's gap (see
+balance_checks). Gaps are worked out afresh every time, never stored: import the
+missing statement and the gap shrinks; undo an import and it comes back. Missing
+data is normal, so a gap is something to look at or sign off, never an error.
 
 Which entries move a balance: only what actually happened. Imported transactions
-and reconcile adjustments do; one-off entries typed on the Plan page are the plan,
+(and adjustment entries from older versions) do; one-off entries typed on the Plan page are the plan,
 like rules, and never touch a balance. That split is also what keeps the plan and
 the actuals from being counted twice anywhere else:
 
@@ -25,9 +27,18 @@ lowers it and spending raises it, and net worth subtracts it.
 
 from __future__ import annotations
 
+from bisect import bisect_right
+from datetime import date, timedelta
+
 ACTUAL_TYPES = frozenset({"imported", "adjustment"})
 TRANSFER_CATEGORY = "transfer"
 OWED_ACCOUNT_TYPES = frozenset({"credit_card"})
+
+# Balance checks (see balance_checks)
+GAP_ABS_CENTS = 500        # a difference this small counts as a match ($5) ...
+GAP_BPS = 10               # ... or this share of the balance (0.1%), whichever is larger
+TXN_REACH_DAYS = 3         # a transaction shows its days around it were imported
+MISSING_MIN_DAYS = 10      # a stretch with nothing imported this long counts as missing data
 
 
 def is_transfer(change: dict) -> bool:
@@ -144,3 +155,125 @@ def build_ledger(snapshots, changes, owed: bool = False) -> list[dict]:
             e["balance"], e["estimated"] = back, True
             back -= s * e["amount"]
     return entries
+
+
+# ── Balance checks ───────────────────────────────────────────────────────────
+
+def tolerance(value: int, abs_cents: int = GAP_ABS_CENTS, bps: int = GAP_BPS) -> int:
+    """How far a record may be from what the transactions say and still count as a match."""
+    return max(abs_cents, abs(value or 0) * bps // 10_000)
+
+
+def uncovered(after: str, until: str, spans=(), txn_dates=(), min_days: int = MISSING_MIN_DAYS):
+    """The stretches of (after, until] with nothing imported, and how many days were covered.
+
+    spans      [(from, to)] date ranges an import covered, such as a statement's period
+    txn_dates  the account's transaction dates; each one covers TXN_REACH_DAYS either side
+    Returns ([(from, to, days)], covered_days); only stretches of min_days or more count.
+    """
+    start, end = date.fromisoformat(after) + timedelta(days=1), date.fromisoformat(until)
+    if end < start:
+        return [], 0
+    reach = timedelta(days=TXN_REACH_DAYS)
+    cover = [(date.fromisoformat(a), date.fromisoformat(b)) for a, b in spans if a and b]
+    cover += [(date.fromisoformat(d) - reach, date.fromisoformat(d) + reach) for d in txn_dates]
+    cover = sorted((max(a, start), min(b, end)) for a, b in cover if b >= start and a <= end)
+    merged: list = []
+    for a, b in cover:
+        if merged and a <= merged[-1][1] + timedelta(days=1):
+            merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+        else:
+            merged.append((a, b))
+    covered = sum((b - a).days + 1 for a, b in merged)
+    holes, cursor = [], start
+    for a, b in merged + [(end + timedelta(days=1), end + timedelta(days=1))]:
+        if a > cursor:
+            days = (a - cursor).days
+            if days >= min_days:
+                holes.append((cursor.isoformat(), (a - timedelta(days=1)).isoformat(), days))
+        cursor = max(cursor, b + timedelta(days=1))
+    return holes, covered
+
+
+def balance_checks(records, txns, owed: bool = False, spans=(), abs_cents: int = GAP_ABS_CENTS,
+                   bps: int = GAP_BPS) -> list[dict]:
+    """Each recorded balance against the one before it plus the transactions in between.
+
+    records  [{id, date, value, source, gap_ok, gap_ok_at, gap_note}] one per date, oldest first
+    txns     [(date, amount)] the account's transactions that move its balance, oldest first
+    spans    [(from, to)] the dates the account's imports cover
+
+    One check per record after the first, oldest first. An account with no
+    transactions has nothing to check against, so it gets none.
+
+    gap = recorded - expected, in the account's own terms (for an owed account, a
+    positive gap means you owe more than the transactions say).
+
+    status
+      matches     the transactions explain the record, within the tolerance
+      open        a difference no one has looked at yet
+      signed_off  a difference you accepted; it stays accepted while imports only shrink it
+      changed     you accepted a difference, but it has grown or flipped since
+      untracked   nothing was imported for the period, so there is nothing to check it with
+    """
+    if not txns:
+        return []
+    s = sign(owed)
+    txns = sorted(txns)
+    dates = [d for d, _ in txns]
+    running = [0]  # running[i] = sum of the first i amounts
+    for _, a in txns:
+        running.append(running[-1] + a)
+    out = []
+    for prev, rec in zip(records, records[1:]):
+        lo, hi = bisect_right(dates, prev["date"]), bisect_right(dates, rec["date"])
+        flow, count = running[hi] - running[lo], hi - lo
+        expected = prev["value"] + s * flow
+        gap = rec["value"] - expected
+        missing, covered = uncovered(prev["date"], rec["date"], spans, dates[lo:hi])
+        tol = tolerance(rec["value"], abs_cents, bps)
+        ok = rec.get("gap_ok")
+        if abs(gap) <= tol:
+            status = "matches"
+        elif ok is not None:
+            status = "signed_off" if ok and gap * ok > 0 and abs(gap) <= abs(ok) else "changed"
+        elif not count and not covered:
+            status = "untracked"
+        else:
+            status = "open"
+        out.append({
+            "id": rec.get("id"), "date": rec["date"], "value": rec["value"], "source": rec.get("source"),
+            "since_date": prev["date"], "since_value": prev["value"], "since_source": prev.get("source"),
+            "expected": expected, "gap": gap, "count": count, "flow": flow, "owed": owed,
+            "missing": missing, "covered_days": covered,
+            "period_days": (date.fromisoformat(rec["date"]) - date.fromisoformat(prev["date"])).days,
+            "tolerance": tol, "status": status, "gap_ok": ok, "gap_ok_at": rec.get("gap_ok_at"),
+            "gap_note": rec.get("gap_note"), "explained_since": abs(ok) - abs(gap) if status == "signed_off" else None,
+        })
+    return out
+
+
+NEEDS_LOOK = frozenset({"open", "changed"})
+HAS_GAP = frozenset({"open", "changed", "signed_off"})
+
+
+def unexplained_flows(checks) -> list[tuple[str, str, int]]:
+    """Where each record's gap most likely happened, as money in (+) or out (-).
+
+    [(from, to, amount)]: spread over the stretches with nothing imported, or over
+    the whole period between the two records when the imports cover all of it.
+    """
+    out = []
+    for c in checks:
+        if c["status"] not in HAS_GAP:
+            continue
+        flow = sign(c["owed"]) * c["gap"]
+        ranges = [(a, b, n) for a, b, n in c["missing"]] or [
+            ((date.fromisoformat(c["since_date"]) + timedelta(days=1)).isoformat(), c["date"], c["period_days"])]
+        total_days = sum(n for _, _, n in ranges) or 1
+        left = flow
+        for i, (a, b, n) in enumerate(ranges):
+            part = left if i == len(ranges) - 1 else round(flow * n / total_days)
+            left -= part
+            out.append((a, b, part))
+    return out

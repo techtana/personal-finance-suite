@@ -16,6 +16,9 @@ _ADDED_COLUMNS = [
     ("rules", "tax_treatment", "VARCHAR(30)"),
     ("change_events", "tax_treatment", "VARCHAR(30)"),
     ("assets", "decided_date", "VARCHAR(10)"),
+    ("snapshots", "gap_ok", "INTEGER"),
+    ("snapshots", "gap_ok_at", "VARCHAR(32)"),
+    ("snapshots", "gap_note", "TEXT"),
 ]
 
 
@@ -51,6 +54,30 @@ def _add_missing_columns():
     db.session.commit()
 
 
+def _convert_reconcile_adjustments():
+    """Older versions logged a balance's unexplained difference as an adjustment entry.
+
+    A sign-off on the balance now does that job, and its gap is worked out afresh
+    from the transactions, so later imports can shrink it. Each old adjustment
+    becomes a sign-off of the difference it logged, and the entry goes.
+    """
+    from engine import ledger
+    from models import Account, ChangeEvent, Snapshot
+
+    olds = ChangeEvent.query.filter(ChangeEvent.change_type == "adjustment", ChangeEvent.snapshot_id.isnot(None)).all()
+    for c in olds:
+        snap = db.session.get(Snapshot, c.snapshot_id)
+        account = db.session.get(Account, c.account_id) if c.account_id else None
+        if snap is not None and snap.gap_ok is None:
+            owed = ledger.is_owed(account.type if account else None)
+            snap.gap_ok = ledger.sign(owed) * (c.amount or 0)
+            snap.gap_ok_at = c.created_at
+            snap.gap_note = snap.gap_note or "Logged as an adjustment"
+        db.session.delete(c)
+    if olds:
+        db.session.commit()
+
+
 def create_app(config=None):
     """Flask application factory."""
     app = Flask(__name__)
@@ -75,6 +102,7 @@ def create_app(config=None):
         db.create_all()
         _add_missing_columns()
         _add_missing_indexes()
+        _convert_reconcile_adjustments()
 
     # Who is asking, the audit log and the stale-save check
     import audit

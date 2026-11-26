@@ -34,7 +34,17 @@ Between two recorded balances, the account's actual transactions explain the mov
 
     balance on a date = latest recorded balance on or before that date + the account's transactions dated after it
 
-A recorded balance counts as the end-of-day balance, so transactions on the same day are already in it. Only things that actually happened move a balance: imported transactions and reconcile adjustments. Plan rules and one-off entries typed on the Plan page never do. When a new recorded balance differs from the previous one plus the transactions in between, the difference is the gap that the Balances page offers to log as one adjustment.
+A recorded balance counts as the end-of-day balance, so transactions on the same day are already in it. Only things that actually happened move a balance: imported transactions. Plan rules and one-off entries typed on the Plan page never do. When a recorded balance differs from the previous one plus the transactions in between, the difference is that record's gap.
+
+Since 2026-11-26 the gap is never stored. `balance_checks` in `engine/ledger.py` works it out on every request, so importing a missing statement shrinks it and undoing an import brings it back. Incomplete data is the normal case, so a gap is a status, not an error:
+
+- matches: within a tolerance (`GAP_ABS_CENTS` $5 or `GAP_BPS` 0.1% of the balance, whichever is larger; Settings can change the dollar amount);
+- open: nobody has looked at it;
+- signed_off: you accepted it. The amount you accepted is kept on the snapshot (`gap_ok`). It stays accepted while later imports only shrink it;
+- changed: it grew or flipped sign after you signed off, so it asks again;
+- untracked: nothing was imported for the period, so there is nothing to check against. Accounts you never import into get no checks at all.
+
+Each check also lists the stretches of 10 days or more with nothing imported (imports cover the dates from their first to last row, and each transaction covers three days either side). That is where the missing money most likely moved, so the Balances page suggests importing that period, and plan vs. actual places the gap on those days ("Not in your imports"). Statement imports record both the closing balance and, when the file shows it, the opening balance, so a statement checks itself and a gap before it shows up as missing data between statements. Older versions logged gaps as `adjustment` entries; `_convert_reconcile_adjustments` in `app.py` turns those into sign-offs on start.
 
 This is how the project avoids the main weakness of planning from schedules, which is that errors pile up. Each fresh balance resets the starting point. The plan only has to be right between check-ins, not forever.
 

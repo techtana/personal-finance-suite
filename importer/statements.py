@@ -403,7 +403,29 @@ def from_table(rows: list[list[str]], ctx: Ctx) -> list[Proposal]:
         same_day = [x for x in with_bal if x[0] == newest]
         iso, bal, _ = same_day[0] if descending else same_day[-1]
         proposals.append(balance_proposal(iso, bal, "running balance column"))
+        # The balance before the first row too: with both ends recorded, the statement checks
+        # itself, and a gap before it shows up as missing data between statements.
+        oldest = min(dates)
+        first_day = [x for x in with_bal if x[0] == oldest]
+        _, bal0, i0 = first_day[-1] if descending else first_day[0]
+        amt0 = parsed[i0][3]
+        owed = getattr(ctx.account, "type", None) == "credit_card"
+        if oldest < newest and amt0 is not None and not owed:
+            proposals.append(opening_proposal(_day_before(oldest), bal0 - amt0, "running balance column"))
     return proposals
+
+
+def _day_before(iso: str) -> str:
+    return (date.fromisoformat(iso) - timedelta(days=1)).isoformat()
+
+
+def opening_proposal(iso: str, cents: int, source: str) -> Proposal:
+    """The balance at the end of the day before a statement's first transaction."""
+    p = balance_proposal(iso, cents, source)
+    p.description = f"Opening balance ({iso})"
+    p.note = f"Statement opening balance ({source})"
+    p.raw = {"opening": True}
+    return p
 
 
 def balance_proposal(iso: str, cents: int, source: str) -> Proposal:
@@ -454,6 +476,7 @@ _PERIOD = re.compile(
     r"(?:statement period|period|for the period|from|billing cycle|opening/closing date)\s*:?\s*"
     rf"({DATE_TOKEN_PATTERN})\s*(?:-|–|to|through|thru)\s*({DATE_TOKEN_PATTERN})", re.I)
 _CLOSING = re.compile(r"(?i)\b(?:ending|closing|new) balance\b")
+_OPENING = re.compile(r"(?i)\b(?:beginning|opening|previous|starting) balance\b")
 CARD_STATEMENT = re.compile(r"(?i)\bminimum payment\b|\bpayment due date\b|\bcredit limit\b|\bavailable credit\b")
 
 
@@ -472,11 +495,13 @@ def from_text(text: str, ctx: Ctx) -> list[Proposal]:
     lines = [ln.rstrip() for ln in text.splitlines() if ln.strip()]
     start, end = statement_period(text, ctx.prefer_dayfirst)
     year_for = year_resolver(start, end)
-    proposals, section, closing = [], None, None
+    proposals, section, closing, opening = [], None, None, None
     for n, line in enumerate(lines):
         amounts = find_amounts(line)
         if _CLOSING.search(line) and amounts:
             closing = amounts[-1][1]
+        elif opening is None and _OPENING.search(line) and amounts:
+            opening = amounts[-1][1]
         head = DATE_TOKEN_RE.match(line.strip())
         if not head:
             if not amounts or len(line) < 60:
@@ -544,6 +569,11 @@ def from_text(text: str, ctx: Ctx) -> list[Proposal]:
     elif closing is not None:
         iso = end or max(p.date for p in proposals if p.date)
         proposals.append(balance_proposal(iso, closing, "statement closing balance"))
+    if opening is not None and closing is not None and not CARD_STATEMENT.search(text):
+        first = min((p.date for p in proposals if p.date and p.target == "change_event"), default=None)
+        iso = _day_before(start) if start else (_day_before(first) if first else None)
+        if iso:
+            proposals.append(opening_proposal(iso, opening, "statement opening balance"))
     last4 = re.search(r"(?i)(?:ending in|account (?:number|no\.?|#)?[:\s]*(?:\*+|x+|\.{2,})?)\s*(\d{4})\b", text)
     if last4:
         ctx.extracted["account_hint"] = last4.group(1)

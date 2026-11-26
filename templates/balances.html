@@ -57,6 +57,40 @@
             </div>
         </div>
 
+        <!-- Recorded balances vs. the imported transactions -->
+        <section id="gaps" x-show="gaps.length || signedOff.length">
+            <div class="card manage p-4 space-y-3" :class="gaps.length ? 'border-amber-200' : ''">
+                <div class="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-900"
+                           x-text="gaps.length ? gaps.length + (gaps.length === 1 ? ' recorded balance differs' : ' recorded balances differ') + ' from your imports' : 'Nothing to look at: the differences from your imports are signed off'"></p>
+                        <p class="text-xs text-gray-500" x-show="gaps.length">Some details are always missing, and that's fine. Import the missing statements and the differences shrink by themselves, or sign off on the ones that are fine.</p>
+                        <p class="text-xs text-gray-500" x-show="!gaps.length" x-text="signedOff.length + (signedOff.length === 1 ? ' difference is' : ' differences are') + ' signed off.'"></p>
+                    </div>
+                    <button type="button" class="btn btn-ghost btn-sm" x-show="signedOff.length" @click="showSigned = !showSigned"
+                            x-text="(showSigned ? 'Hide' : 'Show') + ' signed off (' + signedOff.length + ')'"></button>
+                </div>
+                <template x-for="c in gaps.concat(showSigned ? signedOff : [])" :key="c.account_id + c.date">
+                    <div class="border border-gray-200 rounded-lg p-3 text-sm flex flex-wrap items-start justify-between gap-3">
+                        <div class="min-w-0" style="flex:1 1 320px">
+                            <p class="font-medium text-gray-900">
+                                <span x-text="c.account"></span> · <span x-text="c.date"></span>
+                                <span class="badge ml-1" :class="c.status === 'signed_off' ? '' : 'stale'" x-text="statusLabel(c.status)"></span>
+                            </p>
+                            <p class="text-gray-600" x-text="checkText(c)"></p>
+                            <p class="text-xs text-gray-500 mt-0.5" x-text="hintText(c)"></p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <a class="btn btn-soft btn-sm" :href="'/import?account=' + c.account_id">Import</a>
+                            <button type="button" class="btn btn-soft btn-sm" @click="openLedgerFor(c.account_id)">Transactions</button>
+                            <button type="button" class="btn btn-primary btn-sm" x-show="c.status !== 'signed_off'" @click="openCheck(c)">Sign off…</button>
+                            <button type="button" class="btn btn-ghost btn-sm" x-show="c.status === 'signed_off'" @click="undoSignOff(c)">Undo sign-off</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </section>
+
         <section>
             {% call ui.section("What you have and owe", "manage", "One row per account, asset or liability. Record a new value whenever it changes.") %}
                 <div class="relative" x-data="{open:false}" @click.outside="open=false">
@@ -98,6 +132,11 @@
                                                   x-text="'Recorded ' + fmt(r.recorded) + ' on ' + r.recorded_date + ', then ' + r.since_count + (r.since_count === 1 ? ' transaction' : ' transactions')"></span>
                                             <button type="button" class="block ml-auto text-xs text-amber-700 hover:underline" x-show="r.needs_start" @click="openHistory(r)"
                                                     title="The balance starts from the value typed in when the account was added. Record a balance from a statement to anchor it.">Confirm a starting balance</button>
+                                            <template x-if="r.check && r.check.status !== 'untracked'">
+                                                <button type="button" class="block ml-auto text-xs hover:underline text-right" @click="openCheck(r.check)"
+                                                        :class="{open: 'text-amber-700', changed: 'text-amber-700', signed_off: 'text-gray-500', matches: 'text-green-700'}[r.check.status]"
+                                                        :title="r.check.status === 'matches' ? 'As of ' + r.check.date : checkText(r.check)" x-text="rowCheckText(r.check)"></button>
+                                            </template>
                                         </span>
                                     </template>
                                     <template x-if="editing === r.entity_type + r.id">
@@ -236,11 +275,12 @@
                     <h3 id="ciTitle">Check-in done</h3>
                     <p class="text-sm text-gray-600" x-text="checkin.saved + ' updated, ' + (checkin.queue.length - checkin.saved) + ' skipped. Net worth is now ' + fmt(totals.net_worth) + '.'"></p>
                     <div class="mt-3 space-y-2" x-show="checkin.gaps.length">
-                        <p class="text-sm font-medium text-gray-900">Balances the transactions don't fully explain</p>
-                        <template x-for="g in checkin.gaps" :key="g.snapshot_id">
+                        <p class="text-sm font-medium text-gray-900">Balances that differ from your imports</p>
+                        <p class="text-xs text-gray-500">Nothing to fix now: they're listed on this page until you import what's missing or sign them off.</p>
+                        <template x-for="g in checkin.gaps" :key="g.account_id + g.date">
                             <div class="card manage p-3 text-sm flex flex-wrap items-center justify-between gap-2">
-                                <span><strong x-text="g.name"></strong>: <span x-text="gapText(g.check)"></span></span>
-                                <button type="button" class="btn btn-soft btn-sm" :disabled="g.done" @click="logGap(g)" x-text="g.done ? 'Logged' : 'Log the difference'"></button>
+                                <span><strong x-text="g.account"></strong>: <span x-text="checkText(g)"></span></span>
+                                <button type="button" class="btn btn-soft btn-sm" @click="openCheck(g)">Review</button>
                             </div>
                         </template>
                     </div>
@@ -400,12 +440,17 @@
                                 <td data-label="Description">
                                     <template x-if="e.kind === 'recorded'">
                                         <span>
-                                            <span class="font-medium text-gray-900">Recorded balance</span>
+                                            <span class="font-medium text-gray-900" x-text="e.check && e.check.source === 'statement' ? 'Statement balance' : 'Recorded balance'"></span>
                                             <span class="text-xs text-gray-500" x-text="e.note ? ' · ' + e.note : ''"></span>
-                                            <span class="block text-xs" x-show="e.gap" :class="'text-amber-700'"
-                                                  x-text="'The transactions since the record before reach ' + fmt(e.expected) + '; ' + fmtSigned(e.gap) + ' unexplained.'"></span>
-                                            <span class="block text-xs text-green-700" x-show="e.gap === 0 && e.expected !== null">Matches the transactions since the record before.</span>
-                                            <button type="button" class="btn btn-soft btn-sm mt-1" x-show="e.gap && e.id" @click="reconcileSnap(e.id)">Log the difference</button>
+                                            <template x-if="e.check && e.check.status !== 'untracked'">
+                                                <span class="block text-xs"
+                                                      :class="{open: 'text-amber-700', changed: 'text-amber-700', signed_off: 'text-gray-500', matches: 'text-green-700'}[e.check.status]">
+                                                    <span x-text="e.check.status === 'matches' ? 'Matches the transactions since ' + e.check.since_date + '.' : checkText(e.check)"></span>
+                                                    <button type="button" class="underline ml-1" x-show="e.check.status === 'open' || e.check.status === 'changed'" @click="openCheck(e.check)">Review</button>
+                                                    <button type="button" class="underline ml-1" x-show="e.check.status === 'signed_off'" @click="undoSignOff(e.check)">Undo sign-off</button>
+                                                </span>
+                                            </template>
+                                            <span class="block text-xs text-gray-500" x-show="e.check && e.check.status === 'untracked'">Nothing imported between this and the balance before, so there's nothing to check it with.</span>
                                         </span>
                                     </template>
                                     <template x-if="e.kind === 'txn'">
@@ -436,17 +481,44 @@
         </div>
     </div>
 
-    <!-- ── Reconcile prompt ────────────────────────────────────────────────── -->
-    <div class="modal-backdrop" x-show="rec.open" @keydown.escape.window="rec.open=false">
-        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="recTitle">
-            <h3 id="recTitle" x-text="(rec.name || '') + ': the transactions don\'t add up to this balance'"></h3>
-            <p class="text-sm text-gray-600" x-text="rec.check ? gapText(rec.check) : ''"></p>
-            <p class="text-xs text-gray-500 mt-2">Often it's interest, a fee, or transactions that haven't been imported yet. Logging the difference adds one adjustment entry dated on this balance, so the account's history adds up. The balance you entered stays as it is.</p>
-            <div class="modal-actions">
-                <button type="button" class="btn btn-ghost" @click="rec.open=false">Leave it</button>
-                <a class="btn btn-soft" :href="'/import?account=' + rec.accountId">Import missing transactions</a>
-                <button type="button" class="btn btn-primary" :disabled="saving" @click="reconcileSnap(rec.snapshotId).then(() => rec.open=false)">Log the difference</button>
-            </div>
+    <!-- ── A recorded balance vs. the imports ──────────────────────────────── -->
+    <div class="modal-backdrop" x-show="rec.open" @click.self="rec.open=false" @keydown.escape.window="rec.open=false">
+        <div class="modal" style="max-width:560px" role="dialog" aria-modal="true" aria-labelledby="recTitle">
+            <template x-if="rec.check">
+                <div>
+                    <h3 id="recTitle" x-text="rec.check.account + ' on ' + rec.check.date + ': ' + (rec.check.status === 'matches' ? 'matches your imports' : 'differs from your imports')"></h3>
+                    <table class="data text-sm mb-3">
+                        <tbody>
+                            <tr><td x-text="(rec.check.since_source === 'statement' ? 'Statement balance' : 'Recorded balance') + ' on ' + rec.check.since_date"></td>
+                                <td class="num" x-text="fmt(rec.check.since_value)"></td></tr>
+                            <tr><td x-text="(rec.check.owed ? 'Change in what you owe from ' : 'Plus ') + rec.check.count + (rec.check.count === 1 ? ' imported transaction' : ' imported transactions')"></td>
+                                <td class="num" x-text="fmtSigned(rec.check.expected - rec.check.since_value)"></td></tr>
+                            <tr class="font-medium"><td>Your imports say</td><td class="num" x-text="fmt(rec.check.expected)"></td></tr>
+                            <tr class="font-medium"><td x-text="rec.check.source === 'statement' ? 'The statement says' : 'You recorded'"></td><td class="num" x-text="fmt(rec.check.value)"></td></tr>
+                            <tr class="font-semibold"><td>Not explained</td>
+                                <td class="num" :class="rec.check.status === 'matches' ? 'text-green-700' : 'text-amber-700'" x-text="fmtSigned(rec.check.gap)"></td></tr>
+                        </tbody>
+                    </table>
+                    <p class="text-sm text-gray-600" x-text="hintText(rec.check)"></p>
+                    <p class="text-sm text-amber-800 mt-2" x-show="rec.check.status === 'changed'"
+                       x-text="'You signed off ' + fmtSigned(rec.check.gap_ok) + ' earlier; it is now ' + fmtSigned(rec.check.gap) + '.'"></p>
+                    <div class="mt-3" x-show="rec.check.status !== 'matches'">
+                        <label class="field-label" for="recNote">What's the difference? (optional)</label>
+                        <div class="flex flex-wrap gap-1 mb-2">
+                            <template x-for="t in ['Interest or fees', 'Spending I don\'t track', 'Transactions not worth importing', 'Not sure, it\'s fine']" :key="t">
+                                <button type="button" class="btn btn-ghost btn-sm border border-gray-200" @click="rec.note = t" x-text="t"></button>
+                            </template>
+                        </div>
+                        <input id="recNote" class="field" x-model="rec.note" placeholder="A note for later">
+                        <p class="field-hint">Signing off keeps the balance as recorded and stops asking about it. If later imports shrink the difference it stays signed off; if it grows, it shows up here again.</p>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-ghost" @click="rec.open=false" x-text="rec.check.status === 'matches' ? 'Close' : 'Leave it for now'"></button>
+                        <a class="btn btn-soft" x-show="rec.check.status !== 'matches'" :href="'/import?account=' + rec.check.account_id">Import statements</a>
+                        <button type="button" class="btn btn-primary" x-show="rec.check.status !== 'matches'" :disabled="saving" @click="signOff()">Sign off</button>
+                    </div>
+                </div>
+            </template>
         </div>
     </div>
 
@@ -496,7 +568,7 @@ function balancesPage() {
         editing: null, editValue: '', editDate: '',
         checkin: { open: false, queue: [], i: 0, value: '', saved: 0, gaps: [] },
         led: { open: false, row: null, data: null, loading: false },
-        rec: { open: false, name: '', check: null, snapshotId: null, accountId: null },
+        rec: { open: false, check: null, note: '' }, gaps: [], signedOff: [], showSigned: false,
         form: { open: false, type: 'cash', id: null, d: {} },
         hist: { open: false, row: null, snaps: [], shown: 100, date: '', value: '', note: '', editId: null, chart: null },
         ev: { open: false, asset: null, f: {} },
@@ -540,11 +612,13 @@ function balancesPage() {
             if (p.get('checkin') === '1' && this.rows.length) this.startCheckin(this.staleRows.length ? this.staleRows : this.rows);
             const ledgerRow = p.get('ledger') && this.rows.find(r => r.entity_type === 'cash' && r.id === p.get('ledger'));
             if (ledgerRow) this.openLedger(ledgerRow);
+            if (p.get('gaps') === '1') this.$nextTick(() => { const el = document.getElementById('gaps'); if (el) el.scrollIntoView({ block: 'start' }); });
         },
         async load() {
             try {
                 const r = await API.get('/balances');
                 this.rows = r.rows; this.totals = r.totals; this.staleDays = r.stale_days;
+                this.gaps = r.gaps || []; this.signedOff = r.signed_off || [];
             } catch (e) { showAlert('Could not load balances: ' + e.message, 'error'); }
             finally { this.loading = false; }
             // The nav badge already asked on page load; after that, a reload means something changed.
@@ -554,28 +628,65 @@ function balancesPage() {
         async record(row, valueCents, date, note) {
             return await API.post('/balances/record', { entity_type: row.entity_type, entity_id: row.id, value: valueCents, date: date || this.today, note: note || null });
         },
-        // A new balance the transactions since the last one don't add up to: offer to log the difference.
+        // ── Recorded balances vs. the imports ─────────────────────────────
+        // A new balance the transactions don't explain: show the difference and the ways forward.
         offerReconcile(row, res) {
             const c = res && res.check;
-            if (!c || !c.gap) return;
-            this.rec = { open: true, name: row.name, check: c, snapshotId: res.id, accountId: row.id };
+            if (c && (c.status === 'open' || c.status === 'changed')) this.openCheck(c);
         },
-        gapText(c) {
-            const what = c.owed ? 'owed' : 'balance';
-            return 'From the ' + c.since_date + ' record, ' + c.count + (c.count === 1 ? ' transaction brings' : ' transactions bring') +
-                ' the ' + what + ' to ' + this.fmt(c.expected) + '. You recorded ' + this.fmt(c.actual) + ', so ' + fmtSigned(c.gap) + ' is unexplained.';
+        statusLabel(s) { return { open: 'not explained', changed: 'changed since sign-off', signed_off: 'signed off', matches: 'matches', untracked: 'not tracked' }[s] || s; },
+        checkText(c) {
+            const what = c.owed ? 'amount owed' : 'balance';
+            const n = c.count + (c.count === 1 ? ' transaction' : ' transactions');
+            return 'From ' + this.fmt(c.since_value) + ' on ' + c.since_date + ', ' + n + ' bring the ' + what + ' to ' + this.fmt(c.expected) +
+                   '. ' + (c.source === 'statement' ? 'The statement says ' : 'You recorded ') + this.fmt(c.value) + ': ' + fmtSigned(c.gap) + ' not explained.';
         },
-        async reconcileSnap(snapshotId) {
+        // Where the difference most likely is, and what would close it.
+        hintText(c) {
+            if (c.status === 'matches') return c.gap ? 'Within ' + this.fmt(c.tolerance) + ', which counts as a match.' : 'The transactions explain all of it.';
+            let t;
+            if (c.missing && c.missing.length) {
+                const days = c.missing.reduce((s, m) => s + m[2], 0);
+                t = 'Nothing was imported for ' + c.missing.map(m => m[0] === m[1] ? m[0] : m[0] + ' to ' + m[1]).join(', ') +
+                    ' (' + days + ' of ' + c.period_days + ' days). Importing that period is the likeliest way to explain it.';
+            } else {
+                t = 'Your imports cover this whole period, so it is probably something a statement leaves out: interest, a fee, cash, or a row that was not ticked.';
+            }
+            if (c.status === 'signed_off') t = 'Signed off' + (c.gap_note ? ' (' + c.gap_note + ')' : '') + (c.explained_since ? '; imports have explained ' + this.fmt(c.explained_since) + ' of it since.' : '.');
+            return t;
+        },
+        rowCheckText(c) {
+            if (c.status === 'matches') return 'Matches your imports';
+            if (c.status === 'signed_off') return fmtSigned(c.gap) + ' vs. imports, signed off';
+            return fmtSigned(c.gap) + ' vs. imports · Review';
+        },
+        openCheck(c) { this.rec = { open: true, check: c, note: c.gap_note || '' }; },
+        async afterCheckChange() {
+            if (this.led.open) await this.loadLedger();
+            await this.load();
+        },
+        async signOff() {
+            const c = this.rec.check;
             this.saving = true;
             try {
-                const r = await API.post('/balances/reconcile', { snapshot_id: snapshotId });
-                showAlert(r.created ? 'Difference logged as an adjustment' : 'Nothing to log: it already adds up', 'success');
-                if (this.led.open) await this.loadLedger();
-                await this.load();
-            } catch (e) { showAlert('Could not log it: ' + e.message, 'error'); }
+                const body = c.id ? { snapshot_id: c.id, note: this.rec.note } : { account_id: c.account_id, date: c.date, note: this.rec.note };
+                const r = await API.post('/balances/signoff', body);
+                showAlert(r.signed_off ? 'Signed off. It will not ask again unless the difference grows.' : 'Nothing to sign off: it matches now', 'success');
+                this.rec.open = false;
+                this.checkin.gaps = this.checkin.gaps.filter(g => !(g.account_id === c.account_id && g.date === c.date));
+                await this.afterCheckChange();
+            } catch (e) { showAlert('Could not sign off: ' + e.message, 'error'); }
             finally { this.saving = false; }
         },
-        async logGap(g) { await this.reconcileSnap(g.snapshot_id); g.done = true; },
+        async undoSignOff(c) {
+            if (!c.id) return;
+            try { await API.delete('/balances/signoff/' + c.id); showAlert('Sign-off undone', 'success'); await this.afterCheckChange(); }
+            catch (e) { showAlert('Could not undo: ' + e.message, 'error'); }
+        },
+        openLedgerFor(accountId) {
+            const row = this.rows.find(r => r.entity_type === 'cash' && r.id === accountId);
+            if (row) this.openLedger(row);
+        },
 
         // ── Ledger ────────────────────────────────────────────────────────
         async openLedger(r) { this.led = { open: true, row: r, data: null, loading: true }; await this.loadLedger(); },
@@ -617,7 +728,7 @@ function balancesPage() {
             this.saving = true;
             try {
                 const row = this.ciRow, res = await this.record(row, Math.round(v * 100));
-                if (res && res.check && res.check.gap) this.checkin.gaps.push({ name: row.name, check: res.check, snapshot_id: res.id, done: false });
+                if (res && res.check && (res.check.status === 'open' || res.check.status === 'changed')) this.checkin.gaps.push(res.check);
                 this.checkin.saved += 1; this.ciNext();
             }
             catch (e) { showAlert('Could not save: ' + e.message, 'error'); }
