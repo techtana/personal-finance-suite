@@ -15,7 +15,7 @@ class ImportFailure(Exception):
 # Flags that make a row default to "skip" until the user ticks it.
 SKIP_FLAGS = {
     "duplicate", "possible_duplicate", "unparsed_date", "unparsed_amount", "missing_date",
-    "missing_amount", "zero_amount", "pick_account", "suggestion", "older_snapshot", "negative_balance",
+    "missing_amount", "zero_amount", "pick_account", "suggestion", "negative_balance",
     "rule_exists", "card_balance",
 }
 # Flags that put a row in the "Needs review" filter.

@@ -67,7 +67,9 @@ def test_checking_export_rows_and_balance(app):
     snaps = [p for p in props if p.target == "snapshot"]
     assert len(txns) == 15 and txns[0].date == "2026-11-20" and txns[0].amount == -8217
     assert txns[2].amount == 325000
-    assert len(snaps) == 1 and snaps[0].date == "2026-11-20" and snaps[0].amount == 412055
+    assert len(snaps) == 2 and snaps[0].date == "2026-11-20" and snaps[0].amount == 412055
+    # and the balance before the first row: the oldest row's balance less its amount
+    assert (snaps[1].date, snaps[1].amount, snaps[1].raw) == ("2026-10-02", 94913 + 14362, {"opening": True})
     assert c.extracted["account_hint"] == "1234"
 
 

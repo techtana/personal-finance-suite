@@ -1,4 +1,4 @@
-"""Balances follow transactions: recorded balance + imported transactions since, reconcile, owed accounts."""
+"""Balances follow transactions: recorded balance + imported transactions since, balance checks, owed accounts."""
 
 from engine import ledger
 from engine.plan_actual import plan_vs_actual
@@ -133,34 +133,109 @@ def test_credit_card_is_owed_and_subtracted(app, client, accounts):
     assert totals["net_worth"] == totals["cash"] + totals["assets"] - totals["liabilities"]
 
 
-def test_recording_a_balance_reports_the_gap_and_reconcile_logs_it(app, client, accounts):
-    chk = accounts["chk"]
+def test_recording_a_balance_reports_the_gap_and_sign_off_keeps_it_live(app, client, accounts):
+    chk = accounts["chk"]  # 4,000.00 entered on 2026-11-01
     _txn(chk, "2026-11-05", -2500)
     _txn(chk, "2026-11-12", -7500)
     db.session.commit()
-    res = client.post("/api/balances/record", json={"entity_type": "cash", "entity_id": chk.id, "value": 389000,
+    res = client.post("/api/balances/record", json={"entity_type": "cash", "entity_id": chk.id, "value": 388000,
                                                     "date": "2026-11-20"}).get_json()
-    assert res["check"] == {"expected": 390000, "actual": 389000, "gap": -1000, "since_date": "2026-11-01",
-                            "count": 2, "owed": False}
+    c = res["check"]
+    assert (c["expected"], c["value"], c["gap"], c["since_date"], c["count"], c["status"]) == \
+        (390000, 388000, -2000, "2026-11-01", 2, "open")
+    assert _row(client, chk)["value"] == 388000 and _row(client, chk)["gaps_open"] == 1
+    body = client.get(f"/api/balances?today={TODAY}").get_json()
+    assert [g["date"] for g in body["gaps"]] == ["2026-11-20"]
+
     snap_id = res["id"]
-    rec = client.post("/api/balances/reconcile", json={"snapshot_id": snap_id})
-    assert rec.status_code == 201 and rec.get_json()["amount"] == -1000
-    adj = ChangeEvent.query.filter_by(change_type="adjustment").one()
-    assert (adj.date, adj.snapshot_id, adj.account_id) == ("2026-11-20", snap_id, chk.id)
-    assert _row(client, chk)["value"] == 389000  # the adjustment explains the gap; the record still sets the value
+    ok = client.post("/api/balances/signoff", json={"snapshot_id": snap_id, "note": "cash spending"})
+    assert ok.status_code == 201 and ok.get_json()["check"]["status"] == "signed_off"
+    assert ChangeEvent.query.filter_by(change_type="adjustment").count() == 0  # nothing is added to the history
+    assert _row(client, chk)["value"] == 388000 and _row(client, chk)["gaps_signed"] == 1
+    assert client.get(f"/api/balances?today={TODAY}").get_json()["gaps"] == []
 
+    # importing part of what was missing shrinks the gap: it stays signed off
+    _txn(chk, "2026-11-15", -1000)
+    db.session.commit()
     led = client.get(f"/api/balances/{chk.id}/ledger?today={TODAY}").get_json()
-    record = next(e for e in led["entries"] if e["kind"] == "recorded" and e["id"] == snap_id)
-    assert record["gap"] == 0 and led["open_gaps"] == 0 and led["current"] == 389000
-    assert client.post("/api/balances/reconcile", json={"snapshot_id": snap_id}).get_json()["created"] is None
+    rec = next(e for e in led["entries"] if e["kind"] == "recorded" and e["id"] == snap_id)
+    assert (rec["check"]["gap"], rec["check"]["status"], rec["check"]["explained_since"]) == (-1000, "signed_off", 1000)
+    _txn(chk, "2026-11-16", -600)
+    db.session.commit()
+    assert _row(client, chk)["check"]["status"] == "matches"  # -400: within the $5 tolerance
 
-    # changing the record throws the old explanation away; deleting it too
-    client.post("/api/balances/record", json={"entity_type": "cash", "entity_id": chk.id, "value": 388000,
-                                              "date": "2026-11-20"})
+    # a difference that grows past what was signed off asks for a look again
+    _txn(chk, "2026-11-18", 9000)
+    db.session.commit()
+    row = _row(client, chk)
+    assert row["check"]["status"] == "changed" and row["gaps_open"] == 1
+    assert client.delete(f"/api/balances/signoff/{snap_id}").get_json()["check"]["status"] == "open"
+
+
+def test_sign_off_the_value_entered_with_the_account(app, client, accounts):
+    chk = accounts["chk"]
+    db.session.add(Snapshot(entity_type="cash", entity_id=chk.id, date="2026-10-01", value=300000))
+    _txn(chk, "2026-10-10", 50000)
+    db.session.commit()
+    c = _row(client, chk)["check"]
+    assert (c["id"], c["date"], c["gap"], c["status"]) == (None, "2026-11-01", 50000, "open")
+    res = client.post("/api/balances/signoff", json={"account_id": chk.id, "date": "2026-11-01"})
+    assert res.status_code == 201 and res.get_json()["check"]["status"] == "signed_off"
+    assert Snapshot.query.filter_by(entity_id=chk.id, date="2026-11-01").one().gap_ok == 50000
+
+
+def test_balance_checks_find_missing_data_and_spread_the_gap():
+    records = [{"id": "a", "date": "2026-09-30", "value": 100000},
+               {"id": "b", "date": "2026-10-31", "value": 93000},
+               {"id": "c", "date": "2026-11-30", "value": 80000}]
+    txns = [("2026-10-05", -5000), ("2026-10-20", -2000), ("2026-11-03", -1000)]
+    checks = ledger.balance_checks(records, txns, spans=[("2026-10-01", "2026-11-03")])
+    oct_, nov = checks
+    assert (oct_["gap"], oct_["status"], oct_["missing"]) == (0, "matches", [])
+    assert (nov["expected"], nov["gap"], nov["status"]) == (92000, -12000, "open")
+    assert nov["missing"] == [("2026-11-07", "2026-11-30", 24)]  # the 3rd's transaction covers a few days
+    assert ledger.unexplained_flows(checks) == [("2026-11-07", "2026-11-30", -12000)]
+    assert ledger.balance_checks(records, []) == []  # no transactions: nothing to check against
+    quiet = ledger.balance_checks(records[:2], [("2026-12-15", -10)])
+    assert quiet[0]["status"] == "untracked"  # nothing imported between the two records
+    owed = ledger.balance_checks([{"date": "2026-11-01", "value": 20000}, {"date": "2026-11-30", "value": 30000}],
+                                 [("2026-11-10", -5000)], owed=True)
+    assert (owed[0]["expected"], owed[0]["gap"]) == (25000, 5000)
+    assert ledger.unexplained_flows(owed) == [("2026-11-14", "2026-11-30", -5000)]  # owing more = money out
+
+
+def test_plan_vs_actual_counts_balance_gaps_as_not_imported():
+    changes = [{"id": "a", "date": "2026-10-04", "amount": -25000, "change_type": "imported", "category": "groceries"}]
+    out = plan_vs_actual([], changes, [], {}, ["2026-10"], unexplained=[("2026-10-17", "2026-11-15", -30000)])
+    rows = {r["category"]: r for r in out["rows"]}
+    assert rows["_unexplained"]["months"][0]["actual"] == -15000  # 15 of the 30 days are in October
+    assert out["totals"][0]["actual_spending"] == 40000
+
+
+def test_old_reconcile_adjustments_become_sign_offs(app, accounts):
+    from app import _convert_reconcile_adjustments
+
+    card = accounts["card"]
+    snap = Snapshot(entity_type="cash", entity_id=card.id, date="2026-11-20", value=30000)
+    db.session.add(snap)
+    db.session.flush()
+    db.session.add(ChangeEvent(date="2026-11-20", description="Unexplained difference", amount=-4000,
+                               account_id=card.id, change_type="adjustment", snapshot_id=snap.id))
+    db.session.commit()
+    _convert_reconcile_adjustments()
     assert ChangeEvent.query.filter_by(change_type="adjustment").count() == 0
-    client.post("/api/balances/reconcile", json={"snapshot_id": snap_id})
-    assert client.delete(f"/api/snapshots/{snap_id}").status_code == 204
-    assert ChangeEvent.query.filter_by(change_type="adjustment").count() == 0
+    assert snap.gap_ok == 4000 and snap.gap_note == "Logged as an adjustment"  # owed: money out = owing more
+
+
+def test_insight_points_at_differences_to_look_at(app, client, accounts):
+    chk = accounts["chk"]
+    _txn(chk, "2026-11-05", -2500)
+    db.session.commit()
+    client.post("/api/balances/record", json={"entity_type": "cash", "entity_id": chk.id, "value": 350000,
+                                              "date": "2026-11-28"})
+    items = client.get(f"/api/insights?today={TODAY}").get_json()["insights"]
+    gap = next(i for i in items if i["id"] == "balance-gaps")
+    assert gap["severity"] == "info" and "Nothing was imported for 2026-11-09 to 2026-11-28" in gap["detail"]
 
 
 def test_no_check_without_transactions_in_between(app, client, accounts):
@@ -177,9 +252,12 @@ def test_imported_statement_moves_the_balance_and_checks_its_closing_balance(app
     assert check["since_date"] == "2026-11-01" and check["count_here"] > 0
     assert client.post(f"/api/imports/{b['id']}/commit", json={}).status_code == 200
     r = _row(client, chk)
-    snap = Snapshot.query.filter_by(entity_id=chk.id).one()
+    snap = Snapshot.query.filter_by(entity_id=chk.id, date="2026-11-20").one()
     later = sum(c.amount for c in ChangeEvent.query.filter_by(account_id=chk.id).all() if c.date > snap.date)
     assert r["value"] == snap.value + later and r["recorded"] == snap.value
+    effect = client.get(f"/api/imports/{b['id']}").get_json()["gap_effect"]
+    assert effect and all("before_gap" in c for c in effect)
+    assert "2026-11-20" in {c["date"] for c in effect}
     led = client.get(f"/api/balances/{chk.id}/ledger?today={TODAY}").get_json()
     assert any(e["kind"] == "txn" and e["transfer"] for e in led["entries"])
     assert all(e["file"] == "checking-activity.csv" for e in led["entries"] if e["kind"] == "txn")

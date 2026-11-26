@@ -300,6 +300,11 @@ class Snapshot(db.Model):
     value = db.Column(Integer, nullable=False)   # cents, always positive
     note = db.Column(Text, nullable=True)
     created_at = db.Column(String(10), nullable=False, default=get_iso_date)
+    # A cash balance's difference from the transactions that you signed off on
+    # (cents, recorded - expected, when you signed off). See engine.ledger.balance_checks.
+    gap_ok = db.Column(Integer, nullable=True)
+    gap_ok_at = db.Column(String(32), nullable=True)
+    gap_note = db.Column(Text, nullable=True)
 
 
 class Rule(db.Model):

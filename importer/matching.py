@@ -141,15 +141,18 @@ def refresh_matches(batch) -> int:
                 # Money owed can only be recorded on an account marked as a credit card.
                 r.flags = r.flags + ["card_balance"]
             else:
+                same = (Snapshot.query.filter_by(entity_type="cash", entity_id=acct, date=r.date, value=r.amount).first()
+                        if r.date else None)
                 latest = (Snapshot.query.filter_by(entity_type="cash", entity_id=acct)
                           .order_by(Snapshot.date.desc()).first())
-                if latest and r.date:
-                    if latest.date == r.date and latest.value == r.amount:
-                        r.flags = r.flags + ["duplicate"]
-                        r.match = {"kind": "snapshot", "date": latest.date, "description": "same balance already recorded"}
-                    elif latest.date > r.date:
-                        r.flags = r.flags + ["older_snapshot"]
-                        r.match = {"kind": "snapshot", "date": latest.date, "description": "a newer balance exists"}
+                if same:
+                    r.flags = r.flags + ["duplicate"]
+                    r.match = {"kind": "snapshot", "date": same.date, "description": "same balance already recorded"}
+                elif latest and r.date and latest.date > r.date:
+                    # Still imported: an earlier balance is one more checkpoint, which narrows
+                    # down where a difference between your records and the transactions is.
+                    r.flags = r.flags + ["older_snapshot"]
+                    r.match = {"kind": "snapshot", "date": latest.date, "description": "a newer balance exists"}
         elif r.target == "rule":
             dup = [x for x in Rule.query.filter_by(is_active=True).all()
                    if x.rule_type == ("income" if (r.amount or 0) > 0 else "expense") and

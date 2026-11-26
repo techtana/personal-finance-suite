@@ -32,11 +32,17 @@ make (`--db instance/load-demo.db` keeps it, for the `load-demo` preview).
 
 - `GET /api/balances` — Every cash account, asset and liability in one list, with totals and freshness
 - `POST /api/balances/record` — Record a value (`entity_type` cash|asset|liability, `entity_id`, `value` in cents,
-  optional `date`). For a cash account the answer's `check` compares it with the previous record plus the
-  transactions since
+  optional `date`). For a cash account the answer's `check` is the record's balance check (below)
 - `GET /api/balances/<account_id>/ledger?limit=&offset=` — One account's recorded balances and transactions,
-  newest first, with the running balance and the unexplained gap at each record
-- `POST /api/balances/reconcile` — `{snapshot_id}`: log a record's unexplained gap as an adjustment entry
+  newest first, with the running balance and each record's balance `check`
+- `POST /api/balances/signoff` — `{snapshot_id, note}` (or `{account_id, date, note}` for the value typed in with
+  the account): accept a record's difference from the transactions. `DELETE /api/balances/signoff/<snapshot_id>`
+  undoes it
+- Balance checks (`check`, and `gaps` / `signed_off` on `GET /api/balances`): `{date, value, source
+  (statement|entered), since_date, since_value, expected, gap, count, missing [[from, to, days]], status}`. status is
+  matches (within the tolerance in Settings), open, signed_off, changed (grew past a sign-off) or untracked (nothing
+  imported for the period). They are worked out on every request, so imports and undos move them.
+  `GET /api/imports/<id>` adds `gap_effect`: the checks a committed import changed, with `before_gap`
 - `GET /api/net-worth/history?months=24&types=cash,asset` — Month-end values by type
 - `GET /api/plan-vs-actual?months=4` — Planned vs. imported amounts per category and month
 - `GET /api/assets`, `POST /api/assets`, `PATCH /api/assets/<id>` — Assets

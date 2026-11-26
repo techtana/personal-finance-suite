@@ -2,7 +2,9 @@
 
 Plan   = rules, loan payments and planned one-off entries (the Plan page), expanded
          for the month exactly as the forecast does.
-Actual = imported transactions and reconcile adjustments dated in the month.
+Actual = imported transactions dated in the month, plus what the recorded balances
+         say happened that the imports don't show (each balance's gap, spread over
+         the days with nothing imported; see engine.ledger.unexplained_flows).
 Transfers between your own accounts are in neither: they don't change net worth.
 
 A month with no imported transaction has no actuals (None), so it isn't shown as
@@ -43,8 +45,27 @@ def recent_months(today: str, count: int) -> list[str]:
     return out[::-1]
 
 
-def plan_vs_actual(rules, changes, loans, prices, months: list[str], labels: dict | None = None) -> dict:
-    """Per category and month: planned and actual amounts (signed: + money in, - money out)."""
+def _spread(start: str, end: str, amount: int, months) -> dict:
+    """{month: share} of an amount spread evenly over the days start..end, for the months asked about."""
+    a, b = date.fromisoformat(start), date.fromisoformat(end)
+    days = (b - a).days + 1
+    if days <= 0 or not amount:
+        return {}
+    counts: dict = {}
+    d = a
+    while d <= b:
+        counts[d.isoformat()[:7]] = counts.get(d.isoformat()[:7], 0) + 1
+        d += timedelta(days=1)
+    return {m: round(amount * n / days) for m, n in counts.items() if m in months}
+
+
+def plan_vs_actual(rules, changes, loans, prices, months: list[str], labels: dict | None = None,
+                   unexplained=()) -> dict:
+    """Per category and month: planned and actual amounts (signed: + money in, - money out).
+
+    unexplained  [(from, to, amount)] money the recorded balances show moved that no
+                 imported transaction explains (engine.ledger.unexplained_flows)
+    """
     labels = labels or {}
     planned: dict = {}
     actual: dict = {}
@@ -72,10 +93,15 @@ def plan_vs_actual(rules, changes, loans, prices, months: list[str], labels: dic
         cat = UNEXPLAINED if c.get("change_type") == "adjustment" else (c.get("category") or UNCATEGORIZED)
         actual.setdefault(cat, {}).setdefault(month, 0)
         actual[cat][month] += amt
+    for start, end, amt in unexplained:
+        for month, part in _spread(start, end, amt, has_actuals).items():
+            if part:
+                actual.setdefault(UNEXPLAINED, {}).setdefault(month, 0)
+                actual[UNEXPLAINED][month] += part
 
     def label(cat):
         if cat == UNEXPLAINED:
-            return "Unexplained (balance corrections)"
+            return "Not in your imports (from balance differences)"
         if cat == UNCATEGORIZED:
             return "No category"
         if cat == "debt":

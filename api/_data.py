@@ -9,7 +9,7 @@ from datetime import date
 from flask import has_request_context, request
 
 from engine import ledger
-from models import Account, Asset, ChangeEvent, Loan, PricePoint, Rule, Settings, Snapshot, db
+from models import Account, Asset, ChangeEvent, ImportBatch, ImportRow, Loan, PricePoint, Rule, Settings, Snapshot, db
 
 DEFAULT_STALE_DAYS = 35
 DEFAULT_DIVERGENCE_BPS = 500  # 5%
@@ -187,4 +187,97 @@ def thresholds() -> dict:
             return default
 
     return {"stale_days": _int("stale_days", DEFAULT_STALE_DAYS),
-            "net_worth_bps": _int("net_worth_bps", DEFAULT_DIVERGENCE_BPS)}
+            "net_worth_bps": _int("net_worth_bps", DEFAULT_DIVERGENCE_BPS),
+            "gap_abs_cents": _int("gap_abs_cents", ledger.GAP_ABS_CENTS),
+            "gap_bps": _int("gap_bps", ledger.GAP_BPS)}
+
+
+# ── Balance checks: recorded balances against the imported transactions ──────
+
+def import_spans(exclude_batch: str | None = None) -> dict:
+    """{account_id: [(from, to)]}: the dates each committed import covered, first to last dated row."""
+    q = (db.session.query(ImportRow.batch_id, ImportRow.account_id, ImportBatch.account_id, ImportRow.date)
+         .join(ImportBatch, ImportRow.batch_id == ImportBatch.id)
+         .filter(ImportBatch.status == "committed", ImportRow.date.isnot(None),
+                 ImportRow.target.in_(("change_event", "snapshot"))))
+    spans: dict = {}
+    for batch_id, row_acct, batch_acct, d in q:
+        acct = row_acct or batch_acct
+        if not acct or len(d) != 10 or batch_id == exclude_batch:
+            continue
+        a, b = spans.get((batch_id, acct), (d, d))
+        spans[(batch_id, acct)] = (min(a, d), max(b, d))
+    out: dict = {}
+    for (_, acct), span in spans.items():
+        out.setdefault(acct, []).append(span)
+    return out
+
+
+def snapshot_files() -> dict:
+    """{snapshot_id: filename} for balances that came from an imported statement."""
+    q = (db.session.query(ImportRow.created_id, ImportBatch.filename)
+         .join(ImportBatch, ImportRow.batch_id == ImportBatch.id)
+         .filter(ImportRow.target == "snapshot", ImportRow.created_id.isnot(None)))
+    return {sid: fn for sid, fn in q}
+
+
+def cash_records(account, snaps, files: dict, today: str) -> list[dict]:
+    """One account's recorded balances, one per date (the last one entered wins), oldest first.
+
+    source: statement (from an import) | entered (typed in, or the value the account was added with)
+    """
+    by_date: dict = {}
+    for s in sorted(snaps, key=lambda s: (s.date, s.created_at or "")):
+        if s.date <= today:
+            by_date[s.date] = {"id": s.id, "date": s.date, "value": s.value, "note": s.note,
+                               "source": "statement" if s.id in files else "entered", "file": files.get(s.id),
+                               "gap_ok": s.gap_ok, "gap_ok_at": s.gap_ok_at, "gap_note": s.gap_note}
+    when = account.last_updated_date
+    if when and when <= today and not any(d >= when for d in by_date):
+        by_date[when] = {"id": None, "date": when, "value": account.current_balance or 0,
+                         "note": "Value entered with the account", "source": "entered", "file": None,
+                         "gap_ok": None, "gap_ok_at": None, "gap_note": None}
+    return [by_date[d] for d in sorted(by_date)]
+
+
+def balance_checks(today: str | None = None, account_ids=None, exclude_batch: str | None = None) -> dict:
+    """{account_id: [check]} for cash accounts: each recorded balance against the transactions.
+
+    exclude_batch leaves one import out, as if it had never happened (to show what it changed).
+    See engine.ledger.balance_checks for what a check holds.
+    """
+    today = today or date.today().isoformat()
+    memo = _request_memo() if account_ids is None and exclude_batch is None else None
+    if memo is not None and ("checks", today) in memo:
+        return memo[("checks", today)]
+    accounts = Account.query.filter(Account.id.in_(list(account_ids))).all() if account_ids is not None         else Account.query.filter_by(is_active=True).all()
+    if not accounts:
+        return {}
+    changes = change_dicts()
+    skip: set = set()
+    if exclude_batch:
+        skip = {cid for (cid,) in db.session.query(ImportRow.created_id)
+                .filter(ImportRow.batch_id == exclude_batch, ImportRow.created_id.isnot(None))}
+        changes = [c for c in changes if c["id"] not in skip]
+    txns = ledger.account_txns(changes, today)
+    spans = import_spans(exclude_batch)
+    files = snapshot_files()
+    snaps: dict = {}
+    for s in Snapshot.query.filter(Snapshot.entity_type == "cash",
+                                   Snapshot.entity_id.in_([a.id for a in accounts])).all():
+        if s.id not in skip:
+            snaps.setdefault(s.entity_id, []).append(s)
+    limits = thresholds()
+    out = {}
+    for a in accounts:
+        records = cash_records(a, snaps.get(a.id, []), files, today)
+        checks = ledger.balance_checks(records, txns.get(a.id, []), ledger.is_owed(a.type), spans.get(a.id, []),
+                                       limits["gap_abs_cents"], limits["gap_bps"])
+        by_date = {r["date"]: r for r in records}
+        for c in checks:
+            c.update({"account_id": a.id, "account": a.name, "file": by_date[c["date"]]["file"],
+                      "since_file": by_date[c["since_date"]]["file"]})
+        out[a.id] = checks
+    if memo is not None:
+        memo[("checks", today)] = out  # shared within one GET request: treat as read-only
+    return out

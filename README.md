@@ -19,7 +19,7 @@ It is for one person or household. It is not a bookkeeping tool, it doesn't pull
                                      home PC with a GPU ──┘  pulls AI work (optional)
 ```
 
-Balances follow one rule (`engine/ledger.py`): the latest recorded balance plus the account's imported transactions since. Plan entries feed the forecast and taxes, never a balance. One Flask app serves the pages and a REST API ([docs/api.md](docs/api.md)). The business rules live in `engine/` (forecast, tax, vesting, loans, Then vs. Now, Insights) and the file reader in `importer/`. An optional language model reads documents and words answers; the app computes every number itself. The full architecture and its reasons: [docs/design/cloud-server-and-ai-endpoints.md](docs/design/cloud-server-and-ai-endpoints.md).
+Balances follow one rule (`engine/ledger.py`): the latest recorded balance plus the account's imported transactions since. Every recorded balance, typed in or read from a statement, is checked against the one before it plus the transactions in between. A difference is worked out afresh each time, so importing a missing statement shrinks it, and you can sign off on what's left: missing details are expected, not an error. Plan entries feed the forecast and taxes, never a balance. One Flask app serves the pages and a REST API ([docs/api.md](docs/api.md)). The business rules live in `engine/` (forecast, tax, vesting, loans, Then vs. Now, Insights) and the file reader in `importer/`. An optional language model reads documents and words answers; the app computes every number itself. The full architecture and its reasons: [docs/design/cloud-server-and-ai-endpoints.md](docs/design/cloud-server-and-ai-endpoints.md).
 
 ## Setup across devices
 

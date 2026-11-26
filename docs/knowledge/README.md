@@ -51,7 +51,7 @@ Each page ends with **Open questions**. Several of them describe possible code b
 | RSU | Restricted stock unit: a promise of a company share that turns into a real share when it vests |
 | Sell-to-cover | Selling some vested shares to pay the tax withheld on the vest |
 | Snapshot (recorded balance) | A value for one account on one date; the truth on that date. Later imported transactions move the balance from there |
-| Reconcile adjustment | One entry that logs the gap between a recorded balance and the previous one plus the transactions since |
+| Balance check | A recorded balance against the previous one plus the transactions since; its gap is worked out afresh each time and can be signed off |
 | Stale | A balance not updated within the limit (35 days by default) |
 | Tailnet | Your private Tailscale network: the devices signed in to your Tailscale account |
 | Tailscale Serve / Funnel | Serve publishes a local port to your tailnet only, over HTTPS. Funnel publishes it to the internet; never used here |
