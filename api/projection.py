@@ -17,16 +17,18 @@ def serialize_event(ev):
             "amount": ev.amount, "label": ev.label, "category": ev.category}
 
 
-def serialize_bucket(bucket):
-    return {
+def serialize_bucket(bucket, with_events=False):
+    out = {
         "month": bucket.month,
         "income": bucket.income,
         "expenses": bucket.expenses,
         "net_cash_flow": bucket.net_cash_flow,
         "cumulative_net_worth": bucket.cumulative_net_worth,
         "actual_net_worth": bucket.actual_net_worth,
-        "events": [serialize_event(ev) for ev in bucket.events],
     }
+    if with_events:
+        out["events"] = [serialize_event(ev) for ev in bucket.events]
+    return out
 
 
 @bp.route("/projection", methods=["GET"])
@@ -38,6 +40,9 @@ def get_projection():
     ?disable       comma-separated rule / change / loan ids to leave out (what-if).
                    The answer then also carries `baseline`, the forecast with nothing left out.
     ?history       months of recorded net worth to return alongside (default 0)
+    ?bucket_events=1  also list each month's events inside its bucket. Off by default:
+                   the same events are already in the flat `events` list, and over a
+                   long horizon the copy doubles the size of the answer.
     """
     today = date.today().isoformat()
     from_date = request.args.get("from") or today
@@ -49,6 +54,7 @@ def get_projection():
             stock_prices.update(json.loads(request.args["prices"]))
         except Exception:
             pass
+    with_events = request.args.get("bucket_events") == "1"
     disabled = {i for i in (request.args.get("disable") or "").split(",") if i}
     try:
         history_months = min(120, max(0, int(request.args.get("history", 0))))
@@ -82,7 +88,7 @@ def get_projection():
             b.actual_net_worth = by_month[b.month]
 
     return jsonify({
-        "buckets": [serialize_bucket(b) for b in buckets],
+        "buckets": [serialize_bucket(b, with_events) for b in buckets],
         "events": [serialize_event(e) for e in events],
         "starting_net_worth": starting_nw,
         "actuals": actuals,

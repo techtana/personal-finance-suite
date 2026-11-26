@@ -4,7 +4,8 @@ import json
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 
-from models import db, Settings, Rule, ChangeEvent, Asset, Loan
+from api import _data
+from models import db, Settings, Rule, Asset, Loan
 from engine.tax import estimate_taxes, normalize_profile
 from engine.tax_tables import (
     INCOME_TREATMENTS, EXPENSE_TREATMENTS, FILING_STATUSES, TAX_YEARS,
@@ -79,7 +80,27 @@ def tax_summary():
     except Exception:
         stock_prices = {}
 
-    return jsonify(compute_tax_summary(year, stock_prices))
+    summary = compute_tax_summary(year, stock_prices)
+    # A year of imported transactions is thousands of items; the page lists them
+    # grouped by entry, so send the groups rather than every dated amount.
+    items = summary.pop("items", [])
+    summary["item_count"] = len(items)
+    summary["item_groups"] = group_items(items)
+    return jsonify(summary)
+
+
+def group_items(items: list[dict]) -> list[dict]:
+    """One row per entry and treatment: how many times it happens in the year and its total, largest first."""
+    groups: dict = {}
+    for it in items:
+        key = f"{it['source_type']}:{it['source_id']}:{it['treatment']}:{it['label']}"
+        g = groups.get(key)
+        if g is None:
+            g = groups[key] = {"key": key, "label": it["label"], "treatment_label": it["treatment_label"],
+                               "assumed": it["assumed"], "note": it["note"], "count": 0, "total": 0}
+        g["count"] += 1
+        g["total"] += it["amount"]
+    return sorted(groups.values(), key=lambda g: -abs(g["total"]))
 
 
 def compute_tax_summary(year: int, stock_prices: dict | None = None) -> dict:
@@ -91,11 +112,7 @@ def compute_tax_summary(year: int, stock_prices: dict | None = None) -> dict:
          "tax_treatment": r.tax_treatment}
         for r in Rule.query.filter_by(is_active=True).all()
     ]
-    changes = [
-        {"id": c.id, "date": c.date, "description": c.description, "amount": c.amount,
-         "change_type": c.change_type, "tax_treatment": c.tax_treatment, "category": c.category}
-        for c in ChangeEvent.query.all()
-    ]
+    changes = _data.change_dicts()
     assets = [
         {"id": a.id, "name": a.name, "category": a.category, "current_value": a.current_value,
          "cost_basis": a.cost_basis, "acquired_date": a.acquired_date,

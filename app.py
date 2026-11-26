@@ -19,6 +19,26 @@ _ADDED_COLUMNS = [
 ]
 
 
+# Indexes for the tables that grow with years of history: imported transactions
+# and recorded balances. IF NOT EXISTS makes this safe on every start.
+_INDEXES = [
+    ("ix_change_events_date", "change_events", "date"),
+    ("ix_change_events_account_date", "change_events", "account_id, date"),
+    ("ix_change_events_snapshot", "change_events", "snapshot_id"),
+    ("ix_snapshots_entity_date", "snapshots", "entity_type, entity_id, date"),
+]
+
+
+def _add_missing_indexes():
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    for name, table, columns in _INDEXES:
+        if inspector.has_table(table):
+            db.session.execute(text(f"CREATE INDEX IF NOT EXISTS {name} ON {table} ({columns})"))
+    db.session.commit()
+
+
 def _add_missing_columns():
     from sqlalchemy import inspect, text
 
@@ -54,6 +74,7 @@ def create_app(config=None):
     with app.app_context():
         db.create_all()
         _add_missing_columns()
+        _add_missing_indexes()
 
     # Who is asking, the audit log and the stale-save check
     import audit

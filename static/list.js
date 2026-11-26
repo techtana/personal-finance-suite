@@ -98,7 +98,8 @@ function makeList(cfg) {
             if (!text) return;
             this.aiBusy = true; this.aiNote = '';
             const filters = {};
-            for (const name of Object.keys(cfg.filters || {})) filters[name] = this.options(name, items);
+            const label = o => (o && typeof o === 'object' ? o.label : o);
+            for (const name of Object.keys(cfg.filters || {})) filters[name] = this.options(name, items).map(label);
             try {
                 const r = await API.post('/assistant/filter', { text, filters, sorts: Object.keys(cfg.sorts || {}), today: todayISO() });
                 const f = r.filter || {};
@@ -107,7 +108,12 @@ function makeList(cfg) {
                 this.from = cfg.date ? (f.date_from || '') : ''; this.to = cfg.date ? (f.date_to || '') : '';
                 this.min = cfg.amount && f.min_amount != null ? String(f.min_amount) : '';
                 this.max = cfg.amount && f.max_amount != null ? String(f.max_amount) : '';
-                for (const [name, value] of Object.entries(f.filters || {})) if (name in this.f) this.f[name] = value;
+                for (const [name, value] of Object.entries(f.filters || {})) {
+                    if (!(name in this.f)) continue;
+                    // Options may be {value, label} (e.g. an account id shown by name); the model answers with the label.
+                    const hit = this.options(name, items).find(o => o && typeof o === 'object' && o.label === value);
+                    this.f[name] = hit ? hit.value : value;
+                }
                 if (f.sort) { this.sort = f.sort; this.dir = f.dir || 'asc'; }
                 this.aiNote = this.active() > 0 || f.sort
                     ? 'Filters set from "' + text + '". Check them and adjust if needed.'
@@ -117,6 +123,56 @@ function makeList(cfg) {
             finally { this.aiBusy = false; }
         },
     };
+}
+
+// The same list state for a list too long to send to the browser whole (years of
+// imported transactions). Search, filters and sort go to the server as query
+// parameters and come back as one page; "more()" appends the next page.
+//
+// makeServerList({ url, key, filters: [names], date, amount, sorts: [names], sort, dir, pageSize, extra })
+//   url      endpoint answering ?limit&offset&... with {items, matched, total, sum, options}
+//   extra    () -> {param: value} added to every request (e.g. today's date)
+function makeServerList(cfg) {
+    const names = a => Object.fromEntries((a || []).map(n => [n, () => '']));
+    const list = makeList({ key: cfg.key, sort: cfg.sort, dir: cfg.dir, filters: names(cfg.filters),
+                            date: cfg.date ? () => '' : null, amount: cfg.amount ? () => 0 : null, sorts: names(cfg.sorts) });
+    const syncAddress = list.sync;
+    const size = cfg.pageSize || 50;
+    let seq = 0;
+    return Object.assign(list, {
+        items: [], matched: 0, total: 0, sum: 0, opts: {}, loading: false, loaded: false, error: '',
+        sync() { syncAddress.call(this); this.load(); },
+        query(offset) {
+            const p = new URLSearchParams({ limit: String(size), offset: String(offset) });
+            const put = (k, v) => { if (v !== '' && v != null) p.set(k, v); };
+            put('q', this.q.trim()); put('from', this.from); put('to', this.to); put('min', this.min); put('max', this.max);
+            for (const [k, v] of Object.entries(this.f)) put(k, v);
+            if (this.sort) { p.set('sort', this.sort); p.set('dir', this.dir); }
+            if (offset) p.set('options', '0');  // the dropdowns don't change when only the page does
+            for (const [k, v] of Object.entries(cfg.extra ? cfg.extra() : {})) put(k, v);
+            return p.toString();
+        },
+        // Reload from the first page (more = false) or append the next one. A newer request wins over a slower older one.
+        async load(more = false) {
+            const mine = ++seq;
+            this.loading = true; this.error = '';
+            try {
+                const r = await API.get(cfg.url + '?' + this.query(more ? this.items.length : 0));
+                if (mine !== seq) return;
+                this.items = more ? this.items.concat(r.items) : r.items;
+                this.matched = r.matched; this.total = r.total; this.sum = r.sum;
+                if (r.options) this.opts = r.options;
+            } catch (e) {
+                if (mine === seq) this.error = e.message;
+            } finally {
+                if (mine === seq) { this.loading = false; this.loaded = true; }
+            }
+        },
+        more() { return this.load(true); },
+        hasMore() { return this.items.length < this.matched; },
+        options(name) { return this.opts[name] || []; },
+        apply() { return this.items; },
+    });
 }
 
 function fmtSigned(cents) { return (cents >= 0 ? '+' : '−') + formatCurrency(Math.abs(cents)); }
@@ -136,6 +192,9 @@ function titleCase(s) {
 }
 
 // App-wide state: is the AI assistant usable, and how many things need attention.
+// /insights is the costliest read, so the nav badge and the page showing insights share one request.
+// (Kept outside the store: Alpine's reactive proxy breaks a Promise.)
+let insightsRequest = null;
 document.addEventListener('alpine:init', () => {
     Alpine.store('ui', { menu: false });
     Alpine.store('app', {
@@ -156,14 +215,22 @@ document.addEventListener('alpine:init', () => {
             const caps = API.get('/capabilities').then(c => { this.caps = { ...c, loaded: true }; }).catch(() => { this.caps.loaded = true; });
             return Promise.all([status, caps]);
         },
-        refreshAttention() {
-            API.get('/insights').then(r => { this.attention = (r.counts || {}).attention || 0; }).catch(() => {});
+        // The latest /insights answer; fresh = true asks again (after the data changed).
+        insights(fresh = false) {
+            if (fresh || !insightsRequest) {
+                const req = insightsRequest = API.get('/insights');
+                req.then(r => { if (req === insightsRequest) this.attention = (r.counts || {}).attention || 0; })
+                   .catch(() => { if (req === insightsRequest) insightsRequest = null; });
+            }
+            return insightsRequest;
         },
+        refreshAttention() { this.insights(true).catch(() => {}); },
     });
     Alpine.store('app').load();
 });
 
 window.makeList = makeList;
+window.makeServerList = makeServerList;
 window.fmtSigned = fmtSigned;
 window.fmtShort = fmtShort;
 window.todayISO = todayISO;

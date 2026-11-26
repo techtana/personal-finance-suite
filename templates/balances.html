@@ -3,7 +3,7 @@
 {% import "_icons.html" as ic %}
 
 {% block content %}
-<div x-data="balancesPage()" x-init="init()" class="space-y-6" x-cloak>
+<div x-data="balancesPage()" class="space-y-6" x-cloak>
 
     <!-- Tabs -->
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200">
@@ -190,13 +190,17 @@
                         <th><span class="sr-only">Actions</span></th>
                     </tr></thead>
                     <tbody>
-                        <template x-for="p in shownPrices" :key="p.id">
+                        <template x-for="p in shownPrices.slice(0, pricePageSize)" :key="p.id">
                             <tr><td class="font-semibold cell-title" x-text="p.ticker"></td><td data-label="Date" x-text="p.date"></td><td class="num" data-label="Price" x-text="'$' + (p.price/100).toFixed(2)"></td>
                                 <td class="num cell-actions"><button type="button" class="btn btn-danger btn-sm" @click="deletePrice(p)">Delete</button></td></tr>
                         </template>
                         <tr x-show="shownPrices.length === 0"><td colspan="4" class="text-center text-gray-500 py-8" x-text="prices.length ? 'No prices match these filters.' : 'No prices stored yet.'"></td></tr>
                     </tbody>
                 </table>
+            </div>
+            <div class="flex items-center justify-between mt-2 text-xs text-gray-500" x-show="shownPrices.length > pricePageSize">
+                <span x-text="'Showing ' + pricePageSize + ' of ' + shownPrices.length"></span>
+                <button type="button" class="btn btn-ghost btn-sm" @click="pricePageSize += 50">Show 50 more</button>
             </div>
         </section>
     </div>
@@ -349,7 +353,7 @@
                 <table class="data stack">
                     <thead><tr><th>Date</th><th class="num">Value</th><th class="num">Change</th><th>Note</th><th></th></tr></thead>
                     <tbody>
-                        <template x-for="(s, i) in hist.snaps" :key="s.id">
+                        <template x-for="(s, i) in hist.snaps.slice(0, hist.shown)" :key="s.id">
                             <tr>
                                 <td class="cell-title" x-text="s.date"></td><td class="num font-medium" data-label="Value" x-text="fmt(s.value)"></td>
                                 <td class="num text-gray-500" data-label="Change" x-text="i < hist.snaps.length - 1 ? fmtSigned(s.value - hist.snaps[i+1].value) : '—'"></td>
@@ -363,6 +367,10 @@
                         <tr x-show="hist.snaps.length === 0"><td colspan="5" class="text-center text-gray-500 py-6">No values recorded yet.</td></tr>
                     </tbody>
                 </table>
+            </div>
+            <div class="flex items-center justify-between mt-2 text-xs text-gray-500" x-show="hist.snaps.length > hist.shown">
+                <span x-text="'Showing the newest ' + hist.shown + ' of ' + hist.snaps.length"></span>
+                <button type="button" class="btn btn-ghost btn-sm" @click="hist.shown += 100">Show 100 more</button>
             </div>
             <div class="modal-actions"><button type="button" class="btn btn-ghost" @click="closeHistory()">Close</button></div>
         </div>
@@ -484,13 +492,13 @@ function balancesPage() {
     const cents = v => Math.round(parseFloat(v || 0) * 100);
     return {
         tab: 'balances', rows: [], totals: { cash: 0, assets: 0, liabilities: 0, net_worth: 0 }, staleDays: 35, loading: true, saving: false,
-        today: todayISO(), list: null, priceList: null,
+        today: todayISO(), list: null, priceList: null, pricePageSize: 50, loadedOnce: false,
         editing: null, editValue: '', editDate: '',
         checkin: { open: false, queue: [], i: 0, value: '', saved: 0, gaps: [] },
         led: { open: false, row: null, data: null, loading: false },
         rec: { open: false, name: '', check: null, snapshotId: null, accountId: null },
         form: { open: false, type: 'cash', id: null, d: {} },
-        hist: { open: false, row: null, snaps: [], date: '', value: '', note: '', editId: null, chart: null },
+        hist: { open: false, row: null, snaps: [], shown: 100, date: '', value: '', note: '', editId: null, chart: null },
         ev: { open: false, asset: null, f: {} },
         prices: [], missingPrices: [], newPrice: { ticker: '', date: todayISO(), price: '' },
 
@@ -539,7 +547,9 @@ function balancesPage() {
                 this.rows = r.rows; this.totals = r.totals; this.staleDays = r.stale_days;
             } catch (e) { showAlert('Could not load balances: ' + e.message, 'error'); }
             finally { this.loading = false; }
-            Alpine.store('app').refreshAttention();
+            // The nav badge already asked on page load; after that, a reload means something changed.
+            if (this.loadedOnce) Alpine.store('app').refreshAttention();
+            this.loadedOnce = true;
         },
         async record(row, valueCents, date, note) {
             return await API.post('/balances/record', { entity_type: row.entity_type, entity_id: row.id, value: valueCents, date: date || this.today, note: note || null });
@@ -667,7 +677,7 @@ function balancesPage() {
 
         // ── History ───────────────────────────────────────────────────────
         async openHistory(r) {
-            this.hist = { open: true, row: r, snaps: [], date: this.today, value: '', note: '', editId: null, chart: this.hist.chart };
+            this.hist = { open: true, row: r, snaps: [], shown: 100, date: this.today, value: '', note: '', editId: null, chart: this.hist.chart };
             await this.loadHistory();
         },
         async loadHistory() {

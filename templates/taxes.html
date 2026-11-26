@@ -22,7 +22,7 @@
     .viz-tip { position: fixed; z-index: 60; pointer-events: none; transform: translate(12px, 12px); }
 </style>
 
-<div x-data="taxesPage()" x-init="init()" class="viz-root space-y-6">
+<div x-data="taxesPage()" class="viz-root space-y-6">
 
     <!-- ── Controls (one row above everything) ─────────────────────────────── -->
     <div class="flex flex-wrap justify-between items-center gap-3">
@@ -367,7 +367,7 @@
                                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Year total</th>
                             </tr></thead>
                             <tbody class="divide-y divide-gray-50">
-                                <template x-for="g in grouped" :key="g.key">
+                                <template x-for="g in grouped.slice(0, groupPageSize)" :key="g.key">
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-6 py-3 text-sm text-gray-900">
                                             <span x-text="g.label"></span>
@@ -383,6 +383,10 @@
                                 </template>
                             </tbody>
                         </table>
+                        <div class="flex items-center justify-between px-6 py-2 text-xs text-gray-500 border-t border-gray-100" x-show="grouped.length > groupPageSize">
+                            <span x-text="'Showing the largest ' + groupPageSize + ' of ' + grouped.length"></span>
+                            <button type="button" class="btn btn-ghost btn-sm" @click="groupPageSize += 50">Show 50 more</button>
+                        </div>
                     </div>
                 </div>
             </template>
@@ -406,7 +410,7 @@ function taxesPage() {
     return {
         year: new Date().getFullYear(),
         data: null, loading: true, error: '',
-        showProfile: false, savingProfile: false, showItems: false,
+        showProfile: false, savingProfile: false, showItems: false, groupPageSize: 50,
         filingStatuses: [], profileForm: {},
         tip: { show: false, x: 0, y: 0, title: '', value: '' },
 
@@ -463,15 +467,7 @@ function taxesPage() {
             return Math.min(100, b.amount / (b.to - b.from) * 100);
         },
         get prefBands() { return this.data.preferential_bands.filter(b => b.amount > 0); },
-        get grouped() {
-            const groups = new Map();
-            for (const it of this.data.items) {
-                const key = it.source_type + ':' + it.source_id + ':' + it.treatment + ':' + it.label;
-                if (!groups.has(key)) groups.set(key, { key, label: it.label, treatment_label: it.treatment_label, assumed: it.assumed, note: it.note, count: 0, total: 0 });
-                const g = groups.get(key); g.count += 1; g.total += it.amount;
-            }
-            return [...groups.values()].sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
-        },
+        get grouped() { return this.data.item_groups || []; },
 
         // ── data ──────────────────────────────────────────────────────────
         async init() {

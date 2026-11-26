@@ -3,7 +3,7 @@
 {% import "_icons.html" as ic %}
 
 {% block content %}
-<div x-data="overviewPage()" x-init="init()" class="space-y-6" x-cloak>
+<div x-data="overviewPage()" class="space-y-6" x-cloak>
 
     <div x-show="loading" class="space-y-6" aria-busy="true" aria-label="Loading">
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
@@ -166,13 +166,15 @@ function overviewPage() {
             if (!this.rows.length) return;
             const soon = addMonthsISO(1), today = todayISO();
             const [ins, proj, hist] = await Promise.all([
-                API.get('/insights').catch(() => ({ insights: [] })),
+                Alpine.store('app').insights().catch(() => ({ insights: [] })),
                 API.get('/projection?from=' + today + '&to=' + addMonthsISO(12)).catch(() => ({ buckets: [], events: [] })),
                 API.get('/net-worth/history?months=12').catch(() => ({ series: [] })),
             ]);
             this.insights = ins.insights || []; this.buckets = proj.buckets || []; this.fullHistory = hist.series || [];
             this.upcoming = (proj.events || []).filter(e => e.date <= soon).map((e, i) => ({ ...e, key: e.source_id + e.date + i, signed: e.type === 'income' ? e.amount : -e.amount, source: SOURCE[e.source_type] || e.source_type }));
-            await this.loadHistory();
+            // The chart's default view is exactly this answer; ask again only when it is changed.
+            if (this.histMonths === '12' && this.histTypes.length === 3) await this.showHistory(this.fullHistory);
+            else await this.loadHistory();
             await this.$nextTick(); this.drawForecast();
         },
         toggleType(t) {
@@ -180,10 +182,14 @@ function overviewPage() {
             this.loadHistory();
         },
         async loadHistory() {
+            let series = [];
             try {
-                const r = await API.get('/net-worth/history?months=' + this.histMonths + (this.histTypes.length < 3 ? '&types=' + (this.histTypes.join(',') || 'none') : ''));
-                this.history = r.series || [];
-            } catch (e) { this.history = []; }
+                series = (await API.get('/net-worth/history?months=' + this.histMonths + (this.histTypes.length < 3 ? '&types=' + (this.histTypes.join(',') || 'none') : ''))).series || [];
+            } catch (e) { series = []; }
+            await this.showHistory(series);
+        },
+        async showHistory(series) {
+            this.history = series;
             this.histPartial = this.history.some(p => p.partial);
             await this.$nextTick(); this.drawHistory();
         },
