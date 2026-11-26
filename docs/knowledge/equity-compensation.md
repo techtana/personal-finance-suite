@@ -105,9 +105,9 @@ One more rule of thumb: the 22 percent flat rate is below the marginal rate of a
 
 **A ticker can be missing.** If an RSU grant or an ESPP plan has no ticker, or no price entered for it, the instrument cannot be valued. The page lists it as skipped with a reason.
 
-**Vest dates that fall on the 29th to 31st.** Adding months to such a date clamps it to the end of a shorter month. The builder then adds the next month to the clamped date, so the day stays at the lower value for the rest of the schedule. Example: a grant dated 2026-01-31 with a one-month cliff gets a cliff date of 2026-02-28, and the next vest is on 2026-03-28, not 2026-03-31.
+**Vest dates that fall on the 29th to 31st.** Adding months to such a date clamps it to the end of a shorter month. The builder counts every vest date from the grant date, not from the previous vest, so after a short month the schedule returns to the original day. Example: a grant dated 2026-01-31 with a one-month cliff vests on 2026-02-28, and the next vest is on 2026-03-31. Before PR #16 (2026-11-26) the next vest was on 2026-03-28 and every later vest stayed on the 28th.
 
-**The vest builder returns an empty list when the numbers do not add up.** Details in section 6.
+**Percents that don't divide evenly still vest the whole grant.** The Plan form's 2.0833 percent per month is sent as 208 basis points, which doesn't divide the 75 percent left after the cliff exactly. The builder rounds to the nearest whole number of later vests and the last vest takes whatever is left. Settings that can't make any schedule, such as 0 percent per later vest when the cliff isn't 100 percent, are refused when you save. Details in section 6.
 
 ## 5. How the project uses it
 
@@ -128,7 +128,7 @@ The older tables `RSUGrant` and `ESPPPlan` still exist in `models.py` and in the
 
 ### 5.3 Vest schedule builder
 
-`engine/vest_builder.py` has `build_vest_schedule`. It takes the grant date, total shares in milli-shares, cliff months, cliff percent in basis points, the frequency (`monthly` or `quarterly`) and the percent per later vest in basis points. It works out how many later vests fit by dividing the leftover percent by the percent per vest and rounding down. It then checks that the cliff plus the later vests add up to 100 percent with a tolerance of 0.1 percentage point. If they do not, it returns an empty list. Otherwise it returns the cliff vest plus the later vests, with share counts rounded down to a whole milli-share. `api/rules.py` calls it when a rule is created, when its config is edited, and in the preview endpoint. It skips the call when the dates came from a grant document.
+`engine/vest_builder.py` has `build_vest_schedule`. It takes the grant date, total shares in milli-shares, cliff months, cliff percent in basis points, the frequency (`monthly` or `quarterly`) and the percent per later vest in basis points. It works in whole basis points. The number of later vests is the leftover percent divided by the percent per vest, rounded to the nearest whole number (at least one). Each vest's shares are rounded down to a whole milli-share, and the last vest takes the remainder, so the schedule always adds up to the grant. A 0 percent cliff adds no cliff vest. Vest dates are counted from the grant date, so a month-end grant keeps its day after a short month. It returns an empty list only when the inputs can't make a schedule: a bad grant date, a frequency other than `monthly` or `quarterly`, a cliff percent outside 0 to 100, or 0 percent per later vest when the cliff is less than 100 percent. `api/rules.py` calls it when a rule is created, when its config is edited, and in the preview endpoint. It skips the call when the dates came from a grant document. When the result is empty, create and edit return an error (HTTP 400) instead of saving, and the preview returns the reason, which the Plan form shows.
 
 ### 5.4 Forecast
 
@@ -161,7 +161,7 @@ The project left out several things. This list is as of 2026-11-24.
 
 Checks run on 2026-11-24 from the worktree root. The first group relates to the Plan form defaults and the second to the ESPP code.
 
-**Does the Plan form's default RSU schedule produce a vest list?** The form defaults are a 12-month cliff, 25 percent at the cliff, then 2.0833 percent per month. The page sends each percent as `round(percent x 100)`, so the later slice becomes 208 basis points, not 208.33. The API fallback is also 208. Command:
+**Does the Plan form's default RSU schedule produce a vest list? (Fixed 2026-11-25 by PR #15.)** The form defaults are a 12-month cliff, 25 percent at the cliff, then 2.0833 percent per month. The page sends each percent as `round(percent x 100)`, so the later slice becomes 208 basis points, not 208.33. The API fallback is also 208. Command:
 
     PYTHONPATH=. python -c "from engine.vest_builder import build_vest_schedule as b; print(b('2026-01-15', 48000, 12, 2500, 'monthly', 208))"
 
@@ -173,17 +173,19 @@ Result: `[{'date': '2027-01-15', 'shares': 12000}, {'date': '2027-04-15', 'share
 
 What this means for the owner: on the Plan page, "Preview schedule" shows nothing for the default numbers. In `api/rules.py`, `create_rule` saves the empty list as the rule's schedule without any error. The grant then produces no forecast, tax or Then vs. Now events. A schedule of 25 percent plus 6.25 percent quarterly, or 25 percent plus 18.75 percent monthly or quarterly, works. A monthly 1/48 schedule with no cliff (208 basis points, 0 months and 0 percent) also returns an empty list.
 
-**Rounding loses milli-shares.** Share counts are rounded down per vest.
+Rerun on `main` after PR #15 (2026-11-25), the first command gives 37 vests. The cliff on 2027-01-15 is 12000, then 35 vests of 998, and the last, on 2030-01-15, is 1070, for a total of exactly 48000. The 1/48 schedule with no cliff gives 48 vests from 2026-02-15 to 2030-01-15. Settings that still make no schedule are refused by `create_rule` and `update_rule` with an error rather than saved.
+
+**Rounding lost milli-shares. (Fixed by PR #15: the last vest now takes the remainder.)** Share counts are rounded down per vest.
 
     PYTHONPATH=. python -c "from engine.vest_builder import build_vest_schedule as b; print(sum(x['shares'] for x in b('2026-01-15', 100001, 12, 2500, 'quarterly', 625)))"
 
-Result: `100000`. A grant of 100.001 shares schedules 100.000 shares, a loss of one milli-share. The amount is small, but the total of the schedule does not equal the grant.
+Result: `100000`. A grant of 100.001 shares schedules 100.000 shares, a loss of one milli-share. The amount is small, but the total of the schedule did not equal the grant. Rerun after PR #15, the same command prints `100001`.
 
-**Day-of-month drift and a zero-share vest.**
+**Day-of-month drift and a zero-share vest. (Fixed by PR #15, zero-share vest, and PR #16, drift.)**
 
     PYTHONPATH=. python -c "from engine.vest_builder import build_vest_schedule as b; print(b('2026-01-31', 48000, 1, 0, 'monthly', 10000))"
 
-Result: `[{'date': '2026-02-28', 'shares': 0}, {'date': '2026-03-28', 'shares': 48000}]`. A 0 percent cliff makes a vest event with zero shares, and the month clamp drifts the day to the 28th.
+Result: `[{'date': '2026-02-28', 'shares': 0}, {'date': '2026-03-28', 'shares': 48000}]`. A 0 percent cliff made a vest event with zero shares, and the month clamp drifted the day to the 28th. Rerun after both fixes (2026-11-26), the same command prints `[{'date': '2026-03-31', 'shares': 48000}]`: no zero-share event, and the vest keeps the 31st.
 
 **Is `engine/espp.py` called anywhere?** Command:
 
@@ -197,13 +199,13 @@ Result: no output. Nothing in the app or the tests calls `calculate_espp_purchas
 
 Result: `4250 {'contribution_per_period': 100000, 'total_contribution': 600000, 'shares_purchased': 141176, 'immediate_gain': 2}`. The price (42.50) and shares (141.176) match section 2.3. The `immediate_gain` is 2 cents. It is only the rounding left over, because the function subtracts the cost of the shares from the contribution, and the shares were bought with that same contribution. The SRD (section 9.2) says the gain is the contribution times the discount rate, which would be 900.00 dollars here. The docstring says "discount amount". Neither describes what the code returns. Also, the `base_price` argument of `calculate_espp_purchase` is never used.
 
-**Tests.** `PYTHONPATH=. python -m pytest tests/test_tax.py tests/test_lookback.py tests/test_import_equity.py -q` gave 59 passed. No test calls `build_vest_schedule` directly. It is only used to make sample data (`tests/sample_data.py`, with the working 625 quarterly case).
+**Tests.** `PYTHONPATH=. python -m pytest tests/test_tax.py tests/test_lookback.py tests/test_import_equity.py -q` gave 59 passed. No test called `build_vest_schedule` directly at the time. It was only used to make sample data (`tests/sample_data.py`, with the working 625 quarterly case). Since PR #15, `tests/test_vest_builder.py` covers the Plan form default, uneven percents, refused settings and the API's 400 response.
 
 **Price interpolation.** `price_on([('2026-01-01',10000),('2026-03-01',12000)], '2026-02-01')` returns `(11051, False)`, and for `'2025-06-01'` returns `(10000, False)`. An empty list returns `(None, False)`.
 
 ## 7. Open questions
 
-- Should the vest builder accept a small rounding gap, or let the last vest absorb the remainder, so the default 2.0833 percent monthly schedule produces 48 months of vests? As written, the default produces an empty schedule without telling the owner.
+- Resolved 2026-11-25 (PR #15): the last vest absorbs the remainder, so the default 2.0833 percent monthly schedule vests the whole grant over 36 months after the cliff, and settings that make no schedule are refused instead of saved.
 - Should the forecast fall back to the grant price when no market price exists, as the tax code does? Today the forecast drops the vest silently and the tax estimate values it at the grant price.
 - The Taxes page asks for `/taxes/summary?year=...` with no prices, and the API reads prices only from a query parameter. So the Taxes page values RSU vests at the grant price, while the Overview insights use the latest stored prices. This is from reading `templates/taxes.html` and `api/taxes.py`, not from running the page. Is that intended?
 - When a stored withholding rate or discount is 0, the edit form shows the default (22 or 15) instead, because zero counts as empty in `openEditRule`. Saving then changes the value. Confirmed by reading `templates/plan.html` only, not by running the page.
@@ -221,5 +223,7 @@ Result: `4250 {'contribution_per_period': 100000, 'total_contribution': 600000, 
 - Project files: `docs/SRD.md` sections 9.1 and 9.2, and the plans under `docs/design/plans/`.
 
 ## Changes
+
+2026-11-26: the vest builder findings marked fixed by PR #15 (whole grant vests, empty schedules refused, no zero-share vest) and PR #16 (month-end dates no longer drift), with rerun output; section 5.3 rewritten to match; the rounding question resolved.
 
 2026-11-24: first version.

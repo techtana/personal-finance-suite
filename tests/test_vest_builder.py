@@ -29,6 +29,16 @@ def test_uneven_percent_rounds_to_the_nearest_count_of_vests():
     assert len(s) == 9 and s[-1]["shares"] == 10000 - 2500 - 7 * 1000 and _total(s) == 10000
 
 
+def test_month_end_grant_returns_to_the_31st_and_no_cliff_means_no_zero_vest():
+    s = build_vest_schedule("2026-01-31", 48000, 1, 0, "monthly", 5000)
+    assert s == [{"date": "2026-03-31", "shares": 24000}, {"date": "2026-04-30", "shares": 24000}]
+
+
+def test_monthly_one_in_48_with_no_cliff():
+    s = build_vest_schedule("2026-01-15", 48000, 0, 0, "monthly", 208)
+    assert len(s) == 48 and s[0]["date"] == "2026-02-15" and s[-1]["date"] == "2030-01-15" and _total(s) == 48000
+
+
 def test_full_cliff_needs_no_later_vests():
     assert build_vest_schedule("2026-01-15", 1000, 12, 10000, "monthly", 0) == [{"date": "2027-01-15", "shares": 1000}]
 

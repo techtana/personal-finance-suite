@@ -42,11 +42,13 @@ A snapshot always holds a positive number, even for a debt. The entity type (cas
 
 ### 2.4 Recurring rules, and how dates repeat
 
-A rule says "this amount, this often, starting on this date, optionally ending on this date." The project supports six frequencies: daily, weekly, biweekly, monthly, quarterly and annually. In `engine/recurrence.py` they become a repeat interval. Weekly is every 7 days. Biweekly is every 14 days. Monthly is every month. Quarterly is every 3 months. Annually is every year. The Plan page offers all of these except daily; the schema validator in `schemas.py` accepts daily too.
+A rule says "this amount, this often, starting on this date, optionally ending on this date." The project supports six frequencies: daily, weekly, biweekly, monthly, quarterly and annually. In `engine/recurrence.py` each becomes a step counted from the rule's start date. Weekly is every 7 days. Biweekly is every 14 days. Monthly is every month. Quarterly is every 3 months. Annually is every year. The Plan page offers all of these except daily; the schema validator in `schemas.py` accepts daily too.
 
 Two kinds of repeat behave differently. Day-based repeats (weekly, biweekly, daily) count a fixed number of days, so they drift against the calendar: a biweekly paycheck lands on 26 dates a year, and twice a year a month holds three of them. Month-based repeats (monthly, quarterly, annually) keep the day number, so they stay on "the 15th" but the gap between dates varies from 28 to 31 days.
 
-What should happen when the day number does not exist? A rule that starts on January 31 has no February 31. Calendar programs usually either clamp (use February 28) or skip (no February event). The design document says clamp (`docs/SRD.md` section 9.4). The code skips. Section 6 shows the run.
+What should happen when the day number does not exist? A rule that starts on January 31 has no February 31. Calendar programs usually either clamp (use February 28) or skip (no February event). The design document says clamp (`docs/SRD.md` section 9.4), and since PR #15 (2026-11-25) the code does too: a rule on the 31st falls on February 28, April 30 and so on, and a February 29 rule falls on February 28 in common years. Each date is counted from the start date rather than from the previous date, so after a short month the rule goes back to the 31st.
+
+A rule that started before the window keeps its own day. The pages use today as the window start, so this matters: a salary rule that began on January 15 still lands on the 15th, not on today's day number. Section 6 shows both runs.
 
 ### 2.5 The projection
 
@@ -117,7 +119,7 @@ How often to check in: the project says monthly. Source not recorded.
 - "The first month is a full month." It holds only the dates from today forward. An event dated today counts, even though today's balance may already include it.
 - "Daily frequency is available in the app." The schema accepts it. The Plan form does not offer it.
 - "An unknown frequency raises an error." It returns no dates, silently, so the rule vanishes from the forecast. A misspelling such as "yearly" gives an empty list (checked today).
-- "A rule that starts in the past keeps its original day." It does not in the current code. See section 6.
+- "Clamped months shift the rule for good." They don't: after February 28, a rule on the 31st returns to March 31 (section 2.4).
 - RSU and ESPP rules carry their own date schedules; they do not use the frequency logic.
 - A share price of zero (no price entered) makes an RSU vest worth $0. The Insights page warns about this.
 - A snapshot dated before the entity's own last-updated date is kept in history but does not become "current".
@@ -155,7 +157,7 @@ Design record: [DECISIONS](../design/DECISIONS.md), [first plan and SRD](../desi
 
 All commands were run on 2026-11-24 from the repository root of this worktree.
 
-**Finding 1: a rule on the 31st skips short months. The SRD says it should clamp.**
+**Finding 1 (fixed 2026-11-25 by PR #15): a rule on the 31st skipped short months. The SRD says it should clamp.**
 
 ```
 python -c "from engine.recurrence import expand_recurring_dates as e; print(e('2026-01-31',None,'monthly','2026-01-01','2026-08-31'))"
@@ -163,7 +165,9 @@ python -c "from engine.recurrence import expand_recurring_dates as e; print(e('2
 
 Output: `['2026-01-31', '2026-03-31', '2026-05-31', '2026-07-31', '2026-08-31']`. February, April and June have no event. `docs/SRD.md` section 9.4 says "clamped to last day of month for short months". The cause is that the `dateutil` repeat rule skips impossible dates. The same happens on the 29th and 30th for February, quarterly rules from January 31 (`2026-01-31`, `2026-07-31`, `2026-10-31`, `2027-01-31`) and annual rules on February 29 (only leap years, 2024 then 2028).
 
-**Finding 2: a rule that started before the window is re-anchored to the window's first day.**
+Rerun on `main` after PR #15 (2026-11-25), the same command prints every month from `2026-01-31` through `2026-08-31`, with `2026-02-28`, `2026-04-30` and `2026-06-30` in between. Quarterly from January 31 gives `2026-01-31`, `2026-04-30`, `2026-07-31`, `2026-10-31`, `2027-01-31`. Annual from 2024-02-29 gives February 28 in 2025 to 2027 and February 29 in 2028.
+
+**Finding 2 (fixed 2026-11-25 by PR #15): a rule that started before the window was re-anchored to the window's first day.**
 
 ```
 python -c "from engine.recurrence import expand_recurring_dates as e; print(e('2026-01-05',None,'monthly','2026-02-01','2026-03-15'))"
@@ -186,7 +190,9 @@ EOF
 
 Output: net flow 300000 in each of four months, cumulative 1300000, 1600000, 1900000, 2200000 (so the transfer rule was skipped, as designed). The event dates are `2026-11-24`, `2026-12-24`, `2027-01-24`, `2027-02-24`: salary and rent, which belong on the 15th and the 1st, all sit on the 24th. Monthly totals stay right, but the date inside a month is wrong, so the first month also gets a full set of events that may already be in today's balance. If today is the 31st, every rule inherits the skip-short-months behavior of finding 1 (checked with window start 2026-12-31: `['2026-12-31', '2027-01-31', '2027-03-31', '2027-05-31']`). `engine/tax.py` calls the same function with the tax year as the window, so it carries the same issue.
 
-No test covers `engine/recurrence.py` (`grep -rn expand_recurring tests` finds nothing).
+No test covered `engine/recurrence.py` at the time (`grep -rn expand_recurring tests` found nothing).
+
+Rerun on `main` after PR #15: the first command prints `['2026-02-05', '2026-03-05']`, and the biweekly rule gives `2026-02-02`, `2026-02-16`, `2026-03-02`. The full run now puts salary on the 15th and rent on the 1st (`2026-12-01`, `2026-12-15`, ... `2027-02-15`). November has no events after the 24th, so its net flow is 0, and the cumulative values are 1000000, 1300000, 1600000, 1900000. The old code's first month had a full set of events that may already have been in today's balance; the new run doesn't. `tests/test_recurrence.py` now covers the anchor, the clamping, end dates and unknown frequencies.
 
 **Finding 3 (fixed 2026-11-24 by PR #13): the divergence check double counted a rule and an imported change.**
 
@@ -207,8 +213,7 @@ Output: `0 -1429`. With the rule alone the plan is exact. With the same two payc
 
 ## 7. Open questions
 
-- Should month-end rules clamp, as the SRD says, or skip, as the code does? Clamping matches how rent and bills behave. Skipping is dangerous for a rule that starts on the 31st.
-- Should a rule keep its own start date as the anchor when the window starts later? This is almost certainly the intended behavior.
+- Resolved 2026-11-25 (PR #15): month-end rules clamp, as the SRD says, and a rule keeps its own start date as the anchor when the window starts later.
 - Is the whole-payment treatment of loans acceptable once a user has a large mortgage? A principal-and-interest split would need the loan rate (stored in basis points) and `engine/amortization.py`.
 - Should the check-in limit and the divergence limit have different defaults per account type? No evidence either way.
 
@@ -220,6 +225,8 @@ Output: `0 -1429`. With the rule alone the plan is exact. With the same two payc
 - The IEEE 754 floating-point standard explains why 0.1 + 0.2 is not exactly 0.3. A readable account is the essay "What Every Computer Scientist Should Know About Floating-Point Arithmetic", published in ACM Computing Surveys in 1991.
 
 ## Changes
+
+2026-11-26: findings 1 and 2 marked fixed by PR #15 (rules keep their own day; short months clamp), with rerun output; the two date questions resolved.
 
 2026-11-25: added the balance rule from `engine/ledger.py` and the plan/actual split (PR #13); finding 3 marked fixed.
 
