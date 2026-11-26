@@ -57,7 +57,8 @@ def build_vest_schedule(
     subsequent_shares = total_shares * subsequent_percent // 10000
     months_between = 1 if subsequent_frequency == "monthly" else 3
     for i in range(num_subsequent):
-        vest_date = (cliff_dt + relativedelta(months=months_between * (i + 1))).date().isoformat()
+        # Count from the grant date, not the cliff date, so a clamped month (Jan 31 -> Feb 28) doesn't stick.
+        vest_date = (start_dt + relativedelta(months=cliff_months + months_between * (i + 1))).date().isoformat()
         schedule.append({"date": vest_date, "shares": subsequent_shares})
 
     # The last vest absorbs the rounding so nothing is lost or over-vested.
