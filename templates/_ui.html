@@ -5,9 +5,10 @@
    lv       Alpine expression of the list state, e.g. "rulesList"
    items    Alpine expression of the unfiltered items (for dropdown options and counts)
    shown    Alpine expression of the filtered items
-   filters  [(name, label)] dropdowns, options taken from the data
-   date / amount   show the range inputs #}
-{% macro toolbar(lv, items, shown, filters=[], date=false, amount=false, placeholder="Search", noun="items") %}
+   filters  [(name, label)] dropdowns, options taken from the data (strings, or {value, label})
+   date / amount   show the range inputs
+   server   the list is a makeServerList(): counts come from the server, not from items / shown #}
+{% macro toolbar(lv, items, shown, filters=[], date=false, amount=false, placeholder="Search", noun="items", server=false) %}
 <div class="toolbar" role="search" x-data="{ open: false }">
     <input type="search" class="field tb-search" placeholder="{{ placeholder }}" aria-label="{{ placeholder }}"
            x-model="{{ lv }}.q" @input.debounce.200ms="{{ lv }}.sync()" enterkeyhint="search">
@@ -20,8 +21,8 @@
     {% for name, label in filters %}
     <select class="field" aria-label="Filter by {{ label|lower }}" x-model="{{ lv }}.f.{{ name }}" @change="{{ lv }}.sync()">
         <option value="">All {{ label|lower }}</option>
-        <template x-for="o in {{ lv }}.options('{{ name }}', {{ items }})" :key="o">
-            <option :value="o" :selected="o === {{ lv }}.f.{{ name }}" x-text="titleCase(o)"></option>
+        <template x-for="o in {{ lv }}.options('{{ name }}', {{ items }})" :key="o.value ?? o">
+            <option :value="o.value ?? o" :selected="(o.value ?? o) === {{ lv }}.f.{{ name }}" x-text="o.label ?? titleCase(o)"></option>
         </template>
     </select>
     {% endfor %}
@@ -37,7 +38,11 @@
     {% endif %}
     </div>
     <button type="button" class="btn btn-ghost btn-sm" x-show="{{ lv }}.active() > 0" @click="{{ lv }}.clear()">Clear</button>
+    {% if server %}
+    <span class="tb-count" aria-live="polite" x-text="{{ lv }} ? {{ lv }}.matched.toLocaleString() + ' of ' + {{ lv }}.total.toLocaleString() + ' {{ noun }}' : ''"></span>
+    {% else %}
     <span class="tb-count" aria-live="polite" x-text="{{ shown }}.length + ' of ' + {{ items }}.length + ' {{ noun }}'"></span>
+    {% endif %}
 </div>
 <div class="flex flex-wrap items-center gap-2 mt-2" x-show="$store.app.ai.ok" x-cloak>
     <span class="role-chip ai">AI</span>

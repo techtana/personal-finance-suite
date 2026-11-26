@@ -147,7 +147,11 @@ def test_projection_api_what_if_returns_baseline_and_history(seeded):
     plain = seeded.get("/api/projection?history=6").get_json()
     assert plain["baseline"] is None and plain["actuals"]
     assert plain["starting_net_worth"] == seeded.get("/api/balances").get_json()["totals"]["net_worth"]
-    assert all(b["events"] is not None for b in plain["buckets"]) and len(plain["buckets"]) >= 12
+    assert len(plain["buckets"]) >= 12
+    # Events come once, in the flat list; per-bucket copies only on request.
+    assert all("events" not in b for b in plain["buckets"]) and plain["events"]
+    with_events = seeded.get("/api/projection?bucket_events=1").get_json()
+    assert sum(len(b["events"]) for b in with_events["buckets"]) == len(with_events["events"])
 
     what_if = seeded.get(f"/api/projection?disable={rent.id}").get_json()
     assert what_if["disabled"] == [rent.id]

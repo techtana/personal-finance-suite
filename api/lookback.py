@@ -67,6 +67,8 @@ def list_prices():
     ticker = request.args.get("ticker")
     if ticker:
         q = q.filter_by(ticker=ticker.upper())
+    if request.args.get("count") == "1":  # just how many, for pages that only say so
+        return jsonify({"count": q.count()})
     points = q.order_by(PricePoint.ticker, PricePoint.date.desc()).all()
     return jsonify([_price_json(p) for p in points])
 

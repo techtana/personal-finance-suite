@@ -189,7 +189,7 @@
 (function () {
   'use strict';
   var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var TODAY, INST = [], byId = {}, NW = [], NW_NOW = null, DATA = null, PRICES = [];
+  var TODAY, INST = [], byId = {}, NW = [], NW_NOW = null, DATA = null, PRICE_COUNT = 0;
   var state = { lens: 'decided', sel: null, unit: 'usd' };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -520,12 +520,12 @@
 
   function renderPrices() {
     var miss = DATA.missing_prices || [];
-    $('pricesPanel').hidden = !(miss.length || PRICES.length || INST.length || (DATA.skipped || []).length);
+    $('pricesPanel').hidden = !(miss.length || PRICE_COUNT || INST.length || (DATA.skipped || []).length);
     $('pricesNote').textContent = miss.length
       ? miss.length + ' share price' + (miss.length === 1 ? ' is' : 's are') + ' missing (' +
         miss.slice(0, 3).map(function (m) { return m.ticker + ' on ' + fmtDate(m.date); }).join(', ') + (miss.length > 3 ? ', …' : '') +
         '). Until they are filled in, those values are estimated from the nearest prices on file.'
-      : PRICES.length + ' stored. Vest-day, purchase-day and today\u2019s values come from these.';
+      : PRICE_COUNT + ' stored. Vest-day, purchase-day and today\u2019s values come from these.';
   }
 
   // ── Load + render ─────────────────────────────────────────────────────────
@@ -543,8 +543,8 @@
   async function load() {
     try {
       var qs = new URLSearchParams(location.search).get('today');      // optional: view the page as of another day
-      var res = await Promise.all([API.get('/then-vs-now' + (qs ? '?today=' + encodeURIComponent(qs) : '')), API.get('/prices')]);
-      DATA = res[0]; PRICES = res[1]; TODAY = DATA.today;
+      var res = await Promise.all([API.get('/then-vs-now' + (qs ? '?today=' + encodeURIComponent(qs) : '')), API.get('/prices?count=1')]);
+      DATA = res[0]; PRICE_COUNT = res[1].count || 0; TODAY = DATA.today;
       INST = DATA.instruments.map(function (i) {            // cents → dollars once, here
         var o = Object.assign({}, i);
         o.decided = Object.assign({}, i.decided, { value: i.decided.value / 100 });

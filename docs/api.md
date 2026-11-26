@@ -2,6 +2,11 @@
 
 Every page uses these endpoints. Money is in integer minor units (cents for USD), dates are ISO `YYYY-MM-DD`, ids are 21-character nanoids.
 
+Lists that grow with years of history (one-off entries and imported transactions, import rows, an account's
+ledger, the activity log) are filtered and paged on the server; pages ask for one screenful at a time.
+`python -m scripts.load_bench` seeds ten years of data in a throwaway database and times every read the pages
+make (`--db instance/load-demo.db` keeps it, for the `load-demo` preview).
+
 
 ## Accounts & Loans
 
@@ -17,6 +22,11 @@ Every page uses these endpoints. Money is in integer minor units (cents for USD)
 - `GET /api/rules`, `POST /api/rules`, `PATCH /api/rules/<id>`, `DELETE /api/rules/<id>` — Recurring rules
   (`rule_type`: income, expense, rsu, espp)
 - `GET /api/changes`, `POST /api/changes`, `PATCH /api/changes/<id>`, `DELETE /api/changes/<id>` — One-off entries
+  and imported transactions. With `?limit` (at most 500) and `?offset` the answer is one page:
+  `{items, matched, total, sum, offset, limit, options}`, where `options` holds each dropdown's choices
+  (`&options=0` skips them). Filters: `q`, `source`, `category`, `account`, `when=past|planned`, `from`, `to`,
+  `min`, `max` (dollars, on the absolute amount), `today`; sort with `sort=date|description|amount|source|category|account`
+  and `dir`. Without `limit` it returns every matching entry as a plain list
 
 ## Balances
 
@@ -30,7 +40,8 @@ Every page uses these endpoints. Money is in integer minor units (cents for USD)
 - `GET /api/net-worth/history?months=24&types=cash,asset` — Month-end values by type
 - `GET /api/plan-vs-actual?months=4` — Planned vs. imported amounts per category and month
 - `GET /api/assets`, `POST /api/assets`, `PATCH /api/assets/<id>` — Assets
-- `GET /api/prices`, `POST /api/prices`, `DELETE /api/prices/<id>` — Share prices
+- `GET /api/prices`, `POST /api/prices`, `DELETE /api/prices/<id>` — Share prices (`?ticker=`; `?count=1` answers
+  just `{count}`)
 
 ## Insights
 
@@ -60,11 +71,14 @@ Every page uses these endpoints. Money is in integer minor units (cents for USD)
 
 - `GET /api/projection?from=2026-05-10&to=2027-05-10` — Run projection (one-time changes count only inside the
   range; balances already include past ones). Add `&disable=<id>,<id>` to leave rules, entries or loans out
-  (the answer then includes the unchanged `baseline`), and `&history=12` for recorded net worth alongside
+  (the answer then includes the unchanged `baseline`), and `&history=12` for recorded net worth alongside.
+  Events are listed once, in `events`; `&bucket_events=1` also repeats each month's events inside its bucket
 
 ## Taxes
 
-- `GET /api/taxes/summary?year=2026` — Tax estimate for a year (summary, charts data, findings, assumptions)
+- `GET /api/taxes/summary?year=2026` — Tax estimate for a year (summary, charts data, findings, assumptions).
+  The entries behind it come grouped, largest first, as `item_groups` (`{label, treatment_label, count, total}`),
+  with `item_count` dated amounts in all
 - `GET /api/taxes/treatments` — Tax treatments that income and expense entries can use
 - `GET /api/taxes/profile`, `PATCH /api/taxes/profile` — Filing status, state rate, age, HSA coverage, loss carryover
 

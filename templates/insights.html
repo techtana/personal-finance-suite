@@ -3,7 +3,7 @@
 {% import "_icons.html" as ic %}
 
 {% block content %}
-<div x-data="insightsPage()" x-init="init()" class="space-y-6 max-w-5xl" x-cloak>
+<div x-data="insightsPage()" class="space-y-6 max-w-5xl" x-cloak>
 
     <!-- ── Ask (AI, optional) ──────────────────────────────────────────────── -->
     <section class="card ai p-5" x-show="$store.app.ai.ok">
@@ -151,7 +151,7 @@ function insightsPage() {
             this.list = makeList({ search: i => [i.title, i.detail, i.basis].join(' '), filters: { severity: i => i.severity, source: i => i.source } });
             this.list.read();
             this.loadPva();
-            try { this.insights = (await API.get('/insights')).insights || []; }
+            try { this.insights = (await Alpine.store('app').insights()).insights || []; }
             catch (e) { showAlert('Could not load insights: ' + e.message, 'error'); }
             this.loading = false;
         },

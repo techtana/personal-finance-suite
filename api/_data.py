@@ -6,8 +6,10 @@ Every page that shows a balance, a forecast or an insight goes through these, so
 
 from datetime import date
 
+from flask import has_request_context, request
+
 from engine import ledger
-from models import Account, Asset, ChangeEvent, Loan, PricePoint, Rule, Settings, Snapshot
+from models import Account, Asset, ChangeEvent, Loan, PricePoint, Rule, Settings, Snapshot, db
 
 DEFAULT_STALE_DAYS = 35
 DEFAULT_DIVERGENCE_BPS = 500  # 5%
@@ -123,13 +125,34 @@ def rule_dicts(active_only=True) -> list[dict]:
     ]
 
 
+_CHANGE_COLUMNS = ("id", "date", "description", "amount", "category", "account_id", "change_type",
+                   "tax_treatment", "snapshot_id")
+
+
 def change_dicts() -> list[dict]:
-    return [
-        {"id": c.id, "date": c.date, "description": c.description, "amount": c.amount, "category": c.category,
-         "account_id": c.account_id, "change_type": c.change_type, "tax_treatment": c.tax_treatment,
-         "snapshot_id": c.snapshot_id}
-        for c in ChangeEvent.query.all()
-    ]
+    """Every one-off entry and imported transaction as a plain dict.
+
+    This is the biggest table (years of imported transactions), so it is read as
+    plain columns rather than ORM objects, and read once per GET request however
+    many engines ask for it. Callers get their own list but share the dicts:
+    treat them as read-only.
+    """
+    memo = _request_memo()
+    if memo is not None and "changes" in memo:
+        return list(memo["changes"])
+    cols = [getattr(ChangeEvent, c) for c in _CHANGE_COLUMNS]
+    rows = [dict(zip(_CHANGE_COLUMNS, r)) for r in db.session.query(*cols).all()]
+    if memo is not None:
+        memo["changes"] = rows
+    return list(rows)
+
+
+def _request_memo():
+    """A per-request cache, only for reads: a GET never writes, so nothing it loaded goes stale."""
+    if not has_request_context() or request.method != "GET":
+        return None
+    # Kept on the request itself (not flask.g, which can outlive one request).
+    return request.environ.setdefault("finance.data_memo", {})
 
 
 def loan_dicts() -> list[dict]:
