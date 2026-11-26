@@ -1,3 +1,5 @@
+> **Out of date (noted 2026-11-24).** This file describes the first version of May 2026. Some steps no longer exist (`flask db upgrade`, the sample-data loader). For setup and use, see [docs/manuals/](docs/manuals/installation.md); for what changed and why, [docs/design/DECISIONS.md](docs/design/DECISIONS.md).
+
 # Flask Personal Finance Suite - Build Summary
 
 ## ✅ Completed: Full MVP Implementation
