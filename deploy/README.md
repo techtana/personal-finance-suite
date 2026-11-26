@@ -2,7 +2,7 @@
 
 A private server on Google Cloud that only your Tailscale devices can reach. You run every
 step here yourself: the scripts create billable resources and need a Tailscale key. The first
-deploy has been done once with these scripts; re-deploying over an existing VM has not. Design and reasons: [docs/design/cloud-server-and-ai-endpoints.md](../docs/design/cloud-server-and-ai-endpoints.md).
+deploy was done with these scripts on 2026-11-24, and re-deploying over the existing VM (PR #7) was used the same day. Design and reasons: [docs/design/cloud-server-and-ai-endpoints.md](../docs/design/cloud-server-and-ai-endpoints.md).
 
 **What it costs.** A small VM, a 10 GB disk with snapshots, Cloud NAT and a storage bucket,
 running all month. Google's free tier covers one e2-micro VM per billing account; if the Logseq

@@ -129,7 +129,7 @@ phone keyboard's own microphone key remains the owner's choice.
 ## Not done
 
 - `deploy/deploy.sh` and `deploy/startup.sh` have run once, for the first deploy (2026-11-24),
-  from Git Bash on Windows. The re-deploy path (an existing VM) has not been exercised.
+  from Git Bash on Windows. The re-deploy path (an existing VM) has not been exercised. (2026-11-24: since used, after PR #7.)
   `deploy/ai-endpoint/` has never been run at all.
 - The weekly restore drill is installed on the VM but its first result has not been looked at.
 - One household, one database. There are no per-person permissions: anyone the tailnet rule
