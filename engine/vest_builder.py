@@ -24,50 +24,43 @@ def build_vest_schedule(
         subsequent_percent: Percent per subsequent vest (× 100)
 
     Returns:
-        List of {date: str, shares: int} vest events
+        List of {date: str, shares: int} vest events whose shares sum to total_shares,
+        or [] when the inputs can't make a schedule (bad date, frequency or percents).
     """
     try:
         start_dt = datetime.strptime(grant_date, "%Y-%m-%d")
     except ValueError:
         return []
 
-    # Validate percentages sum to 100%
-    cliff_p = cliff_percent / 10000
-    sub_p = subsequent_percent / 10000
-
-    remaining_percent = 1.0 - cliff_p
-
     if subsequent_frequency not in ("monthly", "quarterly"):
         return []
-
-    # Calculate number of subsequent vests needed
-    if sub_p == 0:
-        num_subsequent = 0
-    else:
-        num_subsequent = int(remaining_percent / sub_p)
-
-    # Verify we don't have rounding issues
-    total_vested = cliff_p + (sub_p * num_subsequent)
-    if abs(total_vested - 1.0) > 0.001:
+    if not 0 <= cliff_percent <= 10000 or subsequent_percent < 0:
         return []
 
+    # Whole basis points avoid float drift. Percents that don't divide the remainder
+    # evenly (the Plan form's default 2.0833 % arrives as 208 bps) still vest the whole
+    # grant: the number of later vests is rounded to the nearest whole count and the
+    # last vest takes whatever is left, so the shares always add up to total_shares.
+    remaining_bps = 10000 - cliff_percent
+    if remaining_bps == 0:
+        num_subsequent = 0
+    elif subsequent_percent == 0:
+        return []  # nothing would ever vest after the cliff
+    else:
+        num_subsequent = max(1, (2 * remaining_bps + subsequent_percent) // (2 * subsequent_percent))
+
+    cliff_dt = start_dt + relativedelta(months=cliff_months)
     schedule = []
+    if cliff_percent:
+        schedule.append({"date": cliff_dt.date().isoformat(), "shares": total_shares * cliff_percent // 10000})
 
-    # Add cliff vest
-    cliff_shares = int((total_shares * cliff_percent) / 10000)
-    cliff_date = (start_dt + relativedelta(months=cliff_months)).date().isoformat()
-    schedule.append({"date": cliff_date, "shares": cliff_shares})
-
-    # Add subsequent vests
-    subsequent_shares = int((total_shares * subsequent_percent) / 10000)
+    subsequent_shares = total_shares * subsequent_percent // 10000
     months_between = 1 if subsequent_frequency == "monthly" else 3
-
     for i in range(num_subsequent):
-        vest_date = (
-            start_dt
-            + relativedelta(months=cliff_months)
-            + relativedelta(months=months_between * (i + 1))
-        ).date().isoformat()
+        vest_date = (cliff_dt + relativedelta(months=months_between * (i + 1))).date().isoformat()
         schedule.append({"date": vest_date, "shares": subsequent_shares})
 
-    return sorted(schedule, key=lambda x: x["date"])
+    # The last vest absorbs the rounding so nothing is lost or over-vested.
+    if schedule:
+        schedule[-1]["shares"] = total_shares - sum(v["shares"] for v in schedule[:-1])
+    return schedule

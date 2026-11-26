@@ -530,7 +530,7 @@ function planPage() {
         async previewRsuSchedule() {
             const c = this.ruleForm.cfg;
             const config = { ticker: c.ticker, total_shares: Math.round(parseFloat(c.shares || 0) * 1000), grant_date: c.grant_date || this.ruleForm.start_date, cliff_months: parseInt(c.cliff_months), cliff_percent: Math.round(parseFloat(c.cliff_pct || 0) * 100), subsequent_frequency: c.sub_freq, subsequent_percent: Math.round(parseFloat(c.sub_pct || 0) * 100) };
-            try { this.rsuSchedulePreview = (await API.post('/rules/rsu-preview', { config })).schedule || []; }
+            try { const res = await API.post('/rules/rsu-preview', { config }); this.rsuSchedulePreview = res.schedule || []; if (res.error) showAlert(res.error, 'warning'); }
             catch (e) { showAlert('Preview failed: ' + e.message, 'error'); }
         },
         async saveRule() {

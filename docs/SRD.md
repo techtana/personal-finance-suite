@@ -139,7 +139,7 @@ CREATE TABLE loans (
   institution      TEXT NOT NULL,
   original_balance INTEGER NOT NULL,   -- minor units
   current_balance  INTEGER NOT NULL,   -- minor units; updated manually
-  interest_rate    INTEGER NOT NULL,   -- annual rate × 10000 (e.g., 6.5% = 65000)
+  interest_rate    INTEGER NOT NULL,   -- annual rate in basis points (e.g., 6.5% = 650)
   monthly_payment  INTEGER NOT NULL,   -- minor units
   start_date       TEXT NOT NULL,
   payoff_date      TEXT NOT NULL,
@@ -557,10 +557,10 @@ Given `start_date`, `end_date` (optional), `frequency`:
 - `weekly`: same weekday as `start_date`
 - `biweekly`: every 14 days from `start_date`
 - `monthly`: same day-of-month as `start_date` (clamped to last day of month for short months)
-- `quarterly`: 3-month intervals from `start_date`
-- `annually`: same month + day each year
+- `quarterly`: 3-month intervals from `start_date` (clamped the same way)
+- `annually`: same month + day each year (Feb 29 falls on Feb 28 in common years)
 
-All occurrence dates within the projection window are returned as a list of ISO date strings.
+Each occurrence is counted from `start_date` itself, not from the previous one, so a clamped month does not move later ones. A rule that started before the projection window keeps its own day: only the dates inside the window are returned, as a list of ISO date strings.
 
 ---
 
