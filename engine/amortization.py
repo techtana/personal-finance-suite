@@ -12,7 +12,7 @@ def calculate_monthly_payment(
 
     Args:
         principal: Loan amount in minor units
-        annual_rate: Annual interest rate (× 10000, e.g., 65000 = 6.5%)
+        annual_rate: Annual interest rate in basis points (e.g., 650 = 6.5%)
         months: Number of months to amortize
 
     Returns:

@@ -58,7 +58,7 @@ def rules():
 def loans():
     return [{
         "name": "Home mortgage", "type": "mortgage", "institution": "Chase", "original_balance": 31600000,
-        "current_balance": 28940000, "interest_rate": 62500, "monthly_payment": 194500,
+        "current_balance": 28940000, "interest_rate": 625, "monthly_payment": 194500,
         "start_date": "2023-08-18", "payoff_date": "2053-08-18", "last_updated_date": TODAY,
     }]
 

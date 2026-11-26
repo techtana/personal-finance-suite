@@ -7,6 +7,24 @@ from engine.vest_builder import build_vest_schedule
 
 bp = Blueprint("api_rules", __name__)
 
+NO_SCHEDULE = ("These vesting settings don't make a schedule. Check the grant date, the cliff percent "
+               "(0-100) and the percent per later vest (more than 0 unless the cliff vests everything).")
+
+
+def _rsu_schedule(config: dict, default_date: str) -> list[dict]:
+    """Vest dates from the Plan form's cliff + later-vest settings; [] if they don't make a schedule."""
+    try:
+        return build_vest_schedule(
+            config.get("grant_date") or default_date or "",
+            int(config.get("total_shares") or 0),
+            int(config.get("cliff_months") if config.get("cliff_months") is not None else 12),
+            int(config.get("cliff_percent") if config.get("cliff_percent") is not None else 2500),
+            config.get("subsequent_frequency") or "monthly",
+            int(config.get("subsequent_percent") if config.get("subsequent_percent") is not None else 208),
+        )
+    except (TypeError, ValueError):
+        return []
+
 
 @bp.route("/rules", methods=["GET"])
 def list_rules():
@@ -26,14 +44,9 @@ def create_rule():
 
     # Auto-build RSU vest schedule from config, unless the dates came from the grant document
     if rule_type == "rsu" and config and not (config.get("schedule_source") == "document" and schedule):
-        schedule = build_vest_schedule(
-            config.get("grant_date", data.get("start_date", "")),
-            config.get("total_shares", 0),
-            config.get("cliff_months", 12),
-            config.get("cliff_percent", 2500),
-            config.get("subsequent_frequency", "monthly"),
-            config.get("subsequent_percent", 208),
-        )
+        schedule = _rsu_schedule(config, data.get("start_date", ""))
+        if not schedule:
+            return jsonify({"error": NO_SCHEDULE}), 400
 
     rule = Rule(
         name=data.get("name", ""),
@@ -58,15 +71,8 @@ def create_rule():
 def preview_rsu_schedule():
     data = request.get_json() or {}
     config = data.get("config", {})
-    schedule = build_vest_schedule(
-        config.get("grant_date", ""),
-        config.get("total_shares", 0),
-        config.get("cliff_months", 12),
-        config.get("cliff_percent", 2500),
-        config.get("subsequent_frequency", "monthly"),
-        config.get("subsequent_percent", 208),
-    )
-    return jsonify({"schedule": schedule})
+    schedule = _rsu_schedule(config, "")
+    return jsonify({"schedule": schedule, "error": None if schedule else NO_SCHEDULE})
 
 
 @bp.route("/rules/<rule_id>", methods=["PATCH"])
@@ -85,14 +91,9 @@ def update_rule(rule_id):
         data.pop("schedule", None)
     elif rule.rule_type == "rsu" and "config" in data:
         config = data["config"]
-        data["schedule"] = build_vest_schedule(
-            config.get("grant_date", rule.start_date),
-            config.get("total_shares", 0),
-            config.get("cliff_months", 12),
-            config.get("cliff_percent", 2500),
-            config.get("subsequent_frequency", "monthly"),
-            config.get("subsequent_percent", 208),
-        )
+        data["schedule"] = _rsu_schedule(config, rule.start_date)
+        if not data["schedule"]:
+            return jsonify({"error": NO_SCHEDULE}), 400
 
     for key, value in data.items():
         if hasattr(rule, key) and key not in ("id", "created_at"):
