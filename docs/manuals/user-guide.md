@@ -92,8 +92,11 @@ With AI available, type something like "rent 2400 a month from March" and click 
 
 What you have and owe today.
 
+- A cash account's balance is its latest recorded balance plus the transactions imported since. The row says how the value was reached. Entries typed on Plan never change a balance; they are the plan.
 - **Update value** on a row records today's value. **History** shows and edits the recorded values.
+- **Transactions** lists an account's recorded balances and imported transactions, newest first, with a running balance. If a recorded balance isn't explained by the transactions before it, the row shows the gap. Click **Log the difference** to add it as one adjustment entry, or **Leave it**, or **Import missing transactions**.
 - **Check-in**: the card says how many balances haven't been updated recently. Click **Update the stale ones** or **Check in on all**. For each one, enter the value and click **Save and next**, or **Unchanged** or **Skip**.
+- A **Credit card** account holds what you owe: spending raises it, a payment lowers it, and net worth subtracts it.
 - For a liability, enter the lender, original balance, interest rate, monthly payment and dates. The forecast uses the payment.
 - For an asset, **Events** holds planned buys and sells.
 - The **Share prices** tab lists prices that are missing. Enter them and click **Save prices**.
@@ -111,7 +114,7 @@ Drop files from your bank, card or payroll and review them before anything is sa
 
 After import, **See it in Plan** shows the entries and **Undo this import** removes them.
 
-Transfers between your accounts and card payments are left unticked, so they don't count as spending. Duplicates are flagged across files: the same file twice, overlapping statements, a receipt and the card line for the same purchase.
+Transfers between your accounts and card payments are imported with the category `transfer`: they move the account's balance but don't count as spending or income. If a statement has a closing balance, the review checks that the account's earlier balance plus the transactions in between reach it. Duplicates are flagged across files: the same file twice, overlapping statements, a receipt and the card line for the same purchase.
 
 A photo or scanned PDF needs the AI. If the server's AI is the home computer and it is off, the file shows "Waiting for the home computer" and is read when it comes back.
 
@@ -121,7 +124,9 @@ An **RSU grant notice** becomes one RSU grant in Plan. Type the **Ticker (not in
 
 ### Insights
 
-What stands out: stale balances, net worth off plan, months that run negative, large events in the next 30 days, loan payoffs, missing share prices, imports waiting for review, and tax findings. Each item says what it is based on and has a button to act on it.
+What stands out: stale balances, net worth off plan, spending against plan, months that run negative, large events in the next 30 days, loan payoffs, missing share prices, imports waiting for review, and tax findings. Each item says what it is based on and has a button to act on it.
+
+**Plan vs. actual** shows what your Plan expected each month, by category, next to what your imports show.
 
 With AI available:
 

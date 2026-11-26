@@ -190,7 +190,7 @@ def _to_row(p: Proposal, i: int):
     m = _models()
     raw = {}
     if isinstance(p.raw, dict):
-        raw = {k: v for k, v in p.raw.items() if k in ("cells", "line", "n", "fitid", "trntype")}
+        raw = {k: v for k, v in p.raw.items() if k in ("cells", "line", "n", "fitid", "trntype", "card")}
         if p.raw.get("kind") == "rsu_grant":
             raw = dict(p.raw)
     if p.explicit_account:
@@ -479,8 +479,12 @@ def commit_batch(batch, force: bool = False) -> dict:
             if not r.date or not r.amount:
                 bad.append(r)
                 continue
+            category = r.category
+            if "transfer" in (r.flags or []) and r.category_source != "user":
+                # Kept so the account's balance adds up; the category keeps it out of income and spending.
+                category = "transfer"
             obj = m.ChangeEvent(date=r.date, description=r.description or "(imported)", amount=r.amount,
-                                account_id=acct, category=r.category, change_type="imported",
+                                account_id=acct, category=category, change_type="imported",
                                 note=_note(r, batch))
             key = "change_events"
         elif r.target == "snapshot":
@@ -533,6 +537,8 @@ def commit_batch(batch, force: bool = False) -> dict:
     existing = {c.slug for c in m.Category.query.all()}
     starter = {s: (label, typ, color) for s, label, typ, color in STARTER_CATEGORIES}
     used = {r.category for r in batch.rows if r.action == "import" and r.category} - existing
+    if any(r.action == "import" and "transfer" in (r.flags or []) for r in batch.rows) and "transfer" not in existing:
+        used.add("transfer")
     for slug in sorted(used):
         if slug in starter:
             label, typ, color = starter[slug]
@@ -585,6 +591,9 @@ def undo_batch(batch) -> dict:
     for r in batch.rows:
         if r.created_id and r.target in kinds:
             obj = m.db.session.get(kinds[r.target], r.created_id)
+            if obj is not None and r.target == "snapshot":
+                for adj in m.ChangeEvent.query.filter_by(snapshot_id=obj.id, change_type="adjustment").all():
+                    m.db.session.delete(adj)  # a reconcile of this balance goes with it
             if obj is not None:
                 m.db.session.delete(obj)
                 removed += 1
@@ -654,5 +663,42 @@ def batch_detail(b, with_rows: bool = True) -> dict:
         "has_file": bool(b.stored_path and os.path.exists(b.stored_path)),
         "is_image": b.file_kind == "image",
         "doc_type_forced": b.doc_type_forced,
+        "balance_check": balance_check(b),
     })
     return out
+
+
+def balance_check(b) -> dict | None:
+    """Does the statement's closing balance match the account's earlier balance plus the transactions since?
+
+    The transactions are the ones already in your data and the ones ticked in this
+    import. None when the file has no closing balance or no account is chosen.
+    status: first (no earlier balance to start from) | ok | gap
+    """
+    from api._data import account_points
+    from engine import ledger
+
+    m = _models()
+    close = next((r for r in b.rows if r.target == "snapshot" and r.action == "import" and r.date
+                  and r.amount is not None), None)
+    account = m.db.session.get(m.Account, b.account_id) if b.account_id else None
+    if close is None or account is None:
+        return None
+    owed = ledger.is_owed(account.type)
+    out = {"date": close.date, "actual": close.amount, "owed": owed, "account": account.name}
+    points = account_points(account, before=close.date)
+    if not points:
+        return {**out, "status": "first"}
+    since_date, since_value = points[-1]
+    mine_ids = {r.created_id for r in b.rows if r.created_id}
+    existing = [c for c in m.ChangeEvent.query.filter(
+        m.ChangeEvent.account_id == account.id, m.ChangeEvent.date > since_date, m.ChangeEvent.date <= close.date).all()
+        if c.id not in mine_ids and ledger.is_actual({"change_type": c.change_type}) and c.amount]
+    mine = [r for r in b.rows if r.target == "change_event" and r.action == "import" and r.amount and r.date
+            and (r.account_id or b.account_id) == account.id and since_date < r.date <= close.date]
+    flow = sum(c.amount for c in existing) + sum(r.amount for r in mine)
+    expected = since_value + ledger.sign(owed) * flow
+    gap = close.amount - expected
+    return {**out, "status": "ok" if gap == 0 else "gap", "expected": expected, "gap": gap,
+            "since_date": since_date, "since_value": since_value,
+            "count_existing": len(existing), "count_here": len(mine)}

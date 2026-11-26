@@ -43,7 +43,8 @@ class Context:
         self.insights, self.tax = insights or [], tax
 
     def net_worth(self) -> int:
-        return sum(-e["current"] if e["type"] == "liability" else e["current"] for e in self.entities)
+        return sum(-e["current"] if e.get("negative", e["type"] == "liability") else e["current"]
+                   for e in self.entities)
 
     def forecast(self, to_date):
         return project_v2(self.rules, self.changes, self.loans, self.net_worth(), self.prices, self.today, to_date,

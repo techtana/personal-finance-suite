@@ -537,8 +537,10 @@ def from_text(text: str, ctx: Ctx) -> list[Proposal]:
         raise ImportFailure("No transactions were found in this statement. If it's a scan, try a clearer copy; if "
                             "your bank offers a CSV or OFX download, that's the most reliable option.")
     if closing is not None and CARD_STATEMENT.search(text):
-        ctx.info("This looks like a credit card statement. Its balance is money you owe, so it isn't offered as an "
-                 "account balance.")
+        iso = end or max(p.date for p in proposals if p.date)
+        p = Proposal(target="snapshot", date=iso, amount=abs(closing), description=f"Amount owed on {iso}",
+                     note="Card statement balance (amount owed)", confidence=0.95, raw={"card": True})
+        proposals.append(p)
     elif closing is not None:
         iso = end or max(p.date for p in proposals if p.date)
         proposals.append(balance_proposal(iso, closing, "statement closing balance"))

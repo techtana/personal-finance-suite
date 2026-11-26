@@ -80,7 +80,8 @@ def divergence(entities, snaps, rules, changes, loans, prices, today: str, min_d
 
 
 def build_insights(*, entities, snaps, rules, changes, loans, prices, today: str, stale_days: int,
-                   net_worth_bps: int, pending_imports: int = 0, tax_insights=None, tax_year=None) -> list[dict]:
+                   net_worth_bps: int, pending_imports: int = 0, tax_insights=None, tax_year=None,
+                   plan_actual=None) -> list[dict]:
     out = []
 
     # ── Balances: stale records ───────────────────────────────────────────
@@ -174,6 +175,27 @@ def build_insights(*, entities, snaps, rules, changes, loans, prices, today: str
                 f"That ends a payment of {_usd(loan.get('monthly_payment', 0))} a month.",
                 "The payoff date and monthly payment on the Balances page.", "/balances?type=liability",
                 "View liabilities", value=loan.get("monthly_payment", 0)))
+
+    # ── Plan vs. actual: last full month ──────────────────────────────────
+    last = (plan_actual or {}).get("totals", [None])[0] if plan_actual else None
+    if last and last.get("complete") and last.get("planned_spending"):
+        planned, spent = last["planned_spending"], last["actual_spending"]
+        diff = spent - planned
+        month = last["month"]
+        pct = abs(diff) * 100 / planned
+        basis = ("Imported transactions dated in the month, against the rules, loan payments and one-off entries "
+                 "planned for it. Transfers between your accounts are left out.")
+        if pct >= 10 and abs(diff) >= 10_000:
+            out.append(_insight(
+                "spending-vs-plan", "plan", "attention" if diff > 0 else "info",
+                f"Spending in {month} was {_usd(abs(diff))} {'over' if diff > 0 else 'under'} plan",
+                f"You planned {_usd(planned)} and the imported transactions add up to {_usd(spent)}.",
+                basis, "/insights#plan-vs-actual", "Compare by category", value=-diff))
+        else:
+            out.append(_insight(
+                "spending-on-plan", "plan", "good", f"Spending in {month} was close to plan",
+                f"You planned {_usd(planned)} and the imported transactions add up to {_usd(spent)}.",
+                basis, "/insights#plan-vs-actual", "Compare by category", value=-diff))
 
     # ── Import ────────────────────────────────────────────────────────────
     if pending_imports:

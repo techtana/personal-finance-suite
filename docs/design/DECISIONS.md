@@ -6,6 +6,10 @@ Plans are in [plans/](plans/), indexed in [README.md](README.md).
 
 ## 2026-11-24
 
+- **A balance is the latest recorded balance plus the account's transactions since.** Only imported transactions and reconcile adjustments move a balance; Plan entries are plan. The forecast, the off-plan insight and Taxes use only the plan, Balances and net worth only the actuals. Why: importing didn't move balances, and imported history was counted on top of the plan. Source: PR #13, [plan](plans/2026-11-24-balances-follow-transactions.md).
+- **Transfers and card payments are imported (category `transfer`) instead of skipped.** Why: balances must add up, yet a transfer is not spending. Supersedes the 2026-11-22 import behaviour of leaving them unticked. Source: PR #13.
+- **Credit card accounts hold the amount owed and are subtracted from net worth.** Source: PR #13.
+- **A re-deploy keeps the server's login allowlist.** Source: PR #12.
 - **Re-deploy by stopping and starting the VM, not over SSH.** The wait succeeds only on this run's own `deploy-id`. Why: `gcloud compute ssh` creates an OS Login key and needs a path into the VM; a "ready" from the previous boot ended the wait early. Rejected: SSH. Source: PR #7, [plan](plans/2026-11-24-deploy-script-fixes.md).
 - **Deploy scripts choose the project per run (`CLOUDSDK_CORE_PROJECT`) and turn off prompts.** Why: `gcloud config set project` silently changed the owner's default project, and a hidden prompt could stall the run. Rejected: `gcloud config set project`. Source: PR #5.
 - **The owner pastes the Tailscale auth key and edits the tailnet policy themselves.** The assistant guides but does not type credentials or change the live policy. Why: the owner keeps control of credentials and access rules. Source: deploy sessions, 2026-11-24; [deploy/README.md](../../deploy/README.md).

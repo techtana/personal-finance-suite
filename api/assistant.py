@@ -36,7 +36,7 @@ def _context(today: str) -> A.Context:
         tax = compute_tax_summary(int(today[:4]), prices)
     except Exception:
         tax = None
-    return A.Context(entities=_data.load_entities(snaps), snaps=snaps, rules=_data.rule_dicts(),
+    return A.Context(entities=_data.load_entities(snaps, today=today), snaps=snaps, rules=_data.rule_dicts(),
                      changes=_data.change_dicts(), loans=_data.loan_dicts(), prices=prices, today=today,
                      insights=collect_insights(today), tax=tax)
 

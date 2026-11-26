@@ -12,11 +12,12 @@ What was planned, what was decided, when and why.
 
 | Date | Plan | Status |
 |---|---|---|
+| 2026-11-24 | [Account balances follow imported transactions](plans/2026-11-24-balances-follow-transactions.md) | Done, PR #13 |
 | 2026-11-24 | [Windows desktop app: Start menu entry and tray](plans/2026-11-24-desktop-tray-start-menu.md) | Done, PR #10 |
 | 2026-11-24 | [Paged import review and bulk change](plans/2026-11-24-import-paging-bulk-edit.md) | Done, PR #9 |
 | 2026-11-24 | [Read RSU grant notices into a Plan RSU grant](plans/2026-11-24-rsu-grant-notice-import.md) | Done, PR #8 |
 | 2026-11-24 | [Recognise stock-plan documents](plans/2026-11-24-equity-document-type.md) | Done, PR #6 |
-| 2026-11-24 | [Deploy script fixes from the first real deploy](plans/2026-11-24-deploy-script-fixes.md) | Done, PR #5 and PR #7 |
+| 2026-11-24 | [Deploy script fixes from the first real deploy](plans/2026-11-24-deploy-script-fixes.md) | Done, PR #5, PR #7 and PR #12 |
 | 2026-11-23 | [One private cloud server for every device](plans/2026-11-23-private-cloud-server-ai-endpoints.md) | Done, PR #4; cloud AI endpoint not deployed |
 | 2026-11-23 | [Pages by role, Insights, AI assistant, installable app](plans/2026-11-23-role-ui-insights-assistant-pwa.md) | Done, PR #3 |
 | 2026-11-23 | [Google Cloud backups, restore points, Clear All Data](plans/2026-11-23-gcs-backups-restore-points.md) | Done, PR #2 |

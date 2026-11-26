@@ -22,8 +22,13 @@ Every page uses these endpoints. Money is in integer minor units (cents for USD)
 
 - `GET /api/balances` — Every cash account, asset and liability in one list, with totals and freshness
 - `POST /api/balances/record` — Record a value (`entity_type` cash|asset|liability, `entity_id`, `value` in cents,
-  optional `date`)
-- `GET /api/net-worth/history?months=24&types=cash,asset` — Month-end recorded values by type
+  optional `date`). For a cash account the answer's `check` compares it with the previous record plus the
+  transactions since
+- `GET /api/balances/<account_id>/ledger?limit=&offset=` — One account's recorded balances and transactions,
+  newest first, with the running balance and the unexplained gap at each record
+- `POST /api/balances/reconcile` — `{snapshot_id}`: log a record's unexplained gap as an adjustment entry
+- `GET /api/net-worth/history?months=24&types=cash,asset` — Month-end values by type
+- `GET /api/plan-vs-actual?months=4` — Planned vs. imported amounts per category and month
 - `GET /api/assets`, `POST /api/assets`, `PATCH /api/assets/<id>` — Assets
 - `GET /api/prices`, `POST /api/prices`, `DELETE /api/prices/<id>` — Share prices
 

@@ -95,6 +95,7 @@ def collect_tax_items(
     assumptions: list[str] = []
     defaulted_income = 0
     defaulted_change = 0
+    skipped_imported = 0
 
     for rule in rules:
         if not rule.get("is_active", True):
@@ -150,10 +151,17 @@ def collect_tax_items(
         d = change.get("date", "")
         if amt == 0 or not (start <= d <= end):
             continue
-        if change.get("change_type") == "adjustment":
-            continue  # balance corrections are not taxable events
+        if change.get("change_type") == "adjustment" or (change.get("category") or "") == "transfer":
+            continue  # balance corrections and moves between your own accounts are not taxable events
         treatment = change.get("tax_treatment")
         label = change.get("description") or "Change"
+        if change.get("change_type") == "imported" and treatment not in (INCOME_KEYS if amt > 0 else EXPENSE_KEYS):
+            # Imported bank history is the actual side of what rules already plan
+            # (a paycheck deposit next to a salary rule). It only counts once the
+            # user gives it a tax treatment.
+            if amt > 0:
+                skipped_imported += 1
+            continue
         if amt > 0:
             assumed = treatment not in INCOME_KEYS
             if assumed:
@@ -221,6 +229,10 @@ def collect_tax_items(
         assumptions.append(f"{defaulted_income} income rule(s) have no tax treatment — assumed W-2 wages entered before tax.")
     if defaulted_change:
         assumptions.append(f"{defaulted_change} one-time gain(s) have no tax treatment — assumed other taxable income.")
+    if skipped_imported:
+        assumptions.append(f"{skipped_imported} imported deposit(s) left out: income is taken from your rules, so a "
+                           "paycheck isn't counted twice. Give an imported entry a tax treatment on the Plan page "
+                           "to count it.")
 
     items.sort(key=lambda i: i["date"])
     return items, assumptions

@@ -125,11 +125,16 @@ phone keyboard's own microphone key remains the owner's choice.
 - Adding a paid endpoint with features listed "to try it": that sends financial documents to
   a third party from then on.
 - Caching `/api/` answers in the service worker: financial data would then live on phones.
+- A deploy that writes the VM's `allowed-logins` from an unset variable. `deploy.sh` keeps the
+  VM's list when `ALLOWED_LOGINS` is not given; a new deploy path must do the same, or a routine
+  update opens the app to everyone the tailnet rule allows.
+- Letting a tagged machine call the app while `ALLOWED_LOGINS` is set: tagged machines carry no
+  login and are refused. The home AI runner works because it runs as a person on their own PC.
 
 ## Not done
 
-- `deploy/deploy.sh` and `deploy/startup.sh` have run once, for the first deploy (2026-11-24),
-  from Git Bash on Windows. The re-deploy path (an existing VM) has not been exercised. (2026-11-24: since used, after PR #7.)
+- `deploy/deploy.sh` and `deploy/startup.sh` have run for the first deploy and one re-deploy
+  over the existing VM (both 2026-11-24, from Git Bash on Windows).
   `deploy/ai-endpoint/` has never been run at all.
 - The weekly restore drill is installed on the VM but its first result has not been looked at.
 - One household, one database. There are no per-person permissions: anyone the tailnet rule

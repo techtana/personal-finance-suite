@@ -19,7 +19,7 @@ It is for one person or household. It is not a bookkeeping tool, it doesn't pull
                                      home PC with a GPU ──┘  pulls AI work (optional)
 ```
 
-One Flask app serves the pages and a REST API ([docs/api.md](docs/api.md)). The business rules live in `engine/` (forecast, tax, vesting, loans, Then vs. Now, Insights) and the file reader in `importer/`. An optional language model reads documents and words answers; the app computes every number itself. The full architecture and its reasons: [docs/design/cloud-server-and-ai-endpoints.md](docs/design/cloud-server-and-ai-endpoints.md).
+Balances follow one rule (`engine/ledger.py`): the latest recorded balance plus the account's imported transactions since. Plan entries feed the forecast and taxes, never a balance. One Flask app serves the pages and a REST API ([docs/api.md](docs/api.md)). The business rules live in `engine/` (forecast, tax, vesting, loans, Then vs. Now, Insights) and the file reader in `importer/`. An optional language model reads documents and words answers; the app computes every number itself. The full architecture and its reasons: [docs/design/cloud-server-and-ai-endpoints.md](docs/design/cloud-server-and-ai-endpoints.md).
 
 ## Setup across devices
 
@@ -55,7 +55,7 @@ Day-to-day use: [docs/manuals/user-guide.md](docs/manuals/user-guide.md). Proble
 | `api/` | REST API blueprints ([docs/api.md](docs/api.md)) |
 | `pages/` | Page routes, web app manifest, service worker |
 | `templates/`, `static/` | Jinja2 pages, Alpine.js and Chart.js code, compiled Tailwind CSS (`static/build/`), pinned libraries (`static/vendor/`) |
-| `engine/` | Forecast, recurrence, tax, RSU vesting, ESPP, loans, Then vs. Now, Insights, AI assistant |
+| `engine/` | Balances from records plus transactions (`ledger.py`), forecast, recurrence, tax, RSU vesting, ESPP, loans, Then vs. Now, Insights, AI assistant |
 | `importer/` | File import: readers, rules, matching, AI tools, review pipeline, `flask imports` commands |
 | `ai/` | AI endpoint list and the relay that hands work to a home computer |
 | `audit.py`, `backup.py` | Activity log, stale-save check, Tailscale identity; cloud backups and `flask backups` commands |
@@ -71,7 +71,7 @@ Day-to-day use: [docs/manuals/user-guide.md](docs/manuals/user-guide.md). Proble
 ## Assumptions and where it applies
 
 - US dollars and US federal tax rules for 2026. Other currencies can be displayed, but tax figures assume US rules.
-- Planning, not bookkeeping: a recorded balance is the truth on its date, and the plan explains the rest.
+- Planning first, with light bookkeeping: a recorded balance is the truth on its date, and imported transactions move it until the next one. Plan entries never move a balance.
 - One person or household, trusted with all of the data.
 - Access control is your Tailscale network. The app has no passwords of its own.
 - One app process per database file.
@@ -116,6 +116,7 @@ Running list. Newest first.
 
 The most important ones. The full log, with the reasons and rejected options: [docs/design/DECISIONS.md](docs/design/DECISIONS.md). Plans: [docs/design/README.md](docs/design/README.md).
 
+- 2026-11-24: A balance is the latest recorded balance plus the account's imported transactions since. Only actuals move balances; the forecast, the off-plan insight and taxes use only the plan, so nothing counts twice.
 - 2026-11-24: The desktop app is a copy installed outside the checkout, with a tray that opens the server and shares this PC's AI.
 - 2026-11-24: The import review pages its rows; bulk change acts on every matching row.
 - 2026-11-23: One private VM, reachable only on the tailnet, holds the data. Rejected: Cloud Run with a public URL. Why: SQLite needs a disk, and nothing should be public.

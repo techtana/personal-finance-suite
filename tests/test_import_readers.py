@@ -94,13 +94,14 @@ def test_ofx_parse():
     assert ofx["account_id"].endswith("5678")
 
 
-def test_card_statement_text_uses_sections_and_skips_card_balance(app):
+def test_card_statement_text_uses_sections_and_offers_amount_owed(app):
     c = ctx()
     props = from_text(sample_bytes("card-statement.txt").decode(), c)
     amounts = {p.description: p.amount for p in props}
     assert amounts["PAYMENT THANK YOU"] == 65000
     assert amounts["SAFEWAY #1555 SEATTLE WA"] == -9412
-    assert all(p.target == "change_event" for p in props)  # a card's New Balance is debt, not cash
+    owed = [p for p in props if p.target == "snapshot"]  # a card's New Balance is what you owe
+    assert len(owed) == 1 and owed[0].amount > 0 and owed[0].raw == {"card": True}
     assert {p.date for p in props} >= {"2026-10-05", "2026-11-02"}
     assert c.extracted["account_hint"] == "4821"
 

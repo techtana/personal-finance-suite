@@ -2,7 +2,7 @@
 
 ## 1. What this is and why the project needs it
 
-Most money apps copy every transaction from your bank and sort it into budget categories. This project does something smaller. You tell it the few things that move your money on a schedule (a paycheck, the rent, a loan payment, a stock vest). You also tell it, now and then, what your accounts are really worth. From those two inputs it draws a line of your net worth into the future, and it warns you when reality and the plan drift apart. This note explains the ideas behind that design: net worth, recorded balances, recurring rules, the projection, what-if scenarios, and the checks that keep the plan honest. It also records two bugs in the date code that we confirmed today.
+Most money apps copy every transaction from your bank and sort it into budget categories. This project does something smaller. You tell it the few things that move your money on a schedule (a paycheck, the rent, a loan payment, a stock vest). You also tell it, now and then, what your accounts are really worth. From those two inputs it draws a line of your net worth into the future, and it warns you when reality and the plan drift apart. This note explains the ideas behind that design: net worth, recorded balances, recurring rules, the projection, what-if scenarios, and the checks that keep the plan honest. It also records two bugs in the date code, confirmed on 2026-11-24.
 
 ## 2. The ideas, built up from zero
 
@@ -29,6 +29,12 @@ Net worth is a better single number than "cash on hand" because buying a car doe
 ### 2.3 Recorded balances (snapshots)
 
 A recorded balance is a number you typed in, or imported from a statement, for one account on one date. The code calls it a snapshot (the `Snapshot` table in `models.py`). The key rule of the project is that a recorded balance is the truth on its date. If the plan said your checking account should hold $4,300 on the 1st and the bank statement says $4,120, the statement wins. The plan does not get to argue.
+
+Between two recorded balances, the account's actual transactions explain the movement. Since 2026-11-24 (PR #13) one rule in `engine/ledger.py` gives every balance the app shows:
+
+    balance on a date = latest recorded balance on or before that date + the account's transactions dated after it
+
+A recorded balance counts as the end-of-day balance, so transactions on the same day are already in it. Only things that actually happened move a balance: imported transactions and reconcile adjustments. Plan rules and one-off entries typed on the Plan page never do. When a new recorded balance differs from the previous one plus the transactions in between, the difference is the gap that the Balances page offers to log as one adjustment.
 
 This is how the project avoids the main weakness of planning from schedules, which is that errors pile up. Each fresh balance resets the starting point. The plan only has to be right between check-ins, not forever.
 
@@ -71,7 +77,7 @@ Divergence is the difference between what the plan predicted and what the balanc
 
 Example. Anchor net worth was $100,000 on September 30. The plan expects +$2,000 of net flow by today, so it predicts $102,000. Today's recorded net worth is $98,000. Gap = 98,000 - 102,000 = -$4,000. Divided by $102,000 that is -3.9%, or -392 basis points. With a 5% threshold this is "on track". At -6% it would raise an attention item.
 
-Double counting is the main trap. A real paycheck can be described twice: once as a rule ("salary, monthly") and once as a logged change or an imported bank line ("Payroll, +$5,000"). If both feed the same window, the plan counts the paycheck twice. The forecast avoids this by only counting logged changes dated inside the forecast window, because everything before today is already inside today's balance (a comment in `project_v2` says so). The divergence check does not have that protection. Section 6 shows a confirmed case.
+Double counting is the main trap. A real paycheck can be described twice: once as a rule ("salary, monthly") and once as a logged change or an imported bank line ("Payroll, +$5,000"). If both feed the same window, the plan counts the paycheck twice. The project avoids it by keeping two worlds apart (PR #13, 2026-11-24). The plan is rules, loan payments and one-off Plan entries; the forecast, the divergence check and Taxes use only the plan. The actuals are recorded balances and imported transactions; Balances and net worth use only those. So an imported paycheck never adds to a salary rule.
 
 ### 2.9 Staleness and the monthly check-in
 
@@ -182,7 +188,7 @@ Output: net flow 300000 in each of four months, cumulative 1300000, 1600000, 190
 
 No test covers `engine/recurrence.py` (`grep -rn expand_recurring tests` finds nothing).
 
-**Finding 3: the divergence check double counts a rule and a logged change.**
+**Finding 3 (fixed 2026-11-24 by PR #13): the divergence check double counted a rule and an imported change.**
 
 ```
 python - <<'EOF'
@@ -195,7 +201,7 @@ print(divergence(ents,snaps,rules,[],[],{},"2026-11-24")["bps"], divergence(ents
 EOF
 ```
 
-Output: `0 -1429`. With the rule alone the plan is exact. With the same two paychecks also logged as imported changes, the plan predicts $14,000 instead of $12,000 and reports 14.3% below plan, which is above the 5% threshold and raises an "attention" item. A user who imports bank statements and also keeps a salary rule would see a false alarm. The forecast side is safe, because it only counts changes dated inside the window.
+Output: `0 -1429`. With the rule alone the plan is exact. With the same two paychecks also logged as imported changes, the plan predicts $14,000 instead of $12,000 and reports 14.3% below plan, which is above the 5% threshold and raises an "attention" item. A user who imported bank statements and also kept a salary rule would have seen a false alarm. Rerun on `main` after PR #13 merged, the same script prints `0 0`: imported changes no longer feed the plan.
 
 **Finding 4: the Rule model comment and the Plan form omit "daily".** `models.py` (comment on `Rule.frequency`) lists five values and the Plan form offers five; `schemas.py` and `docs/SRD.md` allow six. This is a documentation gap, not a failure.
 
@@ -203,7 +209,6 @@ Output: `0 -1429`. With the rule alone the plan is exact. With the same two payc
 
 - Should month-end rules clamp, as the SRD says, or skip, as the code does? Clamping matches how rent and bills behave. Skipping is dangerous for a rule that starts on the 31st.
 - Should a rule keep its own start date as the anchor when the window starts later? This is almost certainly the intended behavior.
-- How should divergence treat a logged change that duplicates a rule? Options: ignore changes of type `imported` inside the window, or match each change to a rule by amount and date.
 - Is the whole-payment treatment of loans acceptable once a user has a large mortgage? A principal-and-interest split would need the loan rate (stored in basis points) and `engine/amortization.py`.
 - Should the check-in limit and the divergence limit have different defaults per account type? No evidence either way.
 
@@ -215,5 +220,7 @@ Output: `0 -1429`. With the rule alone the plan is exact. With the same two payc
 - The IEEE 754 floating-point standard explains why 0.1 + 0.2 is not exactly 0.3. A readable account is the essay "What Every Computer Scientist Should Know About Floating-Point Arithmetic", published in ACM Computing Surveys in 1991.
 
 ## Changes
+
+2026-11-25: added the balance rule from `engine/ledger.py` and the plan/actual split (PR #13); finding 3 marked fixed.
 
 2026-11-24: first version.

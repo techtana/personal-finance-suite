@@ -61,6 +61,8 @@ A match sets a flag on the row and, by default, the row is unticked. You decide.
 
 Moving $500 from checking to savings shows up twice: a -$500 line in one account and +$500 in the other. Paying a card from checking shows up as -$612.40 in checking and a payment on the card. Neither is spending or income, and counting them would double the apparent flow. The importer marks them in two ways. First, by words: "transfer", "autopay", "payment thank you", "card payment", and a bank category of "payment" or "transfer". Second, by pairing: if a row looks like a transfer and another account already holds the same amount with the opposite sign within 3 days, it is the other side of that transfer. Person-to-person apps (Zelle, Venmo, Cash App) are not treated as transfers by words alone, because a Zelle "transfer" is usually a payment to someone else.
 
+Since 2026-11-24 (PR #13) a transfer row is imported, ticked by default, with the category `transfer`. It moves the account's balance, so the account still adds up, but the app never counts it as spending, income or a change in net worth. Before that, transfer rows were left unticked and skipped.
+
 ### 2.6 Categories
 
 A category is a label such as groceries or rent. The code chooses from the cheapest, surest source down:
@@ -196,7 +198,7 @@ What it showed. The preamble ("Account: Everyday Checking ...1234") was skipped 
 
 - `2026-11-20 -8217 groceries keyword`: "WHOLE FOODS MKT #10234 SEATTLE WA" became the key `WHOLE FOODS MKT` (-$82.17).
 - `2026-11-14 325000 salary keyword`: the payroll deposit (+$3,250.00).
-- `2026-11-14 -50000 transfer keyword`: "ONLINE TRANSFER TO SAV ..." (-$500.00). Flagged as a transfer, so unticked by default.
+- `2026-11-14 -50000 transfer keyword`: "ONLINE TRANSFER TO SAV ..." (-$500.00). Category `transfer`: imported, but not counted as spending.
 - `2026-11-05 -61240 transfer keyword`: the card autopay (-$612.40), also a transfer.
 - `2026-10-16 -6000 None`, flag `uncategorized`: a Zelle payment to a person; keywords refuse to guess.
 - A last proposal, the balance snapshot dated 2026-11-20 for $4,120.55 (from the newest row's balance).
@@ -244,5 +246,7 @@ Result: `positive_is_money_out`, "5 of 5 recognisable rows", confident (all ten 
 - Python `decimal` module documentation, for exact decimal arithmetic.
 
 ## Changes
+
+2026-11-25: transfers are now imported with category `transfer` instead of skipped (PR #13).
 
 2026-11-24: first version.

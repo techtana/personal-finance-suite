@@ -56,7 +56,7 @@ def get_projection():
         history_months = 0
 
     snaps = _data.snapshot_history()
-    entities = _data.load_entities(snaps)
+    entities = _data.load_entities(snaps, today=today)
     starting_nw = _data.totals(entities)["net_worth"]
     rules, changes, loans = _data.rule_dicts(), _data.change_dicts(), _data.loan_dicts()
 

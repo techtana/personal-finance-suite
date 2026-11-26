@@ -207,12 +207,12 @@ On the server, **Settings → This device** should then show the home computer a
 
 ### Update the server
 
-Merging code changes nothing on the server. Run the same deploy command again, with the same `ALLOWED_LOGINS`. The script updates the VM's settings and restarts it on the new image. The app is offline for about two minutes; the data disk is not touched.
+Merging code changes nothing on the server. Run the deploy command again. Leave `ALLOWED_LOGINS` out to keep the current allowlist; set it to change it (`ALLOWED_LOGINS=` empties it). The script prints how many logins are allowed before it changes anything. The script updates the VM's settings and restarts it on the new image. The app is offline for about two minutes; the data disk is not touched.
 
 ## Add a phone or another device
 
 1. Install Tailscale on the device and sign in to the same tailnet.
-2. Check that your tailnet policy's grant covers that person. If the server uses `ALLOWED_LOGINS`, their login must be on the list (re-deploy to change it).
+2. Check that your tailnet policy's grant covers that person. If the server uses `ALLOWED_LOGINS`, their login must be on the list (re-deploy with the new list to change it).
 3. Open `https://finance.<tailnet>.ts.net` (or your one-computer address).
 4. Install it:
    - **Android (Chrome):** menu → **Install app**, or **Install app** in the app's menu.
