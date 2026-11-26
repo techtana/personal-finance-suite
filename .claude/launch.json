@@ -8,6 +8,20 @@
       "port": 5057
     },
     {
+      "name": "ledger-demo",
+      "runtimeExecutable": ".venv/Scripts/python",
+      "runtimeArgs": ["-m", "flask", "--app", "app:create_app", "run", "--port", "5063"],
+      "env": {"FINANCE_DB_PATH": "C:/Code/personal-finance-suite/instance/ledger-demo.db", "IMPORT_STORAGE_DIR": "C:/Code/personal-finance-suite/instance/ledger-demo-imports"},
+      "port": 5063
+    },
+    {
+      "name": "load-demo",
+      "runtimeExecutable": ".venv/Scripts/python",
+      "runtimeArgs": ["-m", "flask", "--app", "app:create_app", "run", "--port", "5064"],
+      "env": {"FINANCE_DB_PATH": "C:/Code/personal-finance-suite/instance/load-demo.db", "LLM_PROVIDER": "off"},
+      "port": 5064
+    },
+    {
       "name": "wireframes",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "5500", "--bind", "127.0.0.1", "--directory", "docs/wireframes-v3"],
